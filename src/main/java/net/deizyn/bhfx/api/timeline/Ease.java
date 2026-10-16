@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.timeline;
+package net.deizyn.bhfx.api.timeline;
 
 /** Small easing helpers for envelopes. All inputs outside their range are clamped. */
 public final class Ease {

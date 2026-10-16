@@ -1,9 +1,9 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.client.Fx;
-import net.offkung.bhfx.api.client.FrameContext;
+import net.deizyn.bhfx.api.client.Fx;
+import net.deizyn.bhfx.api.client.FrameContext;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;

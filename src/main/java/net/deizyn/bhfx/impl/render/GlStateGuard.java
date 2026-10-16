@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.render;
+package net.deizyn.bhfx.impl.render;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;

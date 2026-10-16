@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 /**
  * One anime impact frame look: a kind plus two colours, so any palette works without new shader code.

@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.server;
+package net.deizyn.bhfx.impl.server;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -8,18 +8,18 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.offkung.bhfx.BHFxMod;
-import net.offkung.bhfx.api.Audience;
-import net.offkung.bhfx.api.FxHandle;
-import net.offkung.bhfx.api.FxKey;
-import net.offkung.bhfx.api.FxParams;
-import net.offkung.bhfx.api.FxSpawn;
-import net.offkung.bhfx.api.StopMode;
-import net.offkung.bhfx.impl.BHFxConfig;
-import net.offkung.bhfx.impl.net.BHFxNetwork;
-import net.offkung.bhfx.impl.net.S2CFxStart;
-import net.offkung.bhfx.impl.net.S2CFxStop;
-import net.offkung.bhfx.impl.net.S2CFxUpdate;
+import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.Audience;
+import net.deizyn.bhfx.api.FxHandle;
+import net.deizyn.bhfx.api.FxKey;
+import net.deizyn.bhfx.api.FxParams;
+import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.StopMode;
+import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.net.BHFxNetwork;
+import net.deizyn.bhfx.impl.net.S2CFxStart;
+import net.deizyn.bhfx.impl.net.S2CFxStop;
+import net.deizyn.bhfx.impl.net.S2CFxUpdate;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;

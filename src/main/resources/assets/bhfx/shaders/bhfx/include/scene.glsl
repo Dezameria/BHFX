@@ -1,4 +1,6 @@
 // bhfx scene reconstruction. Camera at the origin, world axes, units in blocks (camera-relative world space).
+// Rays start at Eye, not the origin: view bobbing moves the real eye a little while walking. Positions from the depth
+// buffer are exact either way; only analytic shapes need the right origin.
 // DiffuseSampler = what earlier passes drew (or the world), SceneSampler = the untouched world, DepthSampler = depth.
 
 #ifndef BHFX_FAR
@@ -20,27 +22,29 @@ vec3 unprojectAt(vec2 uv, float depth) {
     return (InvView * vec4(p.xyz, 1.0)).xyz;
 }
 
-/** Unit view ray through screen uv. The camera is the origin, so any point on the ray gives its direction. */
+/** Unit view ray through screen uv, starting at Eye. */
 vec3 viewDir(vec2 uv) {
-    return normalize(unprojectAt(uv, 0.5));
+    return normalize(unprojectAt(uv, 0.5) - Eye);
 }
 
 struct Scene {
     vec3 color;   // current colour (earlier passes included)
+    vec3 origin;  // where the ray starts (Eye)
     vec3 dir;     // unit view ray
     vec3 pos;     // visible surface, camera-relative; far along dir for sky
-    float dist;   // distance to pos
+    float dist;   // distance from origin to pos (pos = origin + dir * dist)
     bool sky;
 };
 
 Scene sceneAt(vec2 uv) {
     Scene s;
     s.color = texture(DiffuseSampler, uv).rgb;
+    s.origin = Eye;
     s.dir = viewDir(uv);
     float d = sceneDepth(uv);
     s.sky = depthIsSky(d);
-    s.pos = s.sky ? s.dir * BHFX_FAR : unprojectAt(uv, d);
-    s.dist = length(s.pos);
+    s.pos = s.sky ? Eye + s.dir * BHFX_FAR : unprojectAt(uv, d);
+    s.dist = length(s.pos - Eye);
     return s;
 }
 

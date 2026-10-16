@@ -1,6 +1,6 @@
 # bhfx — แผน API (ร่าง v0.1)
 
-Library mod สำหรับเอฟเฟค post-processing และ world-space shader ที่รู้ depth สำหรับ Forge 1.20.1 ให้ BHSpells (และ mod อื่นของ OffKunG) import ไปใช้
+Library mod สำหรับเอฟเฟค post-processing และ world-space shader ที่รู้ depth สำหรับ Forge 1.20.1 ให้ BHSpells (และ mod อื่นของ deizyn) import ไปใช้
 
 > สถานะ: **0.1 และ 0.2 เขียนโค้ดแล้ว** (ดู "ส่วนที่ทำต่างจากแผน" และ "ยังไม่ได้ทำ" ใน `README.md`) ชื่อคลาสและ method ทั้งหมดเปลี่ยนได้จนกว่าจะออก 1.0
 > แนวคิดได้จากการวิเคราะห์ mod The Shooting Star (เอกสาร `01`–`07` ในโฟลเดอร์ docs ของ jar ที่แตกไฟล์ไว้) แต่ **โค้ดและ shader ทั้งหมดเขียนใหม่** (ต้นฉบับเป็น All Rights Reserved)
@@ -11,18 +11,18 @@ Library mod สำหรับเอฟเฟค post-processing และ world
 
 | หัวข้อ | ค่า |
 | :--- | :--- |
-| mod id / package | `bhfx` / `net.offkung.bhfx` |
+| mod id / package | `bhfx` / `net.deizyn.bhfx` |
 | Minecraft / Forge | 1.20.1 / 47.4.0 (ตรงกับ BHSpells) |
 | Mappings | Parchment `2023.09.03-1.20.1` (ตรงกับ BHSpells) |
 | OpenGL | 3.3 core (GLSL `#version 150`) |
-| การแจก | maven local ตอนพัฒนา (`net.offkung:bhfx:0.1.0`), **แจกเป็น jar แยก** (ไม่ `jarJar` ใน BHSpells เพราะต้องถอดออกได้) |
+| การแจก | maven local ตอนพัฒนา (`net.deizyn:bhfx:0.1.0`), **แจกเป็น jar แยก** (ไม่ `jarJar` ใน BHSpells เพราะต้องถอดออกได้) |
 | ความสัมพันธ์กับ BHSpells | **soft dependency**: BHSpells ทำงานได้ด้วย Effekseer อย่างเดียวถ้าไม่มี bhfx (หัวข้อ 6.0) |
 | Client/Server | **ต้องมี bhfx ทั้งสองฝั่งหรือไม่มีทั้งคู่** (network channel แบบ strict, หัวข้อ 3) |
 | ข้อมูลในโลก | **ไม่เก็บอะไรลง save และไม่ลงทะเบียน block/item/entity** → ถอดออกได้ทุกเมื่อโดยโลกไม่เสีย |
 | เวอร์ชัน | `0.x` = API ยังเปลี่ยนได้, `1.0` = API นิ่ง (SemVer) |
 
 ### กฎของ library
-1. **`net.offkung.bhfx.api.*` เท่านั้นที่ mod อื่น import ได้** ส่วน `impl.*` เปลี่ยนได้ตลอดเวลา
+1. **`net.deizyn.bhfx.api.*` เท่านั้นที่ mod อื่น import ได้** ส่วน `impl.*` เปลี่ยนได้ตลอดเวลา
 2. **API ฝั่ง common ห้ามอ้างถึง class ของ client** (`Minecraft`, `RenderSystem` ฯลฯ) เพื่อให้ dedicated server ไม่ crash
 3. **bhfx เป็นเจ้าของ network channel เดียว** mod ที่ใช้ไม่ต้องลงทะเบียน packet เพื่อ VFX เอง (แทน `HeavenlyComboVfxPacket` และ packet VFX เฉพาะสกิลในอนาคต)
 4. **ไม่มีเอฟเฟค = ไม่มีต้นทุน**: เมื่อไม่มี Fx ทำงาน ห้ามแตะ OpenGL เลย
@@ -33,7 +33,7 @@ Library mod สำหรับเอฟเฟค post-processing และ world
 ## 1. โครงสร้าง package
 
 ```
-net.offkung.bhfx
+net.deizyn.bhfx
  ├─ BHFxMod                      @Mod entry
  ├─ api/                         ← สาธารณะ
  │   ├─ BHFx                     facade ฝั่งเซิร์ฟเวอร์ (start/stop/update/screen pulse)
@@ -418,11 +418,14 @@ uniform sampler2D DiffuseSampler;   // ผลของ pass ก่อนหน�
 uniform sampler2D SceneSampler;     // ภาพโลกดั้งเดิมก่อนมีเอฟเฟค
 uniform sampler2D DepthSampler;     // depth ของโลก
 uniform mat4 InvProj, InvView, ViewProj;
+uniform vec3 Eye;                   // จุดเริ่มของ ray (camera-relative) ไม่ใช่ 0 เสมอ เพราะ view bobbing ขยับตาตอนเดิน
 uniform vec2 OutSize;               // ขนาด target ของ pass นี้
 uniform float GameTime;             // วินาที (วนรอบวัน)
 in vec2 texCoord;
 out vec4 fragColor;                 // a = 1 แสง, a = 0 วัตถุทึบที่วาด (ใช้เป็น mask ของ bloom)
 ```
+Shape แบบ analytic (ray กับทรงกระบอก ทรงกลม ฯลฯ) ต้องใช้ `Eye` (หรือ `Scene.origin`) เป็นจุดเริ่มของ ray ห้ามใช้ `vec3(0.0)` ไม่งั้นเอฟเฟคจะโยกเทียบกับพื้นตอนเดิน
+
 คำสั่ง `#include "bhfx:light.glsl"` ถูกแทนที่ตอนโหลด พร้อมใส่ `#line` เพื่อให้ error ระบุบรรทัดตรงกับไฟล์จริง
 
 ### 5.3 ไลบรารี include ที่ bhfx มีให้ (เขียนใหม่ทั้งหมด)
@@ -444,7 +447,7 @@ BHSpells ห้ามอ้างถึง class ของ bhfx ตรงๆ ใ
 
 ```
 BHSpells
- ├─ build.gradle         compileOnly fg.deobf("net.offkung:bhfx:0.1.0")   + runtimeOnly ตอน dev
+ ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.1.0")   + runtimeOnly ตอน dev
  │                       (ไม่ใช่ implementation และไม่ jarJar)
  ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.1,0.2)"
  └─ compat/bhfx/
@@ -454,7 +457,7 @@ BHSpells
 ```
 
 ```java
-// compat/bhfx/BhfxCompat.java  (ห้าม import net.offkung.bhfx.*)
+// compat/bhfx/BhfxCompat.java  (ห้าม import net.deizyn.bhfx.*)
 public final class BhfxCompat {
     private static final boolean LOADED = ModList.get().isLoaded("bhfx");
 
@@ -641,7 +644,7 @@ Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_u
 
 | # | เรื่อง | ตัดสินใจ | ผลต่อการออกแบบ |
 | :--- | :--- | :--- | :--- |
-| 1 | ชื่อ | `bhfx` / `net.offkung.bhfx` | — |
+| 1 | ชื่อ | `bhfx` / `net.deizyn.bhfx` | — |
 | 2 | Dependency ใน BHSpells | **ไม่บังคับ** ใช้แค่ Effekseer ได้ถ้าไม่มี | BHSpells ต้องเรียกผ่าน bridge (6.0) และออกแบบ bhfx เป็น "ชั้นเสริม" ไม่ใช่ตัวหลัก |
 | 3 | Client/Server ต่างกัน | **ต้องมีเหมือนกันทั้งสองฝั่ง** + ต้องมั่นใจเรื่อง performance และถอดออกได้ | channel แบบ strict (3), มีสวิตช์ปิดทั้ง client/server + ระบบป้องกัน lag (11) |
 | 4 | ส่งให้คนที่เข้ามาทีหลัง | **ทำใน 0.2** | 0.1 ใช้วิธีแก้ชั่วคราวผ่าน entity (12.3) จึงย้าย `BHFxClient.play` มาไว้ 0.1 |

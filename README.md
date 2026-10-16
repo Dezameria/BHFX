@@ -18,8 +18,8 @@ Library mod สำหรับ Forge 1.20.1: เอฟเฟค post-processing 
 ```gradle
 repositories { mavenLocal() }
 dependencies {
-    compileOnly fg.deobf("net.offkung:bhfx:0.2.0")
-    runtimeOnly fg.deobf("net.offkung:bhfx:0.2.0")   // เฉพาะตอน dev ถ้าอยากรันพร้อมกัน
+    compileOnly fg.deobf("net.deizyn:bhfx:0.2.0")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.2.0")   // เฉพาะตอน dev ถ้าอยากรันพร้อมกัน
 }
 ```
 
@@ -56,7 +56,7 @@ dependencies {
 ## โครงสร้าง
 
 ```
-net.offkung.bhfx
+net.deizyn.bhfx
  ├─ api/            BHFx, FxSpawn, FxParam(s), FxHandle, FxKey, StopMode, Follow, Audience
  │   ├─ timeline/   Timeline, Ease
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,

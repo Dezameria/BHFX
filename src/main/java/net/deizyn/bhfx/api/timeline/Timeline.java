@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.timeline;
+package net.deizyn.bhfx.api.timeline;
 
 import java.util.HashMap;
 import java.util.Map;

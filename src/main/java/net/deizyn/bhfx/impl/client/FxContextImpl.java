@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -7,8 +7,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.client.Fx;
-import net.offkung.bhfx.api.client.FxContext;
+import net.deizyn.bhfx.api.client.Fx;
+import net.deizyn.bhfx.api.client.FxContext;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;

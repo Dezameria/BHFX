@@ -1,19 +1,19 @@
-package net.offkung.bhfx.impl.client.test;
+package net.deizyn.bhfx.impl.client.test;
 
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.BHFxMod;
-import net.offkung.bhfx.api.FxParam;
-import net.offkung.bhfx.api.client.Fx;
-import net.offkung.bhfx.api.client.FxContext;
-import net.offkung.bhfx.api.client.FxInit;
-import net.offkung.bhfx.api.client.FrameContext;
-import net.offkung.bhfx.api.client.ImpactSequence;
-import net.offkung.bhfx.api.client.ImpactStyle;
-import net.offkung.bhfx.api.client.PassList;
-import net.offkung.bhfx.api.client.ScreenParams;
-import net.offkung.bhfx.api.timeline.Timeline;
+import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.FxParam;
+import net.deizyn.bhfx.api.client.Fx;
+import net.deizyn.bhfx.api.client.FxContext;
+import net.deizyn.bhfx.api.client.FxInit;
+import net.deizyn.bhfx.api.client.FrameContext;
+import net.deizyn.bhfx.api.client.ImpactSequence;
+import net.deizyn.bhfx.api.client.ImpactStyle;
+import net.deizyn.bhfx.api.client.PassList;
+import net.deizyn.bhfx.api.client.ScreenParams;
+import net.deizyn.bhfx.api.timeline.Timeline;
 
 /**
  * Built-in effect for /bhfx_test: a warning ring, then a column of light that terrain hides correctly, a shock ring and

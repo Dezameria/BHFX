@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api;
+package net.deizyn.bhfx.api;
 
 /** How a running effect should end when it is stopped before its natural duration. */
 public enum StopMode {

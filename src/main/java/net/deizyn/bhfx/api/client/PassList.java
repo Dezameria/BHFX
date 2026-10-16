@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 import net.minecraft.resources.ResourceLocation;
 

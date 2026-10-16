@@ -1,11 +1,11 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.FxParams;
-import net.offkung.bhfx.api.FxSpawn;
-import net.offkung.bhfx.api.StopMode;
+import net.deizyn.bhfx.api.FxParams;
+import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.StopMode;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 

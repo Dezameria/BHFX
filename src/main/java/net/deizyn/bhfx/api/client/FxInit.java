@@ -1,10 +1,10 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.Follow;
-import net.offkung.bhfx.api.FxParams;
-import net.offkung.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.Follow;
+import net.deizyn.bhfx.api.FxParams;
+import net.deizyn.bhfx.api.FxSpawn;
 
 /**
  * Start data handed to an effect's constructor.

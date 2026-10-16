@@ -1,9 +1,9 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.event.IModBusEvent;
-import net.offkung.bhfx.impl.client.ClientFxManager;
+import net.deizyn.bhfx.impl.client.ClientFxManager;
 
 /**
  * Fired once on each mod's event bus during client setup. Register every effect id your mod starts:

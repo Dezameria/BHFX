@@ -1,12 +1,12 @@
-package net.offkung.bhfx.impl.render;
+package net.deizyn.bhfx.impl.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.FxParam;
-import net.offkung.bhfx.api.client.FrameContext;
-import net.offkung.bhfx.api.client.Uniforms;
+import net.deizyn.bhfx.api.FxParam;
+import net.deizyn.bhfx.api.client.FrameContext;
+import net.deizyn.bhfx.api.client.Uniforms;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
 

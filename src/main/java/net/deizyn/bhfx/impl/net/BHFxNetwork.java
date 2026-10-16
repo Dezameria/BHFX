@@ -1,10 +1,10 @@
-package net.offkung.bhfx.impl.net;
+package net.deizyn.bhfx.impl.net;
 
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-import net.offkung.bhfx.BHFxMod;
+import net.deizyn.bhfx.BHFxMod;
 
 public final class BHFxNetwork {
     /** Strict: client and server must both have bhfx with the same protocol. */

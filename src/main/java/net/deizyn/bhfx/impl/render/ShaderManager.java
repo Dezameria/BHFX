@@ -1,9 +1,9 @@
-package net.offkung.bhfx.impl.render;
+package net.deizyn.bhfx.impl.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
-import net.offkung.bhfx.BHFxMod;
+import net.deizyn.bhfx.BHFxMod;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
@@ -48,6 +48,7 @@ final class ShaderManager {
             uniform mat4 InvProj;
             uniform mat4 InvView;
             uniform mat4 ViewProj;
+            uniform vec3 Eye;
             uniform vec2 OutSize;
             uniform vec2 ScreenSize;
             uniform float GameTime;

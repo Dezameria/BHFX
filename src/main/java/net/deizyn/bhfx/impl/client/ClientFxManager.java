@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -8,19 +8,19 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.BHFxMod;
+import net.deizyn.bhfx.BHFxMod;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.offkung.bhfx.api.FxParams;
-import net.offkung.bhfx.api.FxSpawn;
-import net.offkung.bhfx.api.client.FxSettings;
-import net.offkung.bhfx.api.StopMode;
-import net.offkung.bhfx.api.client.Fx;
-import net.offkung.bhfx.api.client.FxFactory;
-import net.offkung.bhfx.api.client.FxInit;
-import net.offkung.bhfx.api.client.LocalFxHandle;
-import net.offkung.bhfx.impl.BHFxConfig;
-import net.offkung.bhfx.impl.render.PostRenderer;
+import net.deizyn.bhfx.api.FxParams;
+import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.client.FxSettings;
+import net.deizyn.bhfx.api.StopMode;
+import net.deizyn.bhfx.api.client.Fx;
+import net.deizyn.bhfx.api.client.FxFactory;
+import net.deizyn.bhfx.api.client.FxInit;
+import net.deizyn.bhfx.api.client.LocalFxHandle;
+import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.render.PostRenderer;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 

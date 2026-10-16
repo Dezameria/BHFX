@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 /**
  * @param order lower draws first, sorted across all effects. Suggested: world-space 0, full-screen overlays 100.

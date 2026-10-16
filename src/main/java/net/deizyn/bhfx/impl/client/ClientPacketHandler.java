@@ -1,9 +1,9 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
-import net.offkung.bhfx.api.client.FxInit;
-import net.offkung.bhfx.impl.net.S2CFxStart;
-import net.offkung.bhfx.impl.net.S2CFxStop;
-import net.offkung.bhfx.impl.net.S2CFxUpdate;
+import net.deizyn.bhfx.api.client.FxInit;
+import net.deizyn.bhfx.impl.net.S2CFxStart;
+import net.deizyn.bhfx.impl.net.S2CFxStop;
+import net.deizyn.bhfx.impl.net.S2CFxUpdate;
 
 public final class ClientPacketHandler {
     private ClientPacketHandler() {

@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api.client;
+package net.deizyn.bhfx.api.client;
 
 /** The player's effect settings, read-only. Values already account for an automatic quality downgrade. */
 public interface FxSettings {

@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api;
+package net.deizyn.bhfx.api;
 
 import net.minecraft.world.entity.Entity;
 

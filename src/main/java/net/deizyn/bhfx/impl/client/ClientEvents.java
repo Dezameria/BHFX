@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import com.mojang.brigadier.Command;
 import net.minecraft.client.Minecraft;
@@ -12,7 +12,7 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.offkung.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.BHFxConfig;
 
 /** Forge-bus hooks. bhfx needs no mixins: it renders at {@code AFTER_LEVEL}, after the world and before the hand. */
 public final class ClientEvents {

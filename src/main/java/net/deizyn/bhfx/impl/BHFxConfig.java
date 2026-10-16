@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl;
+package net.deizyn.bhfx.impl;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 

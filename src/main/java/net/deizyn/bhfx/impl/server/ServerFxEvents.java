@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.server;
+package net.deizyn.bhfx.impl.server;
 
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -17,10 +17,10 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.offkung.bhfx.BHFxMod;
-import net.offkung.bhfx.api.BHFx;
-import net.offkung.bhfx.api.FxParam;
-import net.offkung.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.BHFx;
+import net.deizyn.bhfx.api.FxParam;
+import net.deizyn.bhfx.api.FxSpawn;
 
 public final class ServerFxEvents {
     private ServerFxEvents() {

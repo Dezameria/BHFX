@@ -1,9 +1,9 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.world.phys.Vec3;
-import net.offkung.bhfx.api.client.ImpactStyle;
-import net.offkung.bhfx.api.client.ScreenParams;
-import net.offkung.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.api.client.ImpactStyle;
+import net.deizyn.bhfx.api.client.ScreenParams;
+import net.deizyn.bhfx.impl.BHFxConfig;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector2f;
 

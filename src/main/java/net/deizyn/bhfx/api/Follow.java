@@ -1,4 +1,4 @@
-package net.offkung.bhfx.api;
+package net.deizyn.bhfx.api;
 
 /** Whether an effect's position tracks an entity. */
 public enum Follow {

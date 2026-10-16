@@ -1,8 +1,8 @@
-package net.offkung.bhfx.api;
+package net.deizyn.bhfx.api;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.offkung.bhfx.impl.server.ServerFx;
+import net.deizyn.bhfx.impl.server.ServerFx;
 
 import java.util.Optional;
 

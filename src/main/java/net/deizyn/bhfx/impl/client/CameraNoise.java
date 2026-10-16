@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 /** Smooth 1D value noise in [-1, 1] for camera shake: continuous, so the camera sways instead of jittering. */
 final class CameraNoise {

@@ -84,7 +84,7 @@ tasks.named('jar', Jar).configure {
 }
 
 // BHSpells consumes bhfx from mavenLocal: ./gradlew publishToMavenLocal
-// then in BHSpells: compileOnly fg.deobf("net.offkung:bhfx:0.1.0")
+// then in BHSpells: compileOnly fg.deobf("net.deizyn:bhfx:0.1.0")
 publishing {
     publications {
         register('mavenJava', MavenPublication) {

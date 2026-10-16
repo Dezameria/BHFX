@@ -1,9 +1,9 @@
-package net.offkung.bhfx.impl.client;
+package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.resources.ResourceLocation;
-import net.offkung.bhfx.api.client.PassList;
-import net.offkung.bhfx.api.client.PassOptions;
-import net.offkung.bhfx.api.client.Uniforms;
+import net.deizyn.bhfx.api.client.PassList;
+import net.deizyn.bhfx.api.client.PassOptions;
+import net.deizyn.bhfx.api.client.Uniforms;
 
 import java.util.ArrayList;
 import java.util.Comparator;

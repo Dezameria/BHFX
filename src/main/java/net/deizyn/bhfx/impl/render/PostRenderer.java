@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.render;
+package net.deizyn.bhfx.impl.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -6,12 +6,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.offkung.bhfx.BHFxMod;
-import net.offkung.bhfx.api.client.ImpactStyle;
-import net.offkung.bhfx.impl.BHFxConfig;
-import net.offkung.bhfx.impl.client.PassListImpl;
-import net.offkung.bhfx.impl.client.ScreenParamsImpl;
+import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.client.ImpactStyle;
+import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.client.PassListImpl;
+import net.deizyn.bhfx.impl.client.ScreenParamsImpl;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -55,6 +57,8 @@ public final class PostRenderer {
     private final Matrix4f invProj = new Matrix4f();
     private final Matrix4f invView = new Matrix4f();
     private final Matrix4f viewProj = new Matrix4f();
+    private final Vector4f eyeClip = new Vector4f();
+    private final Vector3f eye = new Vector3f();
     private final FloatBuffer matrixBuf = BufferUtils.createFloatBuffer(16);
     private final Set<ResourceLocation> failedSetups = new HashSet<>();
 
@@ -216,6 +220,7 @@ public final class PostRenderer {
             invProj.set(projection).invert();
             invView.set(view).invert();
             viewProj.set(projection).mul(view);
+            computeEye();
 
             int input = snapshotTex;
             int ping = 0;
@@ -372,6 +377,21 @@ public final class PostRenderer {
         binder.f2("OutSize", outW, outH);
         binder.f2("ScreenSize", fullW, fullH);
         binder.f1("GameTime", time);
+        binder.f3("Eye", eye.x, eye.y, eye.z);
+    }
+
+    /**
+     * Where rays really start, camera-relative. Minecraft folds view bobbing (and the hurt tilt) into the projection
+     * matrix, so while walking the eye sits a little off the origin. The projection maps its centre to (0, 0, k, 0),
+     * so the inverse of that direction is the eye.
+     */
+    private void computeEye() {
+        invProj.transform(eyeClip.set(0f, 0f, 1f, 0f));
+        if (Math.abs(eyeClip.w) < 1e-12f) {
+            eye.zero();
+            return;
+        }
+        invView.transformPosition(eye.set(eyeClip.x / eyeClip.w, eyeClip.y / eyeClip.w, eyeClip.z / eyeClip.w));
     }
 
     private void bindUnit(int unit, int texture, ShaderProgram program, String sampler) {

@@ -65,22 +65,23 @@ void main() {
     // the column: an opaque glowing cylinder from the ground up, cut off by whatever is in front of it
     if (P0.z > 0.001) {
         float top = Target.y + 320.0;
-        vec2 hit = rayCylinderY(vec3(0.0), s.dir, axis, beamR);
+        vec3 ro = s.origin;
+        vec2 hit = rayCylinderY(ro, s.dir, axis, beamR);
         float t0 = max(hit.x, 0.0);
         float t1 = min(hit.y, s.dist);
         if (abs(s.dir.y) > 1e-5) {
-            float ta = Target.y / s.dir.y;
-            float tb = top / s.dir.y;
+            float ta = (Target.y - ro.y) / s.dir.y;
+            float tb = (top - ro.y) / s.dir.y;
             t0 = max(t0, min(ta, tb));
             t1 = min(t1, max(ta, tb));
-        } else if (Target.y > 0.0 || top < 0.0) {
+        } else if (Target.y > ro.y || top < ro.y) {
             t1 = -1.0;
         }
         float tAxis;
-        float b = rayAxisY(vec3(0.0), s.dir, axis, tAxis);
+        float b = rayAxisY(ro, s.dir, axis, tAxis);
         if (hit.y > 0.0 && t1 > t0) {
             float x = clamp(b / beamR, 0.0, 1.0);
-            vec3 enter = s.dir * t0;
+            vec3 enter = ro + s.dir * t0;
             float ang = atan(enter.z - axis.y, enter.x - axis.x);
             float flow = vnoise2(vec2(ang * 3.0, (enter.y - Target.y - GameTime * 60.0) * 0.05));
             vec3 body = mix(vec3(1.0, 0.45, 0.12), vec3(0.75, 0.12, 0.03), smoothstep(0.3, 1.0, x));
@@ -89,7 +90,7 @@ void main() {
             base = mix(base, body, P0.z);
         } else if (tAxis < s.dist) {
             // the air round it glowing, only beside the column's height
-            float y = s.dir.y * tAxis;
+            float y = ro.y + s.dir.y * tAxis;
             float beside = step(Target.y - 2.0, y) * step(y, top);
             float out_ = max(b - beamR, 0.0);
             glow += WARN * glowExp2(out_, beamR * 0.25, beamR * 2.0, 0.15) * 0.6 * P0.z * beside;

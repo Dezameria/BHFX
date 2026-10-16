@@ -1,4 +1,4 @@
-package net.offkung.bhfx;
+package net.deizyn.bhfx;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
@@ -11,9 +11,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.offkung.bhfx.impl.BHFxConfig;
-import net.offkung.bhfx.impl.net.BHFxNetwork;
-import net.offkung.bhfx.impl.server.ServerFxEvents;
+import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.net.BHFxNetwork;
+import net.deizyn.bhfx.impl.server.ServerFxEvents;
 import org.slf4j.Logger;
 
 @Mod(BHFxMod.MODID)
@@ -27,7 +27,7 @@ public final class BHFxMod {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, BHFxConfig.CLIENT_SPEC, "bhfx-client.toml");
         modBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(ServerFxEvents.class);
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> net.offkung.bhfx.impl.client.ClientBootstrap.init(modBus));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> net.deizyn.bhfx.impl.client.ClientBootstrap.init(modBus));
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

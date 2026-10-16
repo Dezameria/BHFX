@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.render;
+package net.deizyn.bhfx.impl.render;
 
 /**
  * Keeps bhfx's GPU time under the budget by scaling the share of pixels effect passes use (0.25..1).

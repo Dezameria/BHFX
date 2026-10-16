@@ -1,4 +1,4 @@
-package net.offkung.bhfx.impl.net;
+package net.deizyn.bhfx.impl.net;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -6,8 +6,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
-import net.offkung.bhfx.api.Follow;
-import net.offkung.bhfx.api.FxParams;
+import net.deizyn.bhfx.api.Follow;
+import net.deizyn.bhfx.api.FxParams;
 
 import java.util.function.Supplier;
 
@@ -35,7 +35,7 @@ public record S2CFxStart(int handleId, ResourceLocation fxId, Vec3 origin, Vec3 
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> net.offkung.bhfx.impl.client.ClientPacketHandler.start(this));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> net.deizyn.bhfx.impl.client.ClientPacketHandler.start(this));
         ctx.get().setPacketHandled(true);
     }
 
