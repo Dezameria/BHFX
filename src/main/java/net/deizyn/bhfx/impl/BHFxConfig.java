@@ -42,6 +42,8 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.DoubleValue FLASH_SCALE;
     public static final ForgeConfigSpec.DoubleValue SHAKE_SCALE;
     public static final ForgeConfigSpec.BooleanValue IMPACT_FRAMES;
+    public static final ForgeConfigSpec.BooleanValue OFF_WITH_SHADERPACK;
+    public static final ForgeConfigSpec.BooleanValue WARMUP;
 
     static {
         ForgeConfigSpec.Builder s = new ForgeConfigSpec.Builder();
@@ -69,6 +71,13 @@ public final class BHFxConfig {
                 .define("autoDowngrade", true);
         BLOOM = c.comment("Glow around bright spell light.")
                 .define("bloom", true);
+        WARMUP = c.comment("Compile effect shaders while the world loads (one per frame) instead of on the first cast.")
+                .define("warmup", true);
+        c.pop();
+        c.push("compat");
+        OFF_WITH_SHADERPACK = c.comment("Turn post effects off while an Iris/Oculus shader pack is active (camera shake still works).",
+                        "Shader packs draw the world into their own buffers, so bhfx's depth would not match what is on screen.")
+                .define("offWithShaderpack", true);
         c.pop();
         c.push("limits");
         MAX_ACTIVE_FX = c.comment("Most effects alive at once; the oldest is removed beyond this.")

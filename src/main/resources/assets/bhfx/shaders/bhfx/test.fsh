@@ -5,6 +5,8 @@
 #include "bhfx:shapes.glsl"
 #include "bhfx:light.glsl"
 #include "bhfx:noise.glsl"
+#include "bhfx:ground.glsl"
+#include "bhfx:sdf2d.glsl"
 
 uniform vec3 Target;  // ground point, camera-relative
 uniform vec4 P0;      // radius, warning 0..1, column 0..1, seconds since impact (< 0 before)
@@ -21,23 +23,26 @@ void main() {
     float R = P0.x;
     float beamR = R * 0.3;
     vec2 axis = Target.xz;
-    float pix = pixelAngle(texCoord);
+    float aa = groundAA(s, texCoord);
 
     if (!s.sky) {
-        float hd = length(s.pos.xz - axis);
-        float nearGround = 1.0 - smoothstep(16.0, 24.0, abs(s.pos.y - Target.y));
+        float hd = groundDistance(s, Target);
+        float nearGround = groundBand(s, Target.y, 16.0);
         // never thinner than about one pixel, so the ring stays solid far away
-        float w = max(0.12, s.dist * pix * 1.5);
+        float w = max(0.12, aa * 1.5);
 
         // warning: a dashed rim turning, pulses closing on the centre, a faint fill
         if (P0.y > 0.001) {
             float ang = atan(s.pos.z - axis.y, s.pos.x - axis.x);
-            float rim = 1.0 - smoothstep(0.0, w * 1.5, abs(hd - R));
+            float rim = groundRing(s, Target, R, w, aa);
             float dash = step(0.4, fract(ang / TAU * floor(R * 1.5) - GameTime * 0.6));
             float k = fract(GameTime * 0.9);
             float pulse = (1.0 - smoothstep(0.0, w * 2.0 + 0.3, abs(hd - R * (1.0 - k)))) * (1.0 - k);
             float fill = (1.0 - smoothstep(0.0, R, hd)) * 0.08;
-            glow += WARN * (rim * dash * 2.2 + pulse * 1.4 + fill) * P0.y * nearGround;
+            // a turning five-pointed glyph inside the ring
+            vec3 dec = groundDecal(s, Target, R * 0.7, GameTime * 0.4);
+            float glyph = aaLine(sdStar(dec.xy, 0.95, 5, 0.42), 0.035, aa / (R * 0.7)) * dec.z;
+            glow += WARN * (rim * dash * 2.2 + pulse * 1.4 + fill + glyph * 1.2) * P0.y * nearGround;
         }
 
         // the column lighting the land round it: 1/d from a long light, cut off further out
@@ -50,7 +55,7 @@ void main() {
         // shock ring rolling out for two seconds after impact
         if (P0.w >= 0.0 && P0.w < 2.0) {
             float front = beamR + P0.w * 45.0;
-            float ring = glowExp(abs(hd - front), 1.0 + P0.w * 3.0) * (1.0 - P0.w / 2.0);
+            float ring = shockRing(s, Target, front, 1.0 + P0.w * 3.0) * (1.0 - P0.w / 2.0);
             glow += mix(HOT, WARN, P0.w / 2.0) * ring * 2.0 * nearGround;
         }
 

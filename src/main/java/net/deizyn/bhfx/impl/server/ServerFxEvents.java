@@ -33,6 +33,14 @@ public final class ServerFxEvents {
         }
     }
 
+    /** Send the starts queued this tick (after every level ticked, so the tracker's sends go out in the same tick). */
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            ServerFx.flush();
+        }
+    }
+
     // a client loses its effects on logout, respawn and dimension change; let the tracker send them again
 
     @SubscribeEvent

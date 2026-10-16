@@ -59,6 +59,9 @@ public final class ClientFxManager {
     private static final Matrix4f VIEW = new Matrix4f();
     private static final Matrix4f PROJ = new Matrix4f();
     private static final Matrix4f VIEW_PROJ = new Matrix4f();
+    private static final ShaderWarmup WARMUP = new ShaderWarmup();
+    private static final FrameStats STATS = new FrameStats();
+    private static final FxBench BENCH = new FxBench();
 
     @Nullable
     private static PostRenderer renderer;
@@ -131,7 +134,7 @@ public final class ClientFxManager {
     }
 
     public static boolean postAvailable() {
-        return enabled() && (renderer == null || !renderer.disabled());
+        return enabled() && (renderer == null || !renderer.disabled()) && !ShaderpackDetector.blocksPost();
     }
 
     static void setRuntimeOff(boolean off) {
@@ -158,6 +161,17 @@ public final class ClientFxManager {
         if (renderer != null) {
             renderer.reload();
             renderer.resetBudget();
+        }
+        if (Minecraft.getInstance().level != null) {
+            scheduleWarmup();
+        }
+    }
+
+    private static void scheduleWarmup() {
+        if (BHFxConfig.WARMUP.get()) {
+            WARMUP.schedule();
+        } else {
+            WARMUP.cancel();
         }
     }
 
@@ -240,6 +254,18 @@ public final class ClientFxManager {
         }
     }
 
+    static boolean isLocalAlive(LocalFxHandle handle) {
+        if (handle == null || handle.isNone()) {
+            return false;
+        }
+        for (Entry e : ACTIVE) {
+            if (e.handleId == handle.id()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void stopLocal(LocalFxHandle handle, StopMode mode) {
         if (handle != null && !handle.isNone()) {
             stop(handle.id(), mode);
@@ -289,6 +315,13 @@ public final class ClientFxManager {
         if (level != lastLevel) {
             // respawn / dimension change / disconnect: the server re-sends what is still playing
             clear();
+            BENCH.cancel();
+            if (lastLevel == null && level != null) {
+                scheduleWarmup(); // joined a world
+            } else if (level == null) {
+                WARMUP.cancel();
+                STATS.clear();
+            }
             lastLevel = level;
         }
         if (level == null) {
@@ -299,6 +332,12 @@ public final class ClientFxManager {
             clear();
         }
         trauma = Math.max(0f, trauma - 0.04f);
+        BENCH.tick();
+        if (ACTIVE.isEmpty()) {
+            releaseIfIdle();
+            return;
+        }
+        long tickStart = System.nanoTime();
 
         Iterator<Entry> it = ACTIVE.iterator();
         while (it.hasNext()) {
@@ -323,6 +362,8 @@ public final class ClientFxManager {
                 remove(e);
             }
         }
+        long now = System.nanoTime();
+        STATS.tick(now, now - tickStart);
         releaseIfIdle();
     }
 
@@ -341,16 +382,34 @@ public final class ClientFxManager {
     }
 
     static void render(Camera camera, float partial) {
+        BENCH.frame(System.nanoTime());
         frameShake = 0f;
         lastPassCount = 0;
-        if (!enabled() || ACTIVE.isEmpty()) {
+        if (!enabled()) {
             return;
         }
+        if (WARMUP.running()) {
+            PostRenderer r = renderer();
+            if (r.disabled()) {
+                WARMUP.cancel();
+            } else {
+                WARMUP.step(r);
+            }
+        }
+        if (ACTIVE.isEmpty() || Minecraft.getInstance().level == null) {
+            return;
+        }
+        long start = System.nanoTime();
+        double gpu = renderFrame(camera, partial);
+        BENCH.gpu(gpu);
+        long end = System.nanoTime();
+        STATS.frame(end, end - start, gpu, ACTIVE.size(), lastPassCount);
+    }
+
+    /** Returns a GPU measurement that finished this frame, or -1. */
+    private static double renderFrame(Camera camera, float partial) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null) {
-            return;
-        }
         VIEW_PROJ.set(PROJ).mul(VIEW);
         Vec3 cam = camera.getPosition();
         FRAME.begin(partial, cam, mc.getMainRenderTarget().width, mc.getMainRenderTarget().height, VIEW_PROJ, PROJ.m11());
@@ -375,12 +434,12 @@ public final class ClientFxManager {
             }
         }
         frameShake = SCREEN.shakeValue();
-        if (PASSES.isEmpty() && SCREEN.imageIdle()) {
-            return;
+        if ((PASSES.isEmpty() && SCREEN.imageIdle()) || ShaderpackDetector.blocksPost()) {
+            return -1;
         }
         PostRenderer r = renderer();
         if (r.disabled()) {
-            return;
+            return -1;
         }
         List<PassListImpl.Entry> draw = PASSES.drawList(BHFxConfig.MAX_PASSES_PER_FRAME.get());
         float time = ((level.getGameTime() % 24000L) + partial) / 20f;
@@ -388,6 +447,7 @@ public final class ClientFxManager {
         lastPassCount = r.lastPassCount();
         lastPostNanos = System.nanoTime();
         checkBudget(r, lastPostNanos);
+        return r.takeGpuSample();
     }
 
     /** Lower the quality for this session when effects stay over budget even at the lowest resolution. */
@@ -421,7 +481,9 @@ public final class ClientFxManager {
             return;
         }
         out.add("[bhfx] " + ACTIVE.size() + " fx, " + lastPassCount + " pass, " + effectiveQuality()
-                + (renderer != null ? ", " + renderer.describe() : ""));
+                + (ShaderpackDetector.blocksPost() ? ", post off (shader pack)" : "")
+                + (renderer != null ? ", " + renderer.describe() : "")
+                + (WARMUP.running() ? ", " + WARMUP.describe() : ""));
     }
 
     static void renderHud(GuiGraphics graphics, float partial) {
@@ -454,11 +516,49 @@ public final class ClientFxManager {
         if (effectiveQuality() != BHFxConfig.QUALITY.get()) {
             sb.append(" (auto-lowered from ").append(BHFxConfig.QUALITY.get()).append(", /bhfx reload resets)");
         }
+        if (ShaderpackDetector.blocksPost()) {
+            sb.append(", post off while a shader pack is active (compat.offWithShaderpack)");
+        } else if (ShaderpackDetector.packActive()) {
+            sb.append(", shader pack active (post forced on)");
+        }
         sb.append(", ").append(ACTIVE.size()).append(" fx, ").append(lastPassCount).append(" pass(es) last frame");
         if (renderer != null) {
             sb.append(", ").append(renderer.describe());
         }
         sb.append(", ").append(FACTORIES.size()).append(" registered");
+        if (WARMUP.running()) {
+            sb.append(", ").append(WARMUP.describe());
+        }
         return sb.toString();
+    }
+
+    static List<String> statsLines() {
+        List<String> lines = new ArrayList<>(List.of(STATS.report(System.nanoTime())));
+        String held = renderer != null && renderer.allocated()
+                ? String.format("  GPU memory: ~%d MB held, effect resolution %d%% of budget", renderer.heldBytes() >> 20,
+                Math.round(renderer.resolutionShare() * 100))
+                : "  GPU memory: none held";
+        lines.add(held + ", quality " + effectiveQuality());
+        return lines;
+    }
+
+    /** Start /bhfx bench. Returns an error message, or null when it started. */
+    @Nullable
+    static String startBench(ResourceLocation fxId, int seconds) {
+        if (!enabled()) {
+            return "bhfx is off";
+        }
+        if (!FACTORIES.containsKey(fxId)) {
+            return fxId + " is not a registered effect";
+        }
+        if (BENCH.running()) {
+            return "a bench is already running";
+        }
+        BENCH.start(fxId, seconds);
+        return null;
+    }
+
+    static Set<ResourceLocation> registeredIds() {
+        return FACTORIES.keySet();
     }
 }

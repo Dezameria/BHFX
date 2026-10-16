@@ -97,7 +97,12 @@ public final class PostRenderer {
     private boolean stepHeld;
     private long stepAt;
 
+    private int warmVao;
+    private int warmFbo;
+    private int warmTex;
+
     private int lastPassCount;
+    private double lastGpuSample = -1;
     private boolean disabled;
     private String disabledReason = "";
 
@@ -123,6 +128,31 @@ public final class PostRenderer {
         return resolution.saturated(budgetMs);
     }
 
+    /** GPU ms of a measurement that finished since the last call, or -1. For /bhfx stats. */
+    public double takeGpuSample() {
+        double ms = lastGpuSample;
+        lastGpuSample = -1;
+        return ms;
+    }
+
+    /** Bytes of GPU memory bhfx holds right now (estimate from target sizes). */
+    public long heldBytes() {
+        if (!allocated()) {
+            return 0L;
+        }
+        long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4);
+        if (bloomForW > 0) {
+            for (int i = 0; i < BLOOM_LEVELS; i++) {
+                bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
+            }
+        }
+        return bytes + (long) holdW * holdH * 4 + (long) stepW * stepH * 4;
+    }
+
+    public double resolutionShare() {
+        return resolution.share();
+    }
+
     public void resetBudget() {
         resolution.reset();
     }
@@ -134,13 +164,7 @@ public final class PostRenderer {
         if (!allocated()) {
             return "post idle (no GPU memory held)";
         }
-        long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4);
-        if (bloomForW > 0) {
-            for (int i = 0; i < BLOOM_LEVELS; i++) {
-                bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
-            }
-        }
-        bytes += (long) holdW * holdH * 4 + (long) stepW * stepH * 4;
+        long bytes = heldBytes();
         double ms = resolution.averageMs();
         return "post " + fxW + "x" + fxH + " of " + fullW + "x" + fullH
                 + ", " + Math.round(resolution.share() * 100) + "% budget"
@@ -195,6 +219,7 @@ public final class PostRenderer {
             double ms = timer.poll();
             if (ms >= 0) {
                 resolution.sample(ms, BHFxConfig.GPU_BUDGET_MS.get());
+                lastGpuSample = ms;
             }
             boolean work = !passes.isEmpty();
             if (!work) {
@@ -291,6 +316,65 @@ public final class PostRenderer {
             guard.restore();
         }
         binder.loadPendingTextures();
+    }
+
+    /**
+     * Compile and link one pass, then draw it once into a 1x1 target: some drivers only finish compiling on the first
+     * draw. Returns false when the shader is broken (it is logged and skipped like at runtime).
+     */
+    public boolean warmup(ResourceLocation id) {
+        if (disabled) {
+            return false;
+        }
+        RenderSystem.assertOnRenderThread();
+        guard.capture();
+        try {
+            ShaderProgram program = shaders.get(id);
+            if (program == null) {
+                return false;
+            }
+            if (warmVao == 0) {
+                warmVao = GL30.glGenVertexArrays();
+                warmFbo = GL30.glGenFramebuffers();
+                warmTex = GL11.glGenTextures();
+                guard.touchUnit(0);
+                texture(warmTex, 1, 1, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+                attach(warmFbo, warmTex, "warmup");
+            }
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, warmFbo);
+            GL11.glViewport(0, 0, 1, 1);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDisable(GL11.GL_BLEND);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glDepthMask(false);
+            GL11.glColorMask(true, true, true, true);
+            GL30.glBindVertexArray(warmVao);
+            GL20.glUseProgram(program.id());
+            for (int unit = UNIT_INPUT; unit <= UNIT_HOLD; unit++) {
+                // no texture: samples read zero, and nothing samples the target being drawn
+                guard.touchUnit(unit);
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+            }
+            GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+            return true;
+        } catch (RuntimeException e) {
+            BHFxMod.LOGGER.warn("bhfx warmup of {} failed: {}", id, e.toString());
+            return false;
+        } finally {
+            guard.restore();
+        }
+    }
+
+    /** Free the 1x1 warmup target once every shader is warm. */
+    public void endWarmup() {
+        if (warmVao != 0) {
+            RenderSystem.assertOnRenderThread();
+            GL30.glDeleteVertexArrays(warmVao);
+            deleteFbo(warmFbo);
+            deleteTex(warmTex);
+            warmVao = warmFbo = warmTex = 0;
+        }
     }
 
     private void composite(ShaderProgram p, int input, int depth, int w, int h, float time, ScreenParamsImpl s,

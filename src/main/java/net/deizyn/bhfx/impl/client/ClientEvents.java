@@ -1,6 +1,12 @@
 package net.deizyn.bhfx.impl.client;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -12,6 +18,7 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.impl.BHFxConfig;
 
 /** Forge-bus hooks. bhfx needs no mixins: it renders at {@code AFTER_LEVEL}, after the world and before the hand. */
@@ -73,6 +80,20 @@ public final class ClientEvents {
                     ctx.getSource().sendSuccess(() -> Component.literal(ClientFxManager.status()), false);
                     return Command.SINGLE_SUCCESS;
                 }))
+                .then(Commands.literal("stats").executes(ctx -> {
+                    for (String line : ClientFxManager.statsLines()) {
+                        ctx.getSource().sendSuccess(() -> Component.literal(line), false);
+                    }
+                    return Command.SINGLE_SUCCESS;
+                }))
+                .then(Commands.literal("bench")
+                        .executes(ctx -> bench(ctx, BHFxMod.id("test"), 10))
+                        .then(Commands.argument("fx", ResourceLocationArgument.id())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggestResource(ClientFxManager.registeredIds(), builder))
+                                .executes(ctx -> bench(ctx, ResourceLocationArgument.getId(ctx, "fx"), 10))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(4, 60))
+                                        .executes(ctx -> bench(ctx, ResourceLocationArgument.getId(ctx, "fx"),
+                                                IntegerArgumentType.getInteger(ctx, "seconds"))))))
                 .then(Commands.literal("reload").executes(ctx -> {
                     ClientFxManager.reloadShaders();
                     ctx.getSource().sendSuccess(() -> Component.literal("bhfx: shaders will recompile on next use"), false);
@@ -88,5 +109,16 @@ public final class ClientEvents {
                     ctx.getSource().sendSuccess(() -> Component.literal("bhfx: on"), false);
                     return Command.SINGLE_SUCCESS;
                 })));
+    }
+
+    private static int bench(CommandContext<CommandSourceStack> ctx, ResourceLocation fx, int seconds) {
+        String error = ClientFxManager.startBench(fx, seconds);
+        if (error != null) {
+            ctx.getSource().sendFailure(Component.literal("bhfx bench: " + error));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx bench: " + seconds / 2 + " s without " + fx
+                + ", then " + seconds / 2 + " s with it where you are looking. Keep the camera still."), false);
+        return Command.SINGLE_SUCCESS;
     }
 }

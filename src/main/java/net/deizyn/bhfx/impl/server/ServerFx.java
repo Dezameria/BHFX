@@ -18,11 +18,15 @@ import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.BHFxConfig;
 import net.deizyn.bhfx.impl.net.BHFxNetwork;
 import net.deizyn.bhfx.impl.net.S2CFxStart;
+import net.deizyn.bhfx.impl.net.S2CFxStartBatch;
 import net.deizyn.bhfx.impl.net.S2CFxStop;
 import net.deizyn.bhfx.impl.net.S2CFxUpdate;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -32,7 +36,9 @@ import java.util.UUID;
 
 /**
  * Server-side bookkeeping: ids, keys, expiry, rate limits, and re-sending persistent effects to players who arrive
- * while they play (the tracker). Server thread only.
+ * while they play (the tracker). Starts are queued per player and sent at the end of the server tick, several in one
+ * packet; a stop or update first flushes the queue so the client always sees a start before its stop. Server thread
+ * only.
  */
 public final class ServerFx {
     /** Expiry used for effects that rely on the client-side default duration. */
@@ -82,9 +88,19 @@ public final class ServerFx {
     private record KeyInLevel(ResourceKey<Level> dimension, FxKey key) {
     }
 
+    private static final class Outbox {
+        final ServerPlayer player;
+        final List<S2CFxStart> starts = new ArrayList<>(4);
+
+        Outbox(ServerPlayer player) {
+            this.player = player;
+        }
+    }
+
     private static final Map<Integer, Active> ACTIVE = new HashMap<>();
     private static final Map<KeyInLevel, Integer> KEYS = new HashMap<>();
     private static final Map<ResourceKey<Level>, long[]> STARTS_THIS_TICK = new HashMap<>();
+    private static final Map<UUID, Outbox> OUTBOX = new LinkedHashMap<>();
     private static int nextId = 1;
     private static long lastLimitWarning;
 
@@ -161,26 +177,50 @@ public final class ServerFx {
         }
     }
 
-    /** Non-persistent effects: one packet to whoever is in range now. */
+    /** Non-persistent effects: one start to whoever is in range now. */
     private static void broadcast(ServerLevel level, Active a) {
         S2CFxStart packet = a.packet(0);
-        Vec3 at = a.spawn.origin();
         Audience audience = a.spawn.audience();
-        switch (audience.kind()) {
-            case PLAYERS -> {
-                for (ServerPlayer player : audience.players()) {
-                    BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), packet);
-                }
+        if (audience.kind() == Audience.Kind.PLAYERS) {
+            for (ServerPlayer player : audience.players()) {
+                queue(player, packet);
             }
-            case EXCEPT_CASTER -> {
-                Entity caster = a.spawn.casterId() >= 0 ? level.getEntity(a.spawn.casterId()) : null;
-                ServerPlayer excluded = caster instanceof ServerPlayer p ? p : null;
-                BHFxNetwork.send(PacketDistributor.NEAR.with(() ->
-                        new PacketDistributor.TargetPoint(excluded, at.x, at.y, at.z, a.range, level.dimension())), packet);
-            }
-            default -> BHFxNetwork.send(PacketDistributor.NEAR.with(() ->
-                    new PacketDistributor.TargetPoint(at.x, at.y, at.z, a.range, level.dimension())), packet);
+            return;
         }
+        Vec3 at = a.spawn.origin();
+        double r2 = a.range * a.range;
+        for (ServerPlayer player : level.players()) {
+            if (audienceAllows(a, player) && player.position().distanceToSqr(at) <= r2) {
+                queue(player, packet);
+            }
+        }
+    }
+
+    private static void queue(ServerPlayer player, S2CFxStart packet) {
+        OUTBOX.computeIfAbsent(player.getUUID(), u -> new Outbox(player)).starts.add(packet);
+    }
+
+    /** Send every queued start. Called at the end of each server tick and before any stop or update. */
+    static void flush() {
+        if (OUTBOX.isEmpty()) {
+            return;
+        }
+        for (Outbox box : OUTBOX.values()) {
+            if (box.player.hasDisconnected()) {
+                continue;
+            }
+            PacketDistributor.PacketTarget target = PacketDistributor.PLAYER.with(() -> box.player);
+            List<S2CFxStart> starts = box.starts;
+            if (starts.size() == 1) {
+                BHFxNetwork.send(target, starts.get(0));
+                continue;
+            }
+            for (int i = 0; i < starts.size(); i += S2CFxStartBatch.MAX) {
+                List<S2CFxStart> part = starts.subList(i, Math.min(starts.size(), i + S2CFxStartBatch.MAX));
+                BHFxNetwork.send(target, part.size() == 1 ? part.get(0) : new S2CFxStartBatch(new ArrayList<>(part)));
+            }
+        }
+        OUTBOX.clear();
     }
 
     public static void stop(FxHandle handle, StopMode mode) {
@@ -196,6 +236,7 @@ public final class ServerFx {
         }
         // Stop packets are tiny and unknown ids are ignored client-side, so send to the whole dimension:
         // the effect may follow an entity far from where it started.
+        flush();
         BHFxNetwork.send(PacketDistributor.DIMENSION.with(handle::dimension), new S2CFxStop(handle.id(), mode));
     }
 
@@ -221,6 +262,7 @@ public final class ServerFx {
         }
         a.params = a.params.merge(changed);
         S2CFxUpdate packet = new S2CFxUpdate(a.id, changed);
+        flush();
         BHFxNetwork.send(PacketDistributor.DIMENSION.with(handle::dimension), packet);
     }
 
@@ -294,8 +336,7 @@ public final class ServerFx {
                 if (packet == null) {
                     packet = a.packet(startAge);
                 }
-                S2CFxStart p = packet;
-                BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), p);
+                queue(player, packet);
                 a.sentTo.add(uuid);
             }
         }
@@ -322,6 +363,7 @@ public final class ServerFx {
         for (Active a : ACTIVE.values()) {
             a.sentTo.remove(player);
         }
+        OUTBOX.remove(player);
     }
 
     static void unload(ResourceKey<Level> dimension) {
@@ -331,6 +373,7 @@ public final class ServerFx {
     }
 
     static void clearAll() {
+        OUTBOX.clear();
         ACTIVE.clear();
         KEYS.clear();
         STARTS_THIS_TICK.clear();

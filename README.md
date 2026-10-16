@@ -4,12 +4,12 @@ Library mod สำหรับ Forge 1.20.1: เอฟเฟค post-processing 
 เป็น **ชั้นเสริม** — mod ที่ใช้ยังคงหน้าตาหลักจาก Effekseer/GeckoLib และทำงานได้ถ้าไม่มี bhfx
 
 - แผน API ฉบับเต็ม: [`docs/API_PLAN.md`](docs/API_PLAN.md)
-- เวอร์ชัน: **0.2.0** (API ยังเปลี่ยนได้)
+- เวอร์ชัน: **0.3.0** (กำลังทำ, API ยังเปลี่ยนได้) — protocol ของ network เป็น `2` ใช้ร่วมกับ 0.2 ไม่ได้
 
 ## Build / ใช้งาน
 
 ```bash
-./gradlew.bat build                 # jar อยู่ที่ build/libs/bhfx-0.2.0.jar
+./gradlew.bat build                 # jar อยู่ที่ build/libs/bhfx-0.3.0.jar
 ./gradlew.bat publishToMavenLocal   # ให้ BHSpells อ่านได้จาก mavenLocal()
 ./gradlew.bat runClient             # ทดสอบ
 ```
@@ -18,8 +18,8 @@ Library mod สำหรับ Forge 1.20.1: เอฟเฟค post-processing 
 ```gradle
 repositories { mavenLocal() }
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.2.0")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.2.0")   // เฉพาะตอน dev ถ้าอยากรันพร้อมกัน
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")   // เฉพาะตอน dev ถ้าอยากรันพร้อมกัน
 }
 ```
 
@@ -28,6 +28,8 @@ dependencies {
 | คำสั่ง | ฝั่ง | ทำอะไร |
 | :--- | :--- | :--- |
 | `/bhfx_test [radius]` | server (op 2) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
+| `/bhfx stats` | client | ต้นทุนย้อนหลัง 10 วินาที: เวลา CPU ตอนวาด/ตอน tick และเวลา GPU (เฉลี่ย/สูงสุด), จำนวน fx/pass สูงสุด, VRAM ที่ถืออยู่ (นับเฉพาะเฟรมที่มีเอฟเฟค) |
+| `/bhfx bench [fx] [วินาที]` | client | ครึ่งแรกไม่มีเอฟเฟค ครึ่งหลังเล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วรายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
 | `/bhfx status` | client | สถานะ: เปิด/ปิด, quality ที่ใช้จริง, จำนวน fx/pass, ความละเอียด FX, % งบ, เวลา GPU, VRAM โดยประมาณ |
 | F3 | client | บรรทัด `[bhfx] ...` ด้านซ้ายแสดงข้อมูลเดียวกันแบบสด |
 | `/bhfx off` / `/bhfx on` | client | ปิด/เปิดชั่วคราวเพื่อเทียบ FPS (ปิด = ไม่สร้าง fx และไม่แตะ GPU) |
@@ -36,18 +38,22 @@ dependencies {
 ## Config
 
 - `config/bhfx-client.toml`
-  - quality: `quality` (OFF/LOW/MEDIUM/HIGH — LOW ไม่มี bloom), `maxFxMegapixels`, `gpuBudgetMs` (ค่าเริ่มต้น 6), `autoDowngrade`, `bloom`
+  - quality: `quality` (OFF/LOW/MEDIUM/HIGH — LOW ไม่มี bloom), `maxFxMegapixels`, `gpuBudgetMs` (ค่าเริ่มต้น 6), `autoDowngrade`, `bloom`, `warmup`
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
+  - compat: `offWithShaderpack` (ค่าเริ่มต้น true — ปิด post ขณะเปิด shader pack ของ Iris/Oculus)
 - `config/bhfx-server.toml`: `enabled` (false = ไม่ส่งเอฟเฟค, mod ที่ใช้กลับไปใช้ทางสำรอง), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
 
-## ระบบป้องกัน lag ที่ทำงานอยู่ (0.2)
+## ระบบป้องกัน lag ที่ทำงานอยู่
 
 - **ไม่มีเอฟเฟค = ไม่แตะ GPU**; ถ้ามีแค่การสั่นจอ ก็ไม่รัน post-processing
 - **วัดเวลา GPU จริง** ด้วย `GL_TIME_ELAPSED` query (อ่านผลย้อนหลัง ไม่ทำให้ CPU รอ GPU) แล้วลดพิกเซลของ pass ลงได้ถึง 25% เพื่อให้อยู่ใต้ `gpuBudgetMs` (ลดทันที เพิ่มกลับช้าๆ ปรับทีละ 1/8 จึงไม่ต้องจอง texture ใหม่ทุกเฟรม)
 - **ลดคุณภาพอัตโนมัติ**: ถ้ายังเกินงบ 25% ต่อเนื่อง 5 วินาทีทั้งที่ลดความละเอียดสุดแล้ว จะลด quality ลง 1 ระดับเฉพาะ session นี้ (HIGH → MEDIUM → LOW) แจ้งในแชทและ log `/bhfx reload` เพื่อคืนค่า
 - Bloom, freeze และ stepped-frame จอง texture **เฉพาะตอนที่มีเอฟเฟคใช้** และทั้งหมดคืนให้ GPU หลังไม่มีเอฟเฟค 30 วินาที
 - เซิร์ฟเวอร์จำกัดจำนวน start ต่อ tick และจำนวนเอฟเฟคต่อผู้ร่าย
+- **Shader warmup** (0.3): หลังเข้าโลก คอมไพล์ shader ทุกตัวของทุก mod (`assets/*/shaders/bhfx/**.fsh`) ทีละ 1 ตัวต่อเฟรม พร้อมวาดจริงลง target 1x1 (บาง driver คอมไพล์เสร็จตอนวาดครั้งแรก) การร่ายครั้งแรกจึงไม่กระตุก log บอกเวลารวมและตัวที่ช้าสุด
+- **Shader pack** (0.3): ถ้า Iris/Oculus เปิด shader pack อยู่ จะปิด post ให้อัตโนมัติ (depth ไม่ตรงกับภาพของ pack) สั่นจอยังทำงาน และ `BHFxClient.postAvailable()` คืน false ให้ mod ที่ใช้เลือกทางสำรองได้
+- **รวม packet** (0.3): start ที่เกิดใน tick เดียวกันของผู้เล่นคนเดียวจะส่งรวมเป็นก้อนเดียว (สูงสุด 16 ต่อก้อน) ส่วน stop/update จะส่ง start ที่ค้างอยู่ออกไปก่อน ลำดับจึงไม่สลับ
 
 ## ถอดออก
 
@@ -62,12 +68,13 @@ net.deizyn.bhfx
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,
  │                  ScreenParams, ImpactStyle, ImpactSequence, FxSettings, BHFxClient, LocalFxHandle, RegisterFxEvent
  └─ impl/           (ภายใน เปลี่ยนได้ตลอด)
-     ├─ net/        channel bhfx:main + S2CFxStart / S2CFxStop / S2CFxUpdate
+     ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate
      ├─ server/     ServerFx (id, key, อายุ, rate limit, tracker), ServerFxEvents (/bhfx_test)
-     ├─ client/     ClientFxManager (ลดคุณภาพอัตโนมัติ), ClientEvents (/bhfx, F3), test/TestFx
+     ├─ client/     ClientFxManager (ลดคุณภาพอัตโนมัติ), ClientEvents (/bhfx, F3), ShaderWarmup, ShaderpackDetector,
+     │              FrameStats (/bhfx stats), FxBench (/bhfx bench), test/TestFx
      └─ render/     PostRenderer, GpuTimer, ResolutionController, GlStateGuard, ShaderManager, UniformBinder
 assets/bhfx/shaders/bhfx/
- ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl
+ ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl, ground.glsl, sdf2d.glsl
  ├─ bloom_down.fsh, bloom_up.fsh
  ├─ composite.fsh   (ripple, aberration, zoom blur, bloom, grade, tone-map, impact, speed lines, afterimage, flash, grain)
  └─ test.fsh
@@ -90,15 +97,16 @@ include ด้วย `#include "bhfx:light.glsl"` (ไฟล์ include อย�
 | Tracker กับ entity ที่ follow | `PlayerEvent.StartTracking` | ตรวจระยะจากตำแหน่งปัจจุบันของ entity ทุก 10 tick | ใช้โค้ดชุดเดียวกับเอฟเฟคที่ไม่ follow |
 | การส่ง update | ส่งเฉพาะคนที่ได้รับเอฟเฟค | ส่งทั้ง dimension (client ที่ไม่มีเอฟเฟคนั้นจะทิ้ง) | packet เล็ก และครอบคลุมเอฟเฟคที่ไม่ persistent |
 
-## ยังไม่ได้ทำ (ย้ายไป 0.3)
+## ยังไม่ได้ทำ (ส่วนที่เหลือของ 0.3)
 
-- `ShaderWarmup` (คอมไพล์ shader ล่วงหน้าตอนโหลดโลก) — ตอนนี้คอมไพล์ครั้งแรกที่ใช้ อาจกระตุกเล็กน้อยตอนร่ายครั้งแรก
-- `/bhfx stats` แบบย้อนหลัง 10 วินาที และ `/bhfx bench`
-- Include `ground.glsl` / `sdf2d.glsl`
-- รวม packet หลาย start ใน tick เดียวเป็นก้อนเดียว
+- `CameraParams` (roll, FOV, ซ่อนมือ/HUD, override กล้องสำหรับคัตซีน)
+- `AaaParticlesBridge` (`ctx.effek(...)` เรียก Effekseer จากใน Fx ได้ถ้ามี AAA Particles)
+- `pulse` ใน `ScreenParams`
 
 ## สถานะการทดสอบ
 
 - ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
 - ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
+- ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
+- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
 - ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server

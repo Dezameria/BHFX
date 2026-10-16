@@ -431,12 +431,12 @@ Shape แบบ analytic (ray กับทรงกระบอก ทรงก�
 ### 5.3 ไลบรารี include ที่ bhfx มีให้ (เขียนใหม่ทั้งหมด)
 | ไฟล์ | ฟังก์ชัน |
 | :--- | :--- |
-| `scene.glsl` | `sceneDepth`, `isSky`, `viewDir`, `worldPos`, `projectUv`, `pixelAngle` |
-| `shapes.glsl` | `rayLine`, `raySphere`, `rayCylinderY`, `rayPlane`, `rayDisc` |
+| `scene.glsl` | `sceneDepth`, `depthIsSky`, `viewDir`, `unprojectAt`, `sceneAt` (struct `Scene`), `projectUv`, `pixelAngle` |
+| `shapes.glsl` | `rayLine`, `raySphere`, `rayCylinderY`, `rayPlane`, `rayAxisY` |
 | `light.glsl` | `glowGauss`, `glowExp`, `glowExp2` (หมอก 2 ชั้น), `lineLight` (1/d), `blackbody`, `tonemapSoft` |
-| `ground.glsl` | `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
+| `ground.glsl` (0.3, ต้อง include `scene.glsl` ก่อน) | `groundAA`, `groundBand`, `groundDistance`, `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
 | `noise.glsl` | `hash11/12/13/22`, `vnoise2/3`, `fbm2/3` |
-| `sdf2d.glsl` | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon`, `aaLine` |
+| `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤8 มุม), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
 
 ---
 
@@ -634,8 +634,8 @@ Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_u
 | เวอร์ชัน | ขอบเขต | ทดสอบด้วย |
 | :--- | :--- | :--- |
 | **0.1** | `BHFx.start/stop/available` (handle), `FxSpawn`, `FxParams`, `RegisterFxEvent`, `Fx` (lifecycle + passes), `PassList`, `Uniforms`, `Timeline`, `BHFxClient.play/stop`, include `scene/shapes/light/noise`, composite ขั้นต่ำ, config `quality`/`enabled` ทั้งสองฝั่ง, ขีดจำกัด Fx/pass, ปิดตัวเองเมื่อ GL error, `/bhfx reload/on/off` | วงเตือนบนพื้น + ลำแสงที่ภูเขาบังถูกต้อง + bridge ใน BHSpells ทำงานได้ทั้งตอนมีและไม่มี bhfx |
-| **0.2** | bloom, `ScreenParams` ครบ, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (หัวข้อ 12), `FxSettings` ครบ, `GpuTimer` + `ResolutionController` + ลดคุณภาพอัตโนมัติ, `ShaderWarmup`, `ground/sdf2d`, F3 + `/bhfx stats/bench`, rate limit ฝั่งเซิร์ฟเวอร์ | เติม post-FX ให้เวทที่มีอยู่ 1 ตัวใน BHSpells + ผ่านเกณฑ์ 11.4 |
-| **0.3** | `CameraParams`, `AaaParticlesBridge`, `ripple`, `ShaderpackDetector`, `pulse` | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
+| **0.2** | bloom, `ScreenParams` ครบ, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (หัวข้อ 12), `FxSettings` ครบ, `GpuTimer` + `ResolutionController` + ลดคุณภาพอัตโนมัติ, F3, rate limit ฝั่งเซิร์ฟเวอร์ (`ShaderWarmup`, `ground/sdf2d`, `/bhfx stats/bench` เลื่อนไป 0.3) | เติม post-FX ให้เวทที่มีอยู่ 1 ตัวใน BHSpells + ผ่านเกณฑ์ 11.4 |
+| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams`, `AaaParticlesBridge`, `pulse` | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
 | **1.0** | ล็อก API, เอกสาร, ตัวอย่างใน mod ทดสอบ | ทุกอย่างข้างบนบน dedicated server |
 
 ---
@@ -704,8 +704,8 @@ Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_u
 | คำสั่ง / ที่แสดง | สิ่งที่บอก | เวอร์ชัน |
 | :--- | :--- | :--- |
 | บรรทัดใน F3 | `bhfx: 3 fx, 4 pass, 2.1 ms GPU, 78% res, 72 MB` | 0.2 |
-| `/bhfx stats` | ค่าเฉลี่ย/สูงสุดของเวลา GPU และ CPU ต่อเฟรม, VRAM, จำนวน Fx/pass ย้อนหลัง 10 วินาที | 0.2 |
-| `/bhfx bench <fx>` | เล่น Fx ที่เลือกซ้ำ 10 วินาที แล้วรายงาน frame time ตอนเปิดเทียบกับตอนปิด | 0.2 |
+| `/bhfx stats` | ค่าเฉลี่ย/สูงสุดของเวลา GPU และ CPU ต่อเฟรม, VRAM, จำนวน Fx/pass ย้อนหลัง 10 วินาที | 0.3 |
+| `/bhfx bench [fx] [วินาที]` | ครึ่งแรกไม่มี Fx ครึ่งหลังเล่น Fx ที่เลือกซ้ำ แล้วรายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง | 0.3 |
 | `/bhfx off` / `/bhfx on` | สลับระหว่างเล่นเพื่อเทียบด้วยตาเปล่า | 0.1 |
 | `/bhfx reload` | โหลด shader ใหม่ | 0.1 |
 
