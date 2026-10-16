@@ -73,7 +73,9 @@ public final class ServerFxEvents {
 
     /**
      * /bhfx_test [radius] — plays the built-in test effect where the player looks.
-     * /bhfx_test pulse — a screen pulse at the player (shake, flash, red edges, colour fringes). Permission level 2.
+     * /bhfx_test pulse — a screen pulse at the player (shake, flash, red edges, colour fringes).
+     * /bhfx_test tracker [range] — a 60 s ring where the player looks, sent only within range (default 16): stand
+     * outside it, walk in, and it must appear with its age already counted. Permission level 2.
      */
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
@@ -81,8 +83,42 @@ public final class ServerFxEvents {
                 .requires(source -> source.hasPermission(2))
                 .executes(ctx -> test(ctx, 8f))
                 .then(Commands.literal("pulse").executes(ServerFxEvents::testPulse))
+                .then(Commands.literal("tracker")
+                        .executes(ctx -> testTracker(ctx, 16f))
+                        .then(Commands.argument("range", FloatArgumentType.floatArg(4f, 128f))
+                                .executes(ctx -> testTracker(ctx, FloatArgumentType.getFloat(ctx, "range")))))
                 .then(Commands.argument("radius", FloatArgumentType.floatArg(2f, 64f))
                         .executes(ctx -> test(ctx, FloatArgumentType.getFloat(ctx, "radius")))));
+    }
+
+    /** Same key as TrackerTestFx.RANGE; declared here so the server never loads that client class. */
+    private static final FxParam<Float> TRACKER_RANGE = FxParam.f("range");
+
+    private static int testTracker(CommandContext<CommandSourceStack> ctx, float range) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        if (!BHFx.available(level)) {
+            ctx.getSource().sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
+            return 0;
+        }
+        Vec3 target = lookTarget(player, level);
+        BHFx.start(level, BHFxMod.id("test_tracker"), FxSpawn.at(target).target(target).caster(player)
+                .param(TRACKER_RANGE, range)
+                .range(range).duration(60 * 20).persistent(true));
+        double distance = player.position().distanceTo(target);
+        ctx.getSource().sendSuccess(() -> Component.literal(String.format(
+                "bhfx tracker test at %d %d %d, %.0f blocks from you, range %.0f — %s",
+                (int) target.x, (int) target.y, (int) target.z, distance, range,
+                distance > range ? "walk in: the ring must appear with its age already counted"
+                        : "you are inside; walk out past " + (int) (range + 16) + " blocks, then back in")), false);
+        return 1;
+    }
+
+    private static Vec3 lookTarget(ServerPlayer player, ServerLevel level) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getLookAngle().scale(160.0));
+        HitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.MISS ? eye.add(player.getLookAngle().scale(32.0)) : hit.getLocation();
     }
 
     private static int testPulse(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

@@ -9,6 +9,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.client.RegisterFxEvent;
 import net.deizyn.bhfx.impl.client.test.TestFx;
+import net.deizyn.bhfx.impl.client.test.TrackerTestFx;
 
 /** Client-only wiring. Loaded through DistExecutor so a dedicated server never touches it. */
 public final class ClientBootstrap {
@@ -24,6 +25,7 @@ public final class ClientBootstrap {
     private static void clientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             ClientFxManager.register(BHFxMod.id("test"), TestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_tracker"), TrackerTestFx::new);
             ModLoader.get().postEvent(new RegisterFxEvent());
         });
     }
