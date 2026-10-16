@@ -9,7 +9,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.offkung.bhfx.BHFxMod;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.offkung.bhfx.api.FxParams;
 import net.offkung.bhfx.api.FxSpawn;
+import net.offkung.bhfx.api.client.FxSettings;
 import net.offkung.bhfx.api.StopMode;
 import net.offkung.bhfx.api.client.Fx;
 import net.offkung.bhfx.api.client.FxFactory;
@@ -50,7 +54,8 @@ public final class ClientFxManager {
     private static final FxContextImpl TICK = new FxContextImpl();
     private static final FrameContextImpl FRAME = new FrameContextImpl();
     private static final PassListImpl PASSES = new PassListImpl();
-    private static final ScreenParamsImpl SCREEN = new ScreenParamsImpl();
+    private static final ScreenParamsImpl SCREEN = new ScreenParamsImpl(FRAME);
+    private static final long DOWNGRADE_AFTER_NANOS = 5_000_000_000L;
     private static final Matrix4f VIEW = new Matrix4f();
     private static final Matrix4f PROJ = new Matrix4f();
     private static final Matrix4f VIEW_PROJ = new Matrix4f();
@@ -63,6 +68,43 @@ public final class ClientFxManager {
     private static float frameShake;
     private static long lastPostNanos;
     private static int lastPassCount;
+    /** Session-only quality ceiling set by the automatic downgrade; HIGH = no ceiling. */
+    private static BHFxConfig.Quality qualityCeiling = BHFxConfig.Quality.HIGH;
+    private static long overBudgetSince;
+    @Nullable
+    private static ClientLevel lastLevel;
+
+    private static final FxSettings SETTINGS = new FxSettings() {
+        @Override
+        public Quality quality() {
+            return Quality.valueOf(effectiveQuality().name());
+        }
+
+        @Override
+        public boolean bloom() {
+            return effectiveQuality().bloom && BHFxConfig.BLOOM.get();
+        }
+
+        @Override
+        public boolean impactFrames() {
+            return BHFxConfig.IMPACT_FRAMES.get();
+        }
+
+        @Override
+        public double flashScale() {
+            return BHFxConfig.FLASH_SCALE.get();
+        }
+
+        @Override
+        public double shakeScale() {
+            return BHFxConfig.SHAKE_SCALE.get();
+        }
+
+        @Override
+        public double gpuBudgetMs() {
+            return BHFxConfig.GPU_BUDGET_MS.get();
+        }
+    };
 
     private ClientFxManager() {
     }
@@ -77,6 +119,15 @@ public final class ClientFxManager {
 
     public static boolean enabled() {
         return !runtimeOff && BHFxConfig.QUALITY.get() != BHFxConfig.Quality.OFF;
+    }
+
+    /** Configured quality, capped by an automatic downgrade this session. */
+    static BHFxConfig.Quality effectiveQuality() {
+        return BHFxConfig.QUALITY.get().min(qualityCeiling);
+    }
+
+    public static FxSettings settings() {
+        return SETTINGS;
     }
 
     public static boolean postAvailable() {
@@ -102,8 +153,11 @@ public final class ClientFxManager {
     }
 
     public static void reloadShaders() {
+        qualityCeiling = BHFxConfig.Quality.HIGH;
+        overBudgetSince = 0L;
         if (renderer != null) {
             renderer.reload();
+            renderer.resetBudget();
         }
     }
 
@@ -130,6 +184,13 @@ public final class ClientFxManager {
     }
 
     private static boolean add(FxInit init) {
+        if (init.handleId() > 0) {
+            for (Entry e : ACTIVE) {
+                if (e.handleId == init.handleId()) {
+                    return false; // already playing (the server re-sent it after we came back into range)
+                }
+            }
+        }
         FxFactory factory = FACTORIES.get(init.id());
         if (factory == null) {
             if (WARNED.add(init.id())) {
@@ -160,6 +221,20 @@ public final class ClientFxManager {
         for (Entry e : ACTIVE) {
             if (e.handleId == handleId) {
                 e.fx.bhfxStop(TICK.bind(level, e.fx, followed(level, e.fx)), mode);
+                return;
+            }
+        }
+    }
+
+    static void update(int handleId, FxParams changed) {
+        for (Entry e : ACTIVE) {
+            if (e.handleId == handleId) {
+                try {
+                    e.fx.bhfxParams(changed);
+                } catch (RuntimeException ex) {
+                    BHFxMod.LOGGER.error("bhfx effect {} failed in onParamsChanged", e.fx.init().id(), ex);
+                    e.broken = true;
+                }
                 return;
             }
         }
@@ -211,10 +286,12 @@ public final class ClientFxManager {
 
     static void tick(Minecraft mc) {
         ClientLevel level = mc.level;
+        if (level != lastLevel) {
+            // respawn / dimension change / disconnect: the server re-sends what is still playing
+            clear();
+            lastLevel = level;
+        }
         if (level == null) {
-            if (!ACTIVE.isEmpty()) {
-                clear();
-            }
             releaseIfIdle();
             return;
         }
@@ -276,7 +353,7 @@ public final class ClientFxManager {
         }
         VIEW_PROJ.set(PROJ).mul(VIEW);
         Vec3 cam = camera.getPosition();
-        FRAME.begin(partial, cam, mc.getMainRenderTarget().width, mc.getMainRenderTarget().height, VIEW_PROJ);
+        FRAME.begin(partial, cam, mc.getMainRenderTarget().width, mc.getMainRenderTarget().height, VIEW_PROJ, PROJ.m11());
         PASSES.clear();
         SCREEN.reset();
         double cullCap = BHFxConfig.CULL_DISTANCE.get();
@@ -307,9 +384,44 @@ public final class ClientFxManager {
         }
         List<PassListImpl.Entry> draw = PASSES.drawList(BHFxConfig.MAX_PASSES_PER_FRAME.get());
         float time = ((level.getGameTime() % 24000L) + partial) / 20f;
-        r.render(draw, SCREEN, PROJ, VIEW, time);
+        r.render(draw, SCREEN, PROJ, VIEW, time, effectiveQuality());
         lastPassCount = r.lastPassCount();
         lastPostNanos = System.nanoTime();
+        checkBudget(r, lastPostNanos);
+    }
+
+    /** Lower the quality for this session when effects stay over budget even at the lowest resolution. */
+    private static void checkBudget(PostRenderer r, long now) {
+        double budget = BHFxConfig.GPU_BUDGET_MS.get();
+        if (!BHFxConfig.AUTO_DOWNGRADE.get() || !r.overBudget(budget)) {
+            overBudgetSince = 0L;
+            return;
+        }
+        if (overBudgetSince == 0L) {
+            overBudgetSince = now;
+            return;
+        }
+        BHFxConfig.Quality current = effectiveQuality();
+        if (now - overBudgetSince < DOWNGRADE_AFTER_NANOS || current == BHFxConfig.Quality.LOW) {
+            return;
+        }
+        qualityCeiling = current.lower();
+        overBudgetSince = 0L;
+        r.resetBudget();
+        String msg = String.format("[bhfx] effects used %.1f ms of GPU per frame (budget %.1f ms); quality lowered to %s for this session.",
+                r.averageGpuMs(), budget, qualityCeiling);
+        BHFxMod.LOGGER.warn(msg);
+        Minecraft.getInstance().gui.getChat().addMessage(Component.literal(msg).withStyle(ChatFormatting.GOLD));
+    }
+
+    /** Lines for the F3 screen. */
+    static void debugLines(List<String> out) {
+        if (!enabled()) {
+            out.add("[bhfx] off");
+            return;
+        }
+        out.add("[bhfx] " + ACTIVE.size() + " fx, " + lastPassCount + " pass, " + effectiveQuality()
+                + (renderer != null ? ", " + renderer.describe() : ""));
     }
 
     static void renderHud(GuiGraphics graphics, float partial) {
@@ -338,7 +450,10 @@ public final class ClientFxManager {
         if (runtimeOff) {
             sb.append(" (/bhfx off)");
         }
-        sb.append(", quality ").append(BHFxConfig.QUALITY.get());
+        sb.append(", quality ").append(effectiveQuality());
+        if (effectiveQuality() != BHFxConfig.QUALITY.get()) {
+            sb.append(" (auto-lowered from ").append(BHFxConfig.QUALITY.get()).append(", /bhfx reload resets)");
+        }
         sb.append(", ").append(ACTIVE.size()).append(" fx, ").append(lastPassCount).append(" pass(es) last frame");
         if (renderer != null) {
             sb.append(", ").append(renderer.describe());

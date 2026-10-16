@@ -19,16 +19,23 @@ final class FrameContextImpl implements FrameContext {
     private int width;
     private int height;
     private Matrix4f viewProj;
+    private float projScaleY = 1f;
     private Fx fx;
     @Nullable
     private Entity followed;
 
-    void begin(float partial, Vec3 camera, int width, int height, Matrix4f viewProj) {
+    void begin(float partial, Vec3 camera, int width, int height, Matrix4f viewProj, float projScaleY) {
         this.partial = partial;
         this.camera = camera;
         this.width = width;
         this.height = height;
         this.viewProj = viewProj;
+        this.projScaleY = projScaleY;
+    }
+
+    /** Projection's vertical scale (1 / tan(fov / 2)). */
+    float projScaleY() {
+        return projScaleY;
     }
 
     FrameContextImpl bind(Fx fx, @Nullable Entity followed) {

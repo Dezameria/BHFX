@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.offkung.bhfx.BHFxMod;
+import net.offkung.bhfx.api.client.ImpactStyle;
 import net.offkung.bhfx.impl.BHFxConfig;
 import net.offkung.bhfx.impl.client.PassListImpl;
 import net.offkung.bhfx.impl.client.ScreenParamsImpl;
@@ -23,26 +24,34 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Draws the frame's passes over the finished world, then the composite into Minecraft's main colour buffer.
+ * Draws the frame's passes over the finished world, then bloom and the composite into Minecraft's main colour buffer.
  * <ul>
  *   <li>The world colour is copied once (the composite writes where it reads).</li>
- *   <li>Depth is sampled straight from Minecraft's depth texture — none of bhfx's framebuffers attach it, so there is
- *       no feedback loop and no depth copy.</li>
- *   <li>Passes run at a capped resolution in RGBA16F (HDR between passes); the composite tone-maps once and restores
- *       world detail when passes ran below native resolution.</li>
+ *   <li>Depth is sampled straight from Minecraft's depth texture — no bhfx framebuffer attaches it, so there is no
+ *       feedback loop and no depth copy.</li>
+ *   <li>Passes run in RGBA16F at a resolution capped by pixels and by measured GPU time; the composite tone-maps once
+ *       and restores world detail when passes ran below native resolution.</li>
+ *   <li>Bloom, freeze and stepped-frame targets exist only while something uses them.</li>
  *   <li>Any GL failure disables post-processing for the session instead of breaking the game.</li>
  * </ul>
  */
 public final class PostRenderer {
     private static final ResourceLocation COMPOSITE = BHFxMod.id("composite");
+    private static final ResourceLocation BLOOM_DOWN = BHFxMod.id("bloom_down");
+    private static final ResourceLocation BLOOM_UP = BHFxMod.id("bloom_up");
+    private static final int BLOOM_LEVELS = 5;
     private static final int UNIT_INPUT = 0;
     private static final int UNIT_SCENE = 1;
     private static final int UNIT_DEPTH = 2;
-    private static final int UNIT_SCENE_LOW = 3;
+    private static final int UNIT_AUX = 3;
+    private static final int UNIT_BLOOM = 4;
+    private static final int UNIT_HOLD = 5;
 
     private final ShaderManager shaders = new ShaderManager();
     private final GlStateGuard guard = new GlStateGuard();
     private final UniformBinder binder = new UniformBinder(guard);
+    private final GpuTimer timer = new GpuTimer();
+    private final ResolutionController resolution = new ResolutionController();
     private final Matrix4f invProj = new Matrix4f();
     private final Matrix4f invView = new Matrix4f();
     private final Matrix4f viewProj = new Matrix4f();
@@ -62,6 +71,28 @@ public final class PostRenderer {
     private int fullH;
     private int fxW;
     private int fxH;
+
+    private final int[] downFbo = new int[BLOOM_LEVELS];
+    private final int[] downTex = new int[BLOOM_LEVELS];
+    private final int[] upFbo = new int[BLOOM_LEVELS - 1];
+    private final int[] upTex = new int[BLOOM_LEVELS - 1];
+    private final int[][] bloomSize = new int[BLOOM_LEVELS][2];
+    private int bloomForW;
+    private int bloomForH;
+
+    private int holdFbo;
+    private int holdTex;
+    private int holdW;
+    private int holdH;
+    private boolean holding;
+
+    private int stepFbo;
+    private int stepTex;
+    private int stepW;
+    private int stepH;
+    private boolean stepHeld;
+    private long stepAt;
+
     private int lastPassCount;
     private boolean disabled;
     private String disabledReason = "";
@@ -78,6 +109,20 @@ public final class PostRenderer {
         return lastPassCount;
     }
 
+    /** Average GPU ms of recent measured frames, or -1. */
+    public double averageGpuMs() {
+        return resolution.averageMs();
+    }
+
+    /** True when resolution is at its floor and effects are still clearly over budget. */
+    public boolean overBudget(double budgetMs) {
+        return resolution.saturated(budgetMs);
+    }
+
+    public void resetBudget() {
+        resolution.reset();
+    }
+
     public String describe() {
         if (disabled) {
             return "post DISABLED (" + disabledReason + ")";
@@ -86,8 +131,17 @@ public final class PostRenderer {
             return "post idle (no GPU memory held)";
         }
         long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4);
-        return "post " + fxW + "x" + fxH + " of " + fullW + "x" + fullH + ", ~" + (bytes >> 20) + " MB, "
-                + shaders.compiledCount() + " shader(s)";
+        if (bloomForW > 0) {
+            for (int i = 0; i < BLOOM_LEVELS; i++) {
+                bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
+            }
+        }
+        bytes += (long) holdW * holdH * 4 + (long) stepW * stepH * 4;
+        double ms = resolution.averageMs();
+        return "post " + fxW + "x" + fxH + " of " + fullW + "x" + fullH
+                + ", " + Math.round(resolution.share() * 100) + "% budget"
+                + (ms >= 0 ? String.format(", %.2f ms GPU", ms) : "")
+                + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)";
     }
 
     /** Drop compiled shaders and clear a previous failure; GL targets are rebuilt on demand. */
@@ -99,7 +153,8 @@ public final class PostRenderer {
         disabledReason = "";
     }
 
-    public void render(List<PassListImpl.Entry> passes, ScreenParamsImpl screen, Matrix4f projection, Matrix4f view, float time) {
+    public void render(List<PassListImpl.Entry> passes, ScreenParamsImpl screen, Matrix4f projection, Matrix4f view,
+                       float time, BHFxConfig.Quality quality) {
         if (disabled) {
             return;
         }
@@ -110,19 +165,47 @@ public final class PostRenderer {
             return;
         }
         RenderSystem.assertOnRenderThread();
+        long now = System.nanoTime();
         guard.capture();
         try {
             int w = main.width;
             int h = main.height;
-            double cap = BHFxConfig.MAX_FX_MEGAPIXELS.get() * 1.0e6 * BHFxConfig.QUALITY.get().pixelShare;
+
+            // stepped frames ("on twos"): between steps show the held image and skip all other work
+            float stepFps = screen.stepFpsValue();
+            if (stepFps > 0.5f && stepHeld && stepW == w && stepH == h && now - stepAt < (long) (1.0e9 / stepFps)) {
+                ensureCore();
+                attachOutput(color);
+                blit(stepFbo, outFbo, w, h, w, h, GL11.GL_NEAREST);
+                return;
+            }
+            // frozen: keep showing the held image
+            boolean freeze = screen.freezeRequested();
+            if (freeze && holding && holdW == w && holdH == h) {
+                ensureCore();
+                attachOutput(color);
+                blit(holdFbo, outFbo, w, h, w, h, GL11.GL_NEAREST);
+                return;
+            }
+
+            double ms = timer.poll();
+            if (ms >= 0) {
+                resolution.sample(ms, BHFxConfig.GPU_BUDGET_MS.get());
+            }
+            boolean work = !passes.isEmpty();
+            if (!work) {
+                resolution.idle();
+            }
+            double cap = BHFxConfig.MAX_FX_MEGAPIXELS.get() * 1.0e6 * quality.pixelShare * resolution.share();
             double scale = Math.min(1.0, Math.sqrt(cap / ((double) w * h)));
+            ensureCore();
             ensureTargets(w, h, Math.max(2, (int) (w * scale)), Math.max(2, (int) (h * scale)));
             attachOutput(color);
+            if (work) {
+                timer.begin();
+            }
 
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, outFbo);
-            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, snapshotFbo);
-            GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
-
+            blit(outFbo, snapshotFbo, w, h, w, h, GL11.GL_NEAREST);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             GL11.glDisable(GL11.GL_BLEND);
             GL11.glDisable(GL11.GL_CULL_FACE);
@@ -160,32 +243,42 @@ public final class PostRenderer {
             }
             lastPassCount = drawn;
 
+            int bloom = 0;
+            if (drawn > 0 && quality.bloom && BHFxConfig.BLOOM.get() && screen.bloomStrength() > 0.001f) {
+                bloom = bloom(input, depth, screen, time);
+            }
+
             boolean upscaled = drawn > 0 && (fxW != w || fxH != h);
             if (upscaled) {
-                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, snapshotFbo);
-                GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, sceneLowFbo);
-                GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, fxW, fxH, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
+                blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
             }
 
             GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, outFbo);
             GL11.glViewport(0, 0, w, h);
             ShaderProgram composite = shaders.get(COMPOSITE);
             if (composite != null) {
-                begin(composite, input, depth, w, h, time);
-                bindUnit(UNIT_SCENE_LOW, upscaled ? sceneLowTex : snapshotTex, composite, "SceneLowSampler");
-                binder.f1("Upscaled", upscaled ? 1f : 0f);
-                int fr = screen.flashRgb();
-                binder.f4("Flash", ((fr >> 16) & 0xFF) / 255f, ((fr >> 8) & 0xFF) / 255f, (fr & 0xFF) / 255f,
-                        screen.flashStrength(BHFxConfig.FLASH_SCALE.get()));
-                int vr = screen.vignetteRgb();
-                binder.f4("Vignette", ((vr >> 16) & 0xFF) / 255f, ((vr >> 8) & 0xFF) / 255f, (vr & 0xFF) / 255f,
-                        screen.vignetteStrength());
-                binder.f1("Desaturate", screen.desaturateValue());
-                binder.f1("Aberration", screen.aberrationValue());
-                GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+                composite(composite, input, depth, w, h, time, screen, upscaled, bloom);
             } else if (drawn > 0) {
-                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, pingFbo[ping ^ 1]);
-                GL30.glBlitFramebuffer(0, 0, fxW, fxH, 0, 0, w, h, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
+                blit(pingFbo[ping ^ 1], outFbo, fxW, fxH, w, h, GL11.GL_LINEAR);
+            }
+            if (work) {
+                timer.end();
+            }
+
+            if (freeze && !holding) {
+                ensureHold(w, h);
+                blit(outFbo, holdFbo, w, h, w, h, GL11.GL_NEAREST);
+                holding = true;
+            } else if (!freeze && screen.afterimageValue() <= 0.001f) {
+                holding = false;
+            }
+            if (stepFps > 0.5f) {
+                ensureStep(w, h);
+                blit(outFbo, stepFbo, w, h, w, h, GL11.GL_NEAREST);
+                stepHeld = true;
+                stepAt = now;
+            } else {
+                stepHeld = false;
             }
         } catch (RuntimeException e) {
             disable(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), e);
@@ -193,6 +286,78 @@ public final class PostRenderer {
             guard.restore();
         }
         binder.loadPendingTextures();
+    }
+
+    private void composite(ShaderProgram p, int input, int depth, int w, int h, float time, ScreenParamsImpl s,
+                           boolean upscaled, int bloom) {
+        begin(p, input, depth, w, h, time);
+        bindUnit(UNIT_AUX, upscaled ? sceneLowTex : snapshotTex, p, "SceneLowSampler");
+        bindUnit(UNIT_BLOOM, bloom != 0 ? bloom : snapshotTex, p, "BloomSampler");
+        boolean ghost = holding && s.afterimageValue() > 0.001f;
+        bindUnit(UNIT_HOLD, ghost ? holdTex : snapshotTex, p, "HoldSampler");
+        binder.f1("Upscaled", upscaled ? 1f - Math.min(1f, s.syntheticValue()) : 0f);
+        binder.f1("Bloom", bloom != 0 ? s.bloomStrength() : 0f);
+        rgb(p, "Flash", s.flashRgb(), s.flashStrength());
+        rgb(p, "Vignette", s.vignetteRgb(), s.vignetteStrength());
+        binder.f1("Desaturate", s.desaturateValue());
+        binder.f1("Aberration", s.aberrationValue());
+        binder.f1("ZoomBlur", s.zoomBlurValue());
+        binder.f1("SpeedLines", s.speedLinesValue());
+        binder.f4("Grade", s.contrastValue(), s.grainValue(), ghost ? s.afterimageValue() : 0f, 0f);
+        ImpactStyle style = s.impactStyle();
+        float impact = s.impactStrength();
+        if (style != null && impact > 0.001f) {
+            binder.f4("ImpactA", impact, style.kind().ordinal(), s.impactU(), s.impactV());
+            rgb(p, "ImpactB", style.darkRgb(), style.focusLines());
+            rgb(p, "ImpactC", style.lightRgb(), style.param());
+        } else {
+            binder.f4("ImpactA", 0f, 0f, 0.5f, 0.5f);
+        }
+        binder.f1("RippleCount", s.rippleCount());
+        if (s.rippleCount() > 0) {
+            binder.floats("RippleA", s.rippleA());
+            binder.floats("RippleB", s.rippleB());
+        }
+        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+    }
+
+    /** Downsample the light the passes added into a 5-level pyramid and back up. Returns the result texture. */
+    private int bloom(int source, int depth, ScreenParamsImpl screen, float time) {
+        ShaderProgram down = shaders.get(BLOOM_DOWN);
+        ShaderProgram up = shaders.get(BLOOM_UP);
+        if (down == null || up == null) {
+            return 0;
+        }
+        ensureBloom();
+        int input = source;
+        int inW = fxW;
+        int inH = fxH;
+        for (int i = 0; i < BLOOM_LEVELS; i++) {
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, downFbo[i]);
+            GL11.glViewport(0, 0, bloomSize[i][0], bloomSize[i][1]);
+            begin(down, input, depth, bloomSize[i][0], bloomSize[i][1], time);
+            binder.f2("TexelSize", 1f / inW, 1f / inH);
+            binder.f1("Prefilter", i == 0 ? 1f : 0f);
+            binder.f1("Synthetic", screen.syntheticValue());
+            GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+            input = downTex[i];
+            inW = bloomSize[i][0];
+            inH = bloomSize[i][1];
+        }
+        float radius = screen.bloomRadius();
+        for (int i = BLOOM_LEVELS - 2; i >= 0; i--) {
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, upFbo[i]);
+            GL11.glViewport(0, 0, bloomSize[i][0], bloomSize[i][1]);
+            begin(up, input, depth, bloomSize[i][0], bloomSize[i][1], time);
+            bindUnit(UNIT_AUX, downTex[i], up, "AuxSampler");
+            binder.f2("TexelSize", 1f / inW, 1f / inH);
+            binder.f1("Radius", radius);
+            GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+            input = upTex[i];
+            inW = bloomSize[i][0];
+            inH = bloomSize[i][1];
+        }
+        return upTex[0];
     }
 
     private void begin(ShaderProgram program, int input, int depth, int outW, int outH, float time) {
@@ -218,6 +383,11 @@ public final class PostRenderer {
         }
     }
 
+    /** rgb as 0..1 (display space) plus a fourth value. */
+    private void rgb(ShaderProgram p, String name, int rgb, float w) {
+        binder.f4(name, ((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, w);
+    }
+
     private void setMatrix(int location, Matrix4f matrix) {
         if (location >= 0) {
             matrixBuf.clear();
@@ -226,22 +396,32 @@ public final class PostRenderer {
         }
     }
 
+    private static void blit(int from, int to, int fw, int fh, int tw, int th, int filter) {
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, from);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, to);
+        GL30.glBlitFramebuffer(0, 0, fw, fh, 0, 0, tw, th, GL11.GL_COLOR_BUFFER_BIT, filter);
+    }
+
     // ------------------------------------------------------------------ targets
 
-    private void ensureTargets(int w, int h, int fw, int fh) {
-        if (vao == 0) {
-            vao = GL30.glGenVertexArrays();
-            outFbo = GL30.glGenFramebuffers();
-            snapshotFbo = GL30.glGenFramebuffers();
-            snapshotTex = GL11.glGenTextures();
-            sceneLowFbo = GL30.glGenFramebuffers();
-            sceneLowTex = GL11.glGenTextures();
-            for (int i = 0; i < 2; i++) {
-                pingFbo[i] = GL30.glGenFramebuffers();
-                pingTex[i] = GL11.glGenTextures();
-            }
-            outAttached = 0;
+    private void ensureCore() {
+        if (vao != 0) {
+            return;
         }
+        vao = GL30.glGenVertexArrays();
+        outFbo = GL30.glGenFramebuffers();
+        snapshotFbo = GL30.glGenFramebuffers();
+        snapshotTex = GL11.glGenTextures();
+        sceneLowFbo = GL30.glGenFramebuffers();
+        sceneLowTex = GL11.glGenTextures();
+        for (int i = 0; i < 2; i++) {
+            pingFbo[i] = GL30.glGenFramebuffers();
+            pingTex[i] = GL11.glGenTextures();
+        }
+        outAttached = 0;
+    }
+
+    private void ensureTargets(int w, int h, int fw, int fh) {
         guard.touchUnit(0);
         // full-resolution and effect-resolution targets are rebuilt independently
         if (w != fullW || h != fullH) {
@@ -259,6 +439,66 @@ public final class PostRenderer {
             }
             texture(sceneLowTex, fw, fh, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
             attach(sceneLowFbo, sceneLowTex, "scene-low");
+        }
+    }
+
+    private void ensureBloom() {
+        if (bloomForW == fxW && bloomForH == fxH) {
+            return;
+        }
+        guard.touchUnit(0);
+        if (downFbo[0] == 0) {
+            for (int i = 0; i < BLOOM_LEVELS; i++) {
+                downFbo[i] = GL30.glGenFramebuffers();
+                downTex[i] = GL11.glGenTextures();
+            }
+            for (int i = 0; i < BLOOM_LEVELS - 1; i++) {
+                upFbo[i] = GL30.glGenFramebuffers();
+                upTex[i] = GL11.glGenTextures();
+            }
+        }
+        for (int i = 0; i < BLOOM_LEVELS; i++) {
+            int bw = Math.max(1, fxW >> (i + 1));
+            int bh = Math.max(1, fxH >> (i + 1));
+            bloomSize[i][0] = bw;
+            bloomSize[i][1] = bh;
+            texture(downTex[i], bw, bh, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+            attach(downFbo[i], downTex[i], "bloom");
+            if (i < BLOOM_LEVELS - 1) {
+                texture(upTex[i], bw, bh, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+                attach(upFbo[i], upTex[i], "bloom");
+            }
+        }
+        bloomForW = fxW;
+        bloomForH = fxH;
+    }
+
+    private void ensureHold(int w, int h) {
+        if (holdFbo == 0) {
+            holdFbo = GL30.glGenFramebuffers();
+            holdTex = GL11.glGenTextures();
+        }
+        if (holdW != w || holdH != h) {
+            guard.touchUnit(0);
+            texture(holdTex, w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
+            attach(holdFbo, holdTex, "hold");
+            holdW = w;
+            holdH = h;
+        }
+    }
+
+    private void ensureStep(int w, int h) {
+        if (stepFbo == 0) {
+            stepFbo = GL30.glGenFramebuffers();
+            stepTex = GL11.glGenTextures();
+        }
+        if (stepW != w || stepH != h) {
+            guard.touchUnit(0);
+            texture(stepTex, w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
+            attach(stepFbo, stepTex, "step");
+            stepW = w;
+            stepH = h;
+            stepHeld = false;
         }
     }
 
@@ -294,20 +534,48 @@ public final class PostRenderer {
             return;
         }
         GL30.glDeleteVertexArrays(vao);
-        GL30.glDeleteFramebuffers(outFbo);
-        GL30.glDeleteFramebuffers(snapshotFbo);
-        GL30.glDeleteFramebuffers(sceneLowFbo);
+        deleteFbo(outFbo);
+        deleteFbo(snapshotFbo);
+        deleteFbo(sceneLowFbo);
         GL11.glDeleteTextures(snapshotTex);
         GL11.glDeleteTextures(sceneLowTex);
         for (int i = 0; i < 2; i++) {
-            GL30.glDeleteFramebuffers(pingFbo[i]);
+            deleteFbo(pingFbo[i]);
             GL11.glDeleteTextures(pingTex[i]);
-            pingFbo[i] = 0;
-            pingTex[i] = 0;
+            pingFbo[i] = pingTex[i] = 0;
         }
+        for (int i = 0; i < BLOOM_LEVELS; i++) {
+            deleteFbo(downFbo[i]);
+            deleteTex(downTex[i]);
+            downFbo[i] = downTex[i] = 0;
+        }
+        for (int i = 0; i < BLOOM_LEVELS - 1; i++) {
+            deleteFbo(upFbo[i]);
+            deleteTex(upTex[i]);
+            upFbo[i] = upTex[i] = 0;
+        }
+        deleteFbo(holdFbo);
+        deleteTex(holdTex);
+        deleteFbo(stepFbo);
+        deleteTex(stepTex);
+        timer.delete();
         vao = outFbo = snapshotFbo = snapshotTex = sceneLowFbo = sceneLowTex = 0;
-        outAttached = fullW = fullH = fxW = fxH = 0;
+        holdFbo = holdTex = stepFbo = stepTex = 0;
+        outAttached = fullW = fullH = fxW = fxH = bloomForW = bloomForH = holdW = holdH = stepW = stepH = 0;
+        holding = stepHeld = false;
         BHFxMod.LOGGER.debug("bhfx released its GPU targets");
+    }
+
+    private static void deleteFbo(int id) {
+        if (id != 0) {
+            GL30.glDeleteFramebuffers(id);
+        }
+    }
+
+    private static void deleteTex(int id) {
+        if (id != 0) {
+            GL11.glDeleteTextures(id);
+        }
     }
 
     private void disable(String reason, Throwable cause) {

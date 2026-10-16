@@ -28,6 +28,8 @@ public final class BHFxNetwork {
                 .encoder(S2CFxStart::encode).decoder(S2CFxStart::decode).consumerMainThread(S2CFxStart::handle).add();
         CHANNEL.messageBuilder(S2CFxStop.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CFxStop::encode).decoder(S2CFxStop::decode).consumerMainThread(S2CFxStop::handle).add();
+        CHANNEL.messageBuilder(S2CFxUpdate.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(S2CFxUpdate::encode).decoder(S2CFxUpdate::decode).consumerMainThread(S2CFxUpdate::handle).add();
     }
 
     public static <M> void send(PacketDistributor.PacketTarget target, M message) {

@@ -4,28 +4,44 @@ import net.minecraftforge.common.ForgeConfigSpec;
 
 public final class BHFxConfig {
     public enum Quality {
-        OFF(0.0), LOW(0.35), MEDIUM(0.65), HIGH(1.0);
+        OFF(0.0, false), LOW(0.35, false), MEDIUM(0.65, true), HIGH(1.0, true);
 
         /** Share of the pixel cap the effect passes may use. */
         public final double pixelShare;
+        public final boolean bloom;
 
-        Quality(double pixelShare) {
+        Quality(double pixelShare, boolean bloom) {
             this.pixelShare = pixelShare;
+            this.bloom = bloom;
+        }
+
+        public Quality lower() {
+            return this == HIGH ? MEDIUM : LOW;
+        }
+
+        public Quality min(Quality other) {
+            return ordinal() <= other.ordinal() ? this : other;
         }
     }
 
     public static final ForgeConfigSpec SERVER_SPEC;
     public static final ForgeConfigSpec.BooleanValue SERVER_ENABLED;
     public static final ForgeConfigSpec.DoubleValue SERVER_MAX_RANGE;
+    public static final ForgeConfigSpec.IntValue MAX_STARTS_PER_TICK;
+    public static final ForgeConfigSpec.IntValue MAX_ACTIVE_PER_CASTER;
 
     public static final ForgeConfigSpec CLIENT_SPEC;
     public static final ForgeConfigSpec.EnumValue<Quality> QUALITY;
     public static final ForgeConfigSpec.DoubleValue MAX_FX_MEGAPIXELS;
+    public static final ForgeConfigSpec.DoubleValue GPU_BUDGET_MS;
+    public static final ForgeConfigSpec.BooleanValue AUTO_DOWNGRADE;
+    public static final ForgeConfigSpec.BooleanValue BLOOM;
     public static final ForgeConfigSpec.IntValue MAX_ACTIVE_FX;
     public static final ForgeConfigSpec.IntValue MAX_PASSES_PER_FRAME;
     public static final ForgeConfigSpec.DoubleValue CULL_DISTANCE;
     public static final ForgeConfigSpec.DoubleValue FLASH_SCALE;
     public static final ForgeConfigSpec.DoubleValue SHAKE_SCALE;
+    public static final ForgeConfigSpec.BooleanValue IMPACT_FRAMES;
 
     static {
         ForgeConfigSpec.Builder s = new ForgeConfigSpec.Builder();
@@ -34,15 +50,25 @@ public final class BHFxConfig {
                 .define("enabled", true);
         SERVER_MAX_RANGE = s.comment("Upper limit for an effect's broadcast range, in blocks.")
                 .defineInRange("maxRange", 256.0, 16.0, 1024.0);
+        MAX_STARTS_PER_TICK = s.comment("Most effect starts per dimension per tick; extra starts are dropped (and logged).")
+                .defineInRange("maxStartsPerTick", 64, 1, 1024);
+        MAX_ACTIVE_PER_CASTER = s.comment("Most running effects one caster may own; extra starts are dropped.")
+                .defineInRange("maxActivePerCaster", 16, 1, 256);
         s.pop();
         SERVER_SPEC = s.build();
 
         ForgeConfigSpec.Builder c = new ForgeConfigSpec.Builder();
         c.push("quality");
-        QUALITY = c.comment("OFF = no effects and no GPU work at all (packets are dropped). LOW/MEDIUM/HIGH scale the effect resolution.")
+        QUALITY = c.comment("OFF = no effects and no GPU work at all (packets are dropped). LOW (no bloom) / MEDIUM / HIGH scale the effect resolution.")
                 .defineEnum("quality", Quality.HIGH);
         MAX_FX_MEGAPIXELS = c.comment("Resolution cap for effect passes, in megapixels. Larger screens render effects below native resolution.")
                 .defineInRange("maxFxMegapixels", 2.3, 0.3, 16.0);
+        GPU_BUDGET_MS = c.comment("GPU time effects may use per frame. Effect resolution drops (down to a quarter of the pixels) to stay under it.")
+                .defineInRange("gpuBudgetMs", 6.0, 1.0, 33.0);
+        AUTO_DOWNGRADE = c.comment("If effects stay over budget for 5 s even at the lowest resolution, lower the quality for this session.")
+                .define("autoDowngrade", true);
+        BLOOM = c.comment("Glow around bright spell light.")
+                .define("bloom", true);
         c.pop();
         c.push("limits");
         MAX_ACTIVE_FX = c.comment("Most effects alive at once; the oldest is removed beyond this.")
@@ -57,6 +83,8 @@ public final class BHFxConfig {
                 .defineInRange("flashScale", 1.0, 0.0, 1.0);
         SHAKE_SCALE = c.comment("Multiplier for camera shake. 0 disables it.")
                 .defineInRange("shakeScale", 1.0, 0.0, 2.0);
+        IMPACT_FRAMES = c.comment("Anime-style impact frames (full-screen ink / negative flashes). Turn off if they are uncomfortable.")
+                .define("impactFrames", true);
         c.pop();
         CLIENT_SPEC = c.build();
     }

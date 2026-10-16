@@ -32,6 +32,11 @@ public final class BHFxClient {
         ClientFxManager.shake(source, amount, range);
     }
 
+    /** The player's effect settings (quality after any automatic downgrade, comfort options). */
+    public static FxSettings settings() {
+        return ClientFxManager.settings();
+    }
+
     /** True when effects are enabled and post-processing is working on this client. */
     public static boolean postAvailable() {
         return ClientFxManager.postAvailable();

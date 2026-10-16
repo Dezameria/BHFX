@@ -9,6 +9,8 @@ import net.offkung.bhfx.api.client.Fx;
 import net.offkung.bhfx.api.client.FxContext;
 import net.offkung.bhfx.api.client.FxInit;
 import net.offkung.bhfx.api.client.FrameContext;
+import net.offkung.bhfx.api.client.ImpactSequence;
+import net.offkung.bhfx.api.client.ImpactStyle;
 import net.offkung.bhfx.api.client.PassList;
 import net.offkung.bhfx.api.client.ScreenParams;
 import net.offkung.bhfx.api.timeline.Timeline;
@@ -74,9 +76,22 @@ public final class TestFx extends Fx {
     protected void screen(FrameContext frame, ScreenParams screen) {
         float t = ticks(frame);
         float beam = T.env("beam", t, 1, 14);
+        float since = T.since("impact", t);
         screen.flash(0xFFE2B0, T.pulse("impact", t, 0, 5) * 0.9f)
                 .vignette(0x5A1006, 0.45f * beam)
                 .aberration(0.6f * T.pulse("impact", t, 0, 12))
+                .zoomBlur(0.5f * T.pulse("impact", t, 0, 10))
+                .bloom(1.3f * beam, 1.4f)
                 .shake(0.25f * beam);
+        HIT.apply(screen, since, 1f, init().target());
+        if (since >= 0f && since < 1.5f) {
+            screen.ripple(init().target(), radius * 0.3f + since * 45f, 3f + since * 4f, 1f - since / 1.5f);
+        }
     }
+
+    private static final ImpactSequence HIT = ImpactSequence.of(0.05f,
+            ImpactStyle.ink(0x140804, 0xFFF1DC).withFocusLines(1f),
+            ImpactStyle.inverted(0x140804, 0xFFF1DC).withFocusLines(1f),
+            null,
+            ImpactStyle.ink(0x140804, 0xFFF1DC));
 }

@@ -30,6 +30,8 @@ public final class FxSpawn {
     private int duration = DEFAULT_DURATION;
     private double range = DEFAULT_RANGE;
     private Audience audience = Audience.tracking();
+    @Nullable
+    private Boolean persistent;
 
     private FxSpawn(Vec3 origin) {
         this.origin = Objects.requireNonNull(origin);
@@ -91,6 +93,24 @@ public final class FxSpawn {
     public FxSpawn audience(Audience audience) {
         this.audience = Objects.requireNonNull(audience);
         return this;
+    }
+
+    /**
+     * Server only. Persistent effects are also sent to players who come into range, log in or respawn while the
+     * effect is still playing; they join it mid-timeline. Default: true when the duration is over 5 s or
+     * {@link #UNTIL_STOPPED}.
+     */
+    public FxSpawn persistent(boolean persistent) {
+        this.persistent = persistent;
+        return this;
+    }
+
+    /** Whether the server should keep re-sending this effect to late joiners. */
+    public boolean isPersistent() {
+        if (persistent != null) {
+            return persistent;
+        }
+        return duration == UNTIL_STOPPED || duration == DEFAULT_DURATION || duration > 100;
     }
 
     public Vec3 origin() { return origin; }

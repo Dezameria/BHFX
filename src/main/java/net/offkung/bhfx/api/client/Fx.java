@@ -125,6 +125,10 @@ public abstract class Fx {
     protected void onStop(FxContext ctx, StopMode mode) {
     }
 
+    /** After the server sent new values (already merged into {@link #params()}); {@code changed} holds only the new ones. */
+    protected void onParamsChanged(FxParams changed) {
+    }
+
     /** Release anything the effect holds (looping sounds, Effekseer emitters). */
     protected void onRemoved() {
     }
@@ -183,6 +187,12 @@ public abstract class Fx {
         }
         int d = duration();
         return d >= 0 && age > d;
+    }
+
+    @ApiStatus.Internal
+    public final void bhfxParams(FxParams changed) {
+        params = params.merge(changed);
+        onParamsChanged(changed);
     }
 
     @ApiStatus.Internal
