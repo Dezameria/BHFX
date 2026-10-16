@@ -359,15 +359,27 @@ ImpactSequence.of(0.05f, ImpactStyle.ink(0x000000, 0xFFFFFF), ImpactStyle.invert
 
 ### 4.7 `CameraParams` (v0.3)
 
+Fx override `camera(FrameContext, CameraParams)` (เรียกทุกเฟรมหลัง `screen`, มีผลตั้งแต่เฟรมถัดไป)
+
 ```java
 public interface CameraParams {
-    CameraParams roll(float degrees);
-    CameraParams fovMultiplier(float mul);         // min/max ตามทิศ
-    CameraParams override(CameraPose pose, float weight);   // weight สูงสุดชนะ, ใช้ทำคัตซีน
-    CameraParams hideHand();
-    CameraParams hideHud();
+    enum Level { NONE, SUBTLE, FULL }
+    Level allowed();                                        // สิ่งที่ Fx นี้แก้ได้บนเครื่องนี้ตอนนี้
+    CameraParams fov(float multiplier);                     // SUBTLE, clamp 0.7..1.3, คูณ camera.fovScale
+    CameraParams hideHand();                                // SUBTLE
+    CameraParams roll(float degrees);                       // FULL, รวมกันแล้ว clamp ±30
+    CameraParams hideHud();                                 // FULL (แชทยังแสดง)
+    CameraParams override(CameraPose pose, float weight);   // FULL, weight สูงสุดชนะ, ใช้ทำคัตซีนสั้นๆ
 }
+record CameraPose(Vec3 position, float yaw, float pitch, float roll) { of(...), lookAt(from, at), withRoll(...) }
 ```
+
+**กฎความปลอดภัยบนเซิร์ฟ** (ทำทางไว้ครบ แต่ล็อกด้วย config ฝั่งผู้เล่น):
+- `camera.control` = NONE / **SUBTLE** (ค่าเริ่มต้น) / FULL — ผู้เล่นเลือกเองว่าเวทของ **ตัวเอง** ขยับกล้องได้แค่ไหน
+- `camera.fromOthers` = **false** — เวทของคนอื่นและของ mob ไม่แตะกล้องเราเลย (กัน PvP แย่งการควบคุม) เว้นแต่ผู้เล่นเปิดเอง
+- คำขอที่เกินสิทธิ์ถูกเมินเงียบๆ Fx ต้องดูดีได้แม้ไม่มีผล (สั่นจอ, flash, impact ยังทำงานกับทุกคนตาม comfort)
+- `Fx.isLocalCaster()` บอกว่าเครื่องนี้เป็นของคนร่ายหรือไม่ ใช้แยกความแรงของ flash ฯลฯ ได้
+- การย้ายตำแหน่งกล้องใช้ reflection (`Camera#setPosition`, SRG `m_90584_`) — ไม่มี mixin/AT; ถ้าหาไม่เจอจะหมุนอย่างเดียว
 
 ### 4.8 `BHFxClient` — facade ฝั่ง client
 
@@ -635,7 +647,7 @@ Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_u
 | :--- | :--- | :--- |
 | **0.1** | `BHFx.start/stop/available` (handle), `FxSpawn`, `FxParams`, `RegisterFxEvent`, `Fx` (lifecycle + passes), `PassList`, `Uniforms`, `Timeline`, `BHFxClient.play/stop`, include `scene/shapes/light/noise`, composite ขั้นต่ำ, config `quality`/`enabled` ทั้งสองฝั่ง, ขีดจำกัด Fx/pass, ปิดตัวเองเมื่อ GL error, `/bhfx reload/on/off` | วงเตือนบนพื้น + ลำแสงที่ภูเขาบังถูกต้อง + bridge ใน BHSpells ทำงานได้ทั้งตอนมีและไม่มี bhfx |
 | **0.2** | bloom, `ScreenParams` ครบ, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (หัวข้อ 12), `FxSettings` ครบ, `GpuTimer` + `ResolutionController` + ลดคุณภาพอัตโนมัติ, F3, rate limit ฝั่งเซิร์ฟเวอร์ (`ShaderWarmup`, `ground/sdf2d`, `/bhfx stats/bench` เลื่อนไป 0.3) | เติม post-FX ให้เวทที่มีอยู่ 1 ตัวใน BHSpells + ผ่านเกณฑ์ 11.4 |
-| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams`, `AaaParticlesBridge`, `pulse` | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
+| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams` ✅ (มีระดับสิทธิ์), `AaaParticlesBridge`, `pulse` | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
 | **1.0** | ล็อก API, เอกสาร, ตัวอย่างใน mod ทดสอบ | ทุกอย่างข้างบนบน dedicated server |
 
 ---

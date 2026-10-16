@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@link #tick} — 20/s: particles, sounds, shakes, Effekseer</li>
  *   <li>{@link #passes} — per frame: shader passes</li>
  *   <li>{@link #screen} — per frame: full-screen parameters</li>
+ *   <li>{@link #camera} — per frame: FOV, hand, and (if the player allows) roll / HUD / camera override</li>
  * </ul>
  * Time comes only from {@link #age()} / {@link #ticks(FrameContext)}, and randomness only from {@link #random()},
  * so every client shows the same thing.
@@ -56,6 +57,12 @@ public abstract class Fx {
 
     protected final FxParams params() {
         return params;
+    }
+
+    /** True on the client of the player who cast this effect. */
+    protected final boolean isLocalCaster() {
+        net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+        return player != null && init.casterId() >= 0 && player.getId() == init.casterId();
     }
 
     // ------------------------------------------------------------------ time
@@ -139,6 +146,10 @@ public abstract class Fx {
     protected void screen(FrameContext frame, ScreenParams screen) {
     }
 
+    /** Camera requests; see {@link CameraParams} for what the player allows. Applied from the next frame. */
+    protected void camera(FrameContext frame, CameraParams camera) {
+    }
+
     protected void hud(GuiGraphics graphics, FrameContext frame) {
     }
 
@@ -201,9 +212,12 @@ public abstract class Fx {
     }
 
     @ApiStatus.Internal
-    public final void bhfxFrame(FrameContext frame, PassList passes, ScreenParams screen) {
+    public final void bhfxFrame(FrameContext frame, PassList passes, ScreenParams screen, CameraParams camera) {
         passes(frame, passes);
         screen(frame, screen);
+        if (camera.allowed() != CameraParams.Level.NONE) {
+            camera(frame, camera);
+        }
     }
 
     @ApiStatus.Internal

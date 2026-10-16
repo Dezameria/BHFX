@@ -5,6 +5,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.FxParam;
+import net.deizyn.bhfx.api.client.CameraParams;
 import net.deizyn.bhfx.api.client.Fx;
 import net.deizyn.bhfx.api.client.FxContext;
 import net.deizyn.bhfx.api.client.FxInit;
@@ -87,6 +88,13 @@ public final class TestFx extends Fx {
         if (since >= 0f && since < 1.5f) {
             screen.ripple(init().target(), radius * 0.3f + since * 45f, 3f + since * 4f, 1f - since / 1.5f);
         }
+    }
+
+    @Override
+    protected void camera(FrameContext frame, CameraParams camera) {
+        // the caster's own screen: a short FOV punch on impact, and a small tilt only if they allow FULL control
+        float hit = T.pulse("impact", ticks(frame), 0, 10);
+        camera.fov(1f + 0.1f * hit).roll(5f * hit);
     }
 
     private static final ImpactSequence HIT = ImpactSequence.of(0.05f,

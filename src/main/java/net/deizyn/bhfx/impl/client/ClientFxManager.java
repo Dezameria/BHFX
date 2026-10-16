@@ -62,6 +62,7 @@ public final class ClientFxManager {
     private static final ShaderWarmup WARMUP = new ShaderWarmup();
     private static final FrameStats STATS = new FrameStats();
     private static final FxBench BENCH = new FxBench();
+    private static final CameraParamsImpl CAMERA = new CameraParamsImpl();
 
     @Nullable
     private static PostRenderer renderer;
@@ -384,6 +385,7 @@ public final class ClientFxManager {
     static void render(Camera camera, float partial) {
         BENCH.frame(System.nanoTime());
         frameShake = 0f;
+        CAMERA.reset();
         lastPassCount = 0;
         if (!enabled()) {
             return;
@@ -427,7 +429,7 @@ public final class ClientFxManager {
             }
             PASSES.currentDistance(distance);
             try {
-                e.fx.bhfxFrame(FRAME, PASSES, SCREEN);
+                e.fx.bhfxFrame(FRAME, PASSES, SCREEN, CAMERA.bindFor(isLocalCaster(mc, e.fx)));
             } catch (RuntimeException ex) {
                 BHFxMod.LOGGER.error("bhfx effect {} failed while rendering; removing it", e.fx.init().id(), ex);
                 e.broken = true;
@@ -499,6 +501,15 @@ public final class ClientFxManager {
                 e.fx.bhfxHud(graphics, FRAME.bind(e.fx, followed(level, e.fx)));
             }
         }
+    }
+
+    private static boolean isLocalCaster(Minecraft mc, Fx fx) {
+        return mc.player != null && fx.init().casterId() >= 0 && fx.init().casterId() == mc.player.getId();
+    }
+
+    /** Camera requests gathered last frame. */
+    static CameraParamsImpl camera() {
+        return CAMERA;
     }
 
     /** Camera shake amount for this frame, before the comfort multiplier. */

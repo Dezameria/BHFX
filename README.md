@@ -41,6 +41,7 @@ dependencies {
   - quality: `quality` (OFF/LOW/MEDIUM/HIGH — LOW ไม่มี bloom), `maxFxMegapixels`, `gpuBudgetMs` (ค่าเริ่มต้น 6), `autoDowngrade`, `bloom`, `warmup`
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
+  - camera: `control` (NONE / **SUBTLE** / FULL — เวทของตัวเองขยับกล้องได้แค่ไหน), `fromOthers` (**false** — เวทคนอื่นไม่แตะกล้องเรา), `fovScale`
   - compat: `offWithShaderpack` (ค่าเริ่มต้น true — ปิด post ขณะเปิด shader pack ของ Iris/Oculus)
 - `config/bhfx-server.toml`: `enabled` (false = ไม่ส่งเอฟเฟค, mod ที่ใช้กลับไปใช้ทางสำรอง), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
 
@@ -66,12 +67,13 @@ net.deizyn.bhfx
  ├─ api/            BHFx, FxSpawn, FxParam(s), FxHandle, FxKey, StopMode, Follow, Audience
  │   ├─ timeline/   Timeline, Ease
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,
- │                  ScreenParams, ImpactStyle, ImpactSequence, FxSettings, BHFxClient, LocalFxHandle, RegisterFxEvent
+ │                  ScreenParams, ImpactStyle, ImpactSequence, CameraParams, CameraPose, FxSettings, BHFxClient,
+ │                  LocalFxHandle, RegisterFxEvent
  └─ impl/           (ภายใน เปลี่ยนได้ตลอด)
      ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate
      ├─ server/     ServerFx (id, key, อายุ, rate limit, tracker), ServerFxEvents (/bhfx_test)
      ├─ client/     ClientFxManager (ลดคุณภาพอัตโนมัติ), ClientEvents (/bhfx, F3), ShaderWarmup, ShaderpackDetector,
-     │              FrameStats (/bhfx stats), FxBench (/bhfx bench), test/TestFx
+     │              FrameStats (/bhfx stats), FxBench (/bhfx bench), CameraParamsImpl, CameraMover, test/TestFx
      └─ render/     PostRenderer, GpuTimer, ResolutionController, GlStateGuard, ShaderManager, UniformBinder
 assets/bhfx/shaders/bhfx/
  ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl, ground.glsl, sdf2d.glsl
@@ -99,7 +101,6 @@ include ด้วย `#include "bhfx:light.glsl"` (ไฟล์ include อย�
 
 ## ยังไม่ได้ทำ (ส่วนที่เหลือของ 0.3)
 
-- `CameraParams` (roll, FOV, ซ่อนมือ/HUD, override กล้องสำหรับคัตซีน)
 - `AaaParticlesBridge` (`ctx.effek(...)` เรียก Effekseer จากใน Fx ได้ถ้ามี AAA Particles)
 - `pulse` ใน `ScreenParams`
 
@@ -108,5 +109,5 @@ include ด้วย `#include "bhfx:light.glsl"` (ไฟล์ include อย�
 - ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
 - ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
 - ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
-- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
+- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: CameraParams (FOV punch ตอน `/bhfx_test` กระแทก; roll ต้องตั้ง `camera.control=FULL`), warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
 - ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server

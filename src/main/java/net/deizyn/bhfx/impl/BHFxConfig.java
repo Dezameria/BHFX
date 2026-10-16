@@ -1,5 +1,6 @@
 package net.deizyn.bhfx.impl;
 
+import net.deizyn.bhfx.api.client.CameraParams;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 public final class BHFxConfig {
@@ -44,6 +45,9 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.BooleanValue IMPACT_FRAMES;
     public static final ForgeConfigSpec.BooleanValue OFF_WITH_SHADERPACK;
     public static final ForgeConfigSpec.BooleanValue WARMUP;
+    public static final ForgeConfigSpec.EnumValue<CameraParams.Level> CAMERA_CONTROL;
+    public static final ForgeConfigSpec.BooleanValue CAMERA_FROM_OTHERS;
+    public static final ForgeConfigSpec.DoubleValue FOV_SCALE;
 
     static {
         ForgeConfigSpec.Builder s = new ForgeConfigSpec.Builder();
@@ -73,6 +77,17 @@ public final class BHFxConfig {
                 .define("bloom", true);
         WARMUP = c.comment("Compile effect shaders while the world loads (one per frame) instead of on the first cast.")
                 .define("warmup", true);
+        c.pop();
+        c.push("camera");
+        CAMERA_CONTROL = c.comment("How much your own spells' effects may move your camera.",
+                        "NONE = nothing (shake still follows comfort.shakeScale). SUBTLE = brief FOV punches and hiding the hand.",
+                        "FULL = also camera roll, hiding the HUD and short camera cut-ins.")
+                .defineEnum("control", CameraParams.Level.SUBTLE);
+        CAMERA_FROM_OTHERS = c.comment("Let effects cast by other players (and by mobs) use the same camera control on your screen.",
+                        "Off by default so nobody else's spell can turn your camera in a fight.")
+                .define("fromOthers", false);
+        FOV_SCALE = c.comment("Multiplier for FOV punches. 0 disables them.")
+                .defineInRange("fovScale", 1.0, 0.0, 1.0);
         c.pop();
         c.push("compat");
         OFF_WITH_SHADERPACK = c.comment("Turn post effects off while an Iris/Oculus shader pack is active (camera shake still works).",
