@@ -30,7 +30,7 @@ dependencies {
 | `/bhfx_test [radius]` | server (op 2) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
 | `/bhfx_test pulse` | server (op 2) | ScreenPulse ที่ตัวเอง: สั่น + แสงวาบ + ขอบจอแดง + สีเหลื่อม (ผู้เล่นในระยะ 32 บล็อกเห็นด้วย เบาลงตามระยะ) |
 | `/bhfx stats` | client | ต้นทุนย้อนหลัง 10 วินาที: เวลา CPU ตอนวาด/ตอน tick และเวลา GPU (เฉลี่ย/สูงสุด), จำนวน fx/pass สูงสุด, VRAM ที่ถืออยู่ (นับเฉพาะเฟรมที่มีเอฟเฟค) |
-| `/bhfx bench [fx] [วินาที]` | client | ครึ่งแรกไม่มีเอฟเฟค ครึ่งหลังเล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วรายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
+| `/bhfx bench [fx] [วินาที]` | client | เล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วสลับปิด/เปิดการวาดของ bhfx ทุก 1 วินาที รายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
 | `/bhfx status` | client | สถานะ: เปิด/ปิด, quality ที่ใช้จริง, จำนวน fx/pass, ความละเอียด FX, % งบ, เวลา GPU, VRAM โดยประมาณ |
 | F3 | client | บรรทัด `[bhfx] ...` ด้านซ้ายแสดงข้อมูลเดียวกันแบบสด |
 | `/bhfx off` / `/bhfx on` | client | ปิด/เปิดชั่วคราวเพื่อเทียบ FPS (ปิด = ไม่สร้าง fx และไม่แตะ GPU) |
@@ -119,5 +119,9 @@ BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));           
 - ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
 - ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
 - ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
-- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: ScreenPulse (`/bhfx_test pulse`), CameraParams (FOV punch ตอน `/bhfx_test` กระแทก; roll ต้องตั้ง `camera.control=FULL`), warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
+- ✅ 0.3 ทดสอบในเกมรอบแรก (dev client, โลก flat + ภูเขา): warmup 4 shader (278 ms ตอนโหลดโลก), `/bhfx_test`, `/bhfx_test pulse`, `/bhfx bench` ทำงาน, GPU ของ bhfx 0.3–0.5 ms ต่อเฟรม, ไม่มี exception
+  - 🐞 แก้แล้ว: ตัวจับเวลา GPU ชนกับ query ของ F3 (GL_INVALID_OPERATION ทุกเฟรมตอนเปิด F3) → เปลี่ยนเป็น GL_TIMESTAMP
+  - 🐞 แก้แล้ว: bench แบบครึ่งแรก/ครึ่งหลังให้ค่าติดลบเพราะ FPS แกว่งตามเวลา → สลับปิด/เปิดทุก 1 วินาที
+  - bench 30 วินาที: ส่วนต่าง +2.0 ms เมื่อมีสั่นจอ/FOV punch แต่ **+0.09 ms** เมื่อปิด (`shakeScale=0`, `control=NONE`) — การวาดของ bhfx เองถูกมาก ส่วนใหญ่เป็นค่าที่ Minecraft คำนวณ chunk ที่มองเห็นใหม่ทุกเฟรมเมื่อกล้องขยับ
+- ⏳ 0.3 ยังไม่ได้ทดสอบ: CameraParams แบบ FULL, การรวม packet บน dedicated server, การตรวจ shader pack (ต้องมี Oculus), tracker
 - ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server

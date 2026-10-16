@@ -13,16 +13,23 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Arrays;
 
 /**
- * /bhfx bench: frame time for half the time without the effect, then half with it replaying locally where the player
- * looks, and the difference. Local only — nothing is sent to the server or other players.
+ * /bhfx bench: the effect replays locally where the player looks for the whole run, while bhfx's drawing is switched
+ * off and on every second. Alternating cancels the slow drift of frame time (chunk loading, clock boost, other mods)
+ * that a "first half without, second half with" run mistakes for the effect's cost. Local only — nothing is sent to
+ * the server or other players.
  */
 final class FxBench {
     private enum Phase { IDLE, WITHOUT, WITH }
 
+    private static final long SEGMENT_NANOS = 1_000_000_000L;
+    /** Frames ignored after each switch (the switch frame itself may allocate or recompile). */
+    private static final int SETTLE_FRAMES = 3;
+
     private Phase phase = Phase.IDLE;
     private ResourceLocation fxId;
-    private long phaseNanos;
+    private long endAt;
     private long phaseStart;
+    private int settle;
     private long lastFrame;
     private Vec3 target = Vec3.ZERO;
     private LocalFxHandle handle = LocalFxHandle.NONE;
@@ -41,21 +48,27 @@ final class FxBench {
         Vec3 eye = mc.player.getEyePosition();
         this.target = hit.getType() == HitResult.Type.MISS ? eye.add(mc.player.getLookAngle().scale(24.0)) : hit.getLocation();
         this.fxId = fxId;
-        this.phaseNanos = seconds * 500_000_000L;
         without.clear();
         with.clear();
         gpuSum = 0.0;
         gpuCount = 0;
         lastFrame = 0L;
-        phase = Phase.WITHOUT;
+        settle = SETTLE_FRAMES;
+        phase = Phase.WITH; // start drawing first so shaders and targets exist before anything is measured
         phaseStart = System.nanoTime();
+        endAt = phaseStart + seconds * 1_000_000_000L;
+    }
+
+    /** While true, bhfx skips drawing this frame (the effect keeps ticking). */
+    boolean suppressing() {
+        return phase == Phase.WITHOUT;
     }
 
     void cancel() {
         if (phase != Phase.IDLE) {
+            phase = Phase.IDLE;
             ClientFxManager.stopLocal(handle, StopMode.IMMEDIATE);
             handle = LocalFxHandle.NONE;
-            phase = Phase.IDLE;
         }
     }
 
@@ -64,26 +77,26 @@ final class FxBench {
         if (phase == Phase.IDLE) {
             return;
         }
-        if (lastFrame != 0L) {
+        if (lastFrame != 0L && settle <= 0) {
             (phase == Phase.WITHOUT ? without : with).add((now - lastFrame) / 1e6f);
         }
+        settle--;
         lastFrame = now;
-        if (now - phaseStart < phaseNanos) {
-            return;
-        }
-        if (phase == Phase.WITHOUT) {
-            phase = Phase.WITH;
-            phaseStart = now;
-            lastFrame = 0L; // the frame that starts the effect may compile shaders; do not count across the switch
-        } else {
+        if (now >= endAt) {
             cancel();
             report();
+            return;
+        }
+        if (now - phaseStart >= SEGMENT_NANOS) {
+            phase = phase == Phase.WITH ? Phase.WITHOUT : Phase.WITH;
+            phaseStart = now;
+            settle = SETTLE_FRAMES;
         }
     }
 
     /** Every client tick: keep the effect replaying during the second half. */
     void tick() {
-        if (phase != Phase.WITH || ClientFxManager.isLocalAlive(handle)) {
+        if (phase == Phase.IDLE || ClientFxManager.isLocalAlive(handle)) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -106,6 +119,7 @@ final class FxBench {
         double a = without.mean();
         double b = with.mean();
         message(Component.literal("bhfx bench " + fxId + ":").withStyle(ChatFormatting.AQUA));
+        message(Component.literal("  (bhfx drawing switched off/on every second while the effect played)"));
         message(Component.literal(String.format("  without: %.2f ms avg (%.0f fps), 1%% worst %.2f ms, %d frames",
                 a, 1000.0 / a, without.percentile(0.99), without.count())));
         message(Component.literal(String.format("  with:    %.2f ms avg (%.0f fps), 1%% worst %.2f ms, %d frames",
@@ -113,6 +127,13 @@ final class FxBench {
         message(Component.literal(String.format("  cost: %+.2f ms per frame%s", b - a,
                 gpuCount > 0 ? String.format(", bhfx GPU %.2f ms avg", gpuSum / gpuCount) : ""))
                 .withStyle(ChatFormatting.YELLOW));
+        double gpu = gpuCount > 0 ? gpuSum / gpuCount : 0.0;
+        if (b - a > gpu * 2.0 + 0.5) {
+            // measured in testing: drawing cost 0.3 ms, but shake / FOV made Minecraft re-cull chunks every frame (+1.7 ms)
+            message(Component.literal("  Most of that is camera movement (shake / FOV punch make Minecraft re-cull chunks every frame), "
+                    + "not drawing. For drawing alone: comfort.shakeScale = 0 and camera.control = NONE.")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 
     private static void message(Component c) {

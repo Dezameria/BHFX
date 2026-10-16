@@ -418,6 +418,9 @@ public final class ClientFxManager {
         BENCH.frame(System.nanoTime());
         frameShake = 0f;
         CAMERA.reset();
+        if (BENCH.suppressing()) {
+            return;
+        }
         lastPassCount = 0;
         if (!enabled()) {
             return;

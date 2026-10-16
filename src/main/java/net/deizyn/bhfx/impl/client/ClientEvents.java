@@ -159,8 +159,8 @@ public final class ClientEvents {
             ctx.getSource().sendFailure(Component.literal("bhfx bench: " + error));
             return 0;
         }
-        ctx.getSource().sendSuccess(() -> Component.literal("bhfx bench: " + seconds / 2 + " s without " + fx
-                + ", then " + seconds / 2 + " s with it where you are looking. Keep the camera still."), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx bench: playing " + fx + " where you are looking for "
+                + seconds + " s, drawing switched off/on every second. Keep the camera still."), false);
         return Command.SINGLE_SUCCESS;
     }
 }
