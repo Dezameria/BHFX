@@ -111,6 +111,14 @@ public abstract class Fx {
         return init.duration() == FxSpawn.DEFAULT_DURATION ? defaultDuration() : init.duration();
     }
 
+    /**
+     * Stop this effect from inside one of its own hooks (e.g. after a while without events), playing the ending for
+     * {@code mode} like a stop from the server would. Ignored if it is already stopping.
+     */
+    protected final void end(FxContext ctx, StopMode mode) {
+        bhfxStop(ctx, mode);
+    }
+
     /** Length of the ending after a stop. */
     protected int endTicks(StopMode mode) {
         return switch (mode) {
