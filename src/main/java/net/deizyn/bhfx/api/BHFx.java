@@ -2,6 +2,8 @@ package net.deizyn.bhfx.api;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.impl.server.ServerFx;
 
 import java.util.Optional;
@@ -49,6 +51,19 @@ public final class BHFx {
      */
     public static void update(FxHandle handle, FxParams changed) {
         ServerFx.update(handle, changed);
+    }
+
+    /**
+     * A short screen reaction (shake, flash, vignette ...) for players within {@code range} of {@code at}, weaker the
+     * farther they are. No Fx class needed. Counts towards the server's starts-per-tick limit.
+     */
+    public static void pulse(ServerLevel level, Vec3 at, double range, ScreenPulse pulse) {
+        ServerFx.pulse(level, at, range, pulse);
+    }
+
+    /** A screen reaction for one player at full strength (e.g. the one who got hit). */
+    public static void pulse(ServerPlayer player, ScreenPulse pulse) {
+        ServerFx.pulse(player, pulse);
     }
 
     /** Whether the effect is still expected to be running (by its duration). Effects with the default duration count as 10 s. */

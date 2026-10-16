@@ -13,6 +13,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.ScreenPulse;
 import net.deizyn.bhfx.api.client.FxSettings;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.api.client.Fx;
@@ -35,6 +36,7 @@ import java.util.Set;
 /** Owns every running effect on this client. Render thread only. */
 public final class ClientFxManager {
     private static final long RELEASE_AFTER_NANOS = 30_000_000_000L;
+    private static final int MAX_PULSES = 16;
 
     private static final class Entry {
         final Fx fx;
@@ -51,6 +53,7 @@ public final class ClientFxManager {
     private static final Map<ResourceLocation, FxFactory> FACTORIES = new HashMap<>();
     private static final Set<ResourceLocation> WARNED = new HashSet<>();
     private static final List<Entry> ACTIVE = new ArrayList<>();
+    private static final List<ActivePulse> PULSES = new ArrayList<>();
     private static final FxContextImpl TICK = new FxContextImpl();
     private static final FrameContextImpl FRAME = new FrameContextImpl();
     private static final PassListImpl PASSES = new PassListImpl();
@@ -273,6 +276,30 @@ public final class ClientFxManager {
         }
     }
 
+    /** A screen pulse from the server; {@code at == null} = full strength. */
+    static void pulse(@Nullable Vec3 at, float range, ScreenPulse pulse) {
+        if (!enabled() || Minecraft.getInstance().level == null) {
+            return;
+        }
+        float weight = 1f;
+        if (at != null) {
+            Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+            weight = (float) Math.max(0.0, 1.0 - camera.distanceTo(at) / Math.max(range, 1.0));
+            if (weight <= 0.01f) {
+                return;
+            }
+        }
+        if (pulse.shake() > 0f) {
+            trauma = Math.min(1f, trauma + pulse.shake() * weight);
+        }
+        if (pulse.length() > 0) {
+            if (PULSES.size() >= MAX_PULSES) {
+                PULSES.remove(0);
+            }
+            PULSES.add(new ActivePulse(pulse, weight));
+        }
+    }
+
     public static void shake(Vec3 source, float amount, double range) {
         if (!enabled()) {
             return;
@@ -287,6 +314,7 @@ public final class ClientFxManager {
             remove(e);
         }
         ACTIVE.clear();
+        PULSES.clear();
         trauma = 0f;
         frameShake = 0f;
     }
@@ -334,6 +362,10 @@ public final class ClientFxManager {
         }
         trauma = Math.max(0f, trauma - 0.04f);
         BENCH.tick();
+        if (!PULSES.isEmpty()) {
+            PULSES.forEach(ActivePulse::tick);
+            PULSES.removeIf(ActivePulse::finished);
+        }
         if (ACTIVE.isEmpty()) {
             releaseIfIdle();
             return;
@@ -398,7 +430,7 @@ public final class ClientFxManager {
                 WARMUP.step(r);
             }
         }
-        if (ACTIVE.isEmpty() || Minecraft.getInstance().level == null) {
+        if ((ACTIVE.isEmpty() && PULSES.isEmpty()) || Minecraft.getInstance().level == null) {
             return;
         }
         long start = System.nanoTime();
@@ -434,6 +466,9 @@ public final class ClientFxManager {
                 BHFxMod.LOGGER.error("bhfx effect {} failed while rendering; removing it", e.fx.init().id(), ex);
                 e.broken = true;
             }
+        }
+        for (ActivePulse p : PULSES) {
+            p.apply(SCREEN, partial);
         }
         frameShake = SCREEN.shakeValue();
         if ((PASSES.isEmpty() && SCREEN.imageIdle()) || ShaderpackDetector.blocksPost()) {

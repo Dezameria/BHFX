@@ -14,6 +14,7 @@ import net.deizyn.bhfx.api.FxHandle;
 import net.deizyn.bhfx.api.FxKey;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.ScreenPulse;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.BHFxConfig;
 import net.deizyn.bhfx.impl.net.BHFxNetwork;
@@ -21,6 +22,7 @@ import net.deizyn.bhfx.impl.net.S2CFxStart;
 import net.deizyn.bhfx.impl.net.S2CFxStartBatch;
 import net.deizyn.bhfx.impl.net.S2CFxStop;
 import net.deizyn.bhfx.impl.net.S2CFxUpdate;
+import net.deizyn.bhfx.impl.net.S2CScreenPulse;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -141,7 +143,31 @@ public final class ServerFx {
         return new FxHandle(level.dimension(), id);
     }
 
-    private static boolean withinLimits(ServerLevel level, FxSpawn spawn, ResourceLocation fxId) {
+    // ------------------------------------------------------------------ pulses
+
+    public static void pulse(ServerLevel level, Vec3 at, double range, ScreenPulse pulse) {
+        if (!enabled() || pulse == null || pulse.isEmpty() || !takeStart(level, "a screen pulse")) {
+            return;
+        }
+        double r = Math.min(range, BHFxConfig.SERVER_MAX_RANGE.get());
+        S2CScreenPulse packet = new S2CScreenPulse(at, (float) r, pulse);
+        double r2 = r * r;
+        for (ServerPlayer player : level.players()) {
+            if (player.position().distanceToSqr(at) <= r2) {
+                BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), packet);
+            }
+        }
+    }
+
+    public static void pulse(ServerPlayer player, ScreenPulse pulse) {
+        if (!enabled() || pulse == null || pulse.isEmpty() || !takeStart(player.serverLevel(), "a screen pulse")) {
+            return;
+        }
+        BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), new S2CScreenPulse(null, 0f, pulse));
+    }
+
+    /** Count one start against this tick's per-dimension limit; false (and a muted warning) when it is used up. */
+    private static boolean takeStart(ServerLevel level, String what) {
         long[] counter = STARTS_THIS_TICK.computeIfAbsent(level.dimension(), d -> new long[]{-1, 0});
         long now = level.getGameTime();
         if (counter[0] != now) {
@@ -149,9 +175,14 @@ public final class ServerFx {
             counter[1] = 0;
         }
         if (counter[1] >= BHFxConfig.MAX_STARTS_PER_TICK.get()) {
-            warnLimit("too many starts this tick in " + level.dimension().location() + "; dropped " + fxId);
+            warnLimit("too many starts this tick in " + level.dimension().location() + "; dropped " + what);
             return false;
         }
+        counter[1]++;
+        return true;
+    }
+
+    private static boolean withinLimits(ServerLevel level, FxSpawn spawn, ResourceLocation fxId) {
         int caster = spawn.casterId();
         if (caster >= 0) {
             int owned = 0;
@@ -165,8 +196,7 @@ public final class ServerFx {
                 return false;
             }
         }
-        counter[1]++;
-        return true;
+        return takeStart(level, fxId.toString());
     }
 
     private static void warnLimit(String message) {

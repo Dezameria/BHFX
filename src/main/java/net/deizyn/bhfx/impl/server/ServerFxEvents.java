@@ -21,6 +21,7 @@ import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.BHFx;
 import net.deizyn.bhfx.api.FxParam;
 import net.deizyn.bhfx.api.FxSpawn;
+import net.deizyn.bhfx.api.ScreenPulse;
 
 public final class ServerFxEvents {
     private ServerFxEvents() {
@@ -70,14 +71,33 @@ public final class ServerFxEvents {
         ServerFx.clearAll();
     }
 
-    /** /bhfx_test [radius] — plays the built-in test effect where the player looks. Needs permission level 2. */
+    /**
+     * /bhfx_test [radius] — plays the built-in test effect where the player looks.
+     * /bhfx_test pulse — a screen pulse at the player (shake, flash, red edges, colour fringes). Permission level 2.
+     */
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("bhfx_test")
                 .requires(source -> source.hasPermission(2))
                 .executes(ctx -> test(ctx, 8f))
+                .then(Commands.literal("pulse").executes(ServerFxEvents::testPulse))
                 .then(Commands.argument("radius", FloatArgumentType.floatArg(2f, 64f))
                         .executes(ctx -> test(ctx, FloatArgumentType.getFloat(ctx, "radius")))));
+    }
+
+    private static int testPulse(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!BHFx.available(player.serverLevel())) {
+            ctx.getSource().sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
+            return 0;
+        }
+        BHFx.pulse(player.serverLevel(), player.position(), 32, ScreenPulse.of()
+                .shake(0.5f)
+                .flash(0xFFF0D8, 0.7f, 8)
+                .vignette(0x500808, 0.6f, 24)
+                .aberration(0.8f, 12));
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx pulse (players within 32 blocks)"), false);
+        return 1;
     }
 
     private static int test(CommandContext<CommandSourceStack> ctx, float radius) throws CommandSyntaxException {

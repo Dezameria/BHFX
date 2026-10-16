@@ -84,8 +84,11 @@ public final class BHFx {
     /** เปลี่ยนพารามิเตอร์ระหว่างที่เล่นอยู่ (เช่น ระดับการชาร์จ) */
     public static void update(FxHandle handle, FxParams changed);
 
-    /** เอฟเฟคหน้าจอสั้นๆ แบบไม่ต้องมีคลาส Fx (สั่น, flash) */
+    /** เอฟเฟคหน้าจอสั้นๆ แบบไม่ต้องมีคลาส Fx (สั่น, flash, vignette, aberration, zoomBlur, desaturate) เบาลงตามระยะ */
     public static void pulse(ServerLevel level, Vec3 at, double range, ScreenPulse pulse);
+    /** ให้ผู้เล่นคนเดียว เต็มแรง (เช่น คนที่โดน) */
+    public static void pulse(ServerPlayer player, ScreenPulse pulse);
+    // ScreenPulse.of().shake(0.6f).flash(rgb, strength, ticks).vignette(rgb, strength, ticks) ...
 
     public static boolean isAlive(FxHandle handle);
 
@@ -635,7 +638,7 @@ Timeline เก็บข้อมูลเป็น record ที่ไม่เ
 | `ClientFxManager` | เก็บ Fx, tick, cull, จำกัด 32 ตัว | follow entity, ช่วงจบ, startAge |
 | `ScreenParamsImpl` | รวมค่า + คูณ config | — |
 | `ShaderpackDetector` | ตรวจ Iris/Oculus | ปิด post อัตโนมัติ |
-| `AaaParticlesBridge` | `ctx.effek(...)` | soft dependency แบบเดียวกับ `AaaParticlesLoadedBridge` ของ BHSpells |
+| `AaaParticlesBridge` (เลื่อน) | `ctx.effek(...)` | soft dependency แบบเดียวกับ `AaaParticlesLoadedBridge` ของ BHSpells — ทำเมื่อต้องการให้ Effekseer ชิ้นเสริมตรงจังหวะกับ Timeline ของ Fx |
 
 Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_up`, `bhfx:composite` (เขียนใหม่ทั้งหมด)
 
@@ -647,7 +650,7 @@ Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_u
 | :--- | :--- | :--- |
 | **0.1** | `BHFx.start/stop/available` (handle), `FxSpawn`, `FxParams`, `RegisterFxEvent`, `Fx` (lifecycle + passes), `PassList`, `Uniforms`, `Timeline`, `BHFxClient.play/stop`, include `scene/shapes/light/noise`, composite ขั้นต่ำ, config `quality`/`enabled` ทั้งสองฝั่ง, ขีดจำกัด Fx/pass, ปิดตัวเองเมื่อ GL error, `/bhfx reload/on/off` | วงเตือนบนพื้น + ลำแสงที่ภูเขาบังถูกต้อง + bridge ใน BHSpells ทำงานได้ทั้งตอนมีและไม่มี bhfx |
 | **0.2** | bloom, `ScreenParams` ครบ, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (หัวข้อ 12), `FxSettings` ครบ, `GpuTimer` + `ResolutionController` + ลดคุณภาพอัตโนมัติ, F3, rate limit ฝั่งเซิร์ฟเวอร์ (`ShaderWarmup`, `ground/sdf2d`, `/bhfx stats/bench` เลื่อนไป 0.3) | เติม post-FX ให้เวทที่มีอยู่ 1 ตัวใน BHSpells + ผ่านเกณฑ์ 11.4 |
-| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams` ✅ (มีระดับสิทธิ์), `AaaParticlesBridge`, `pulse` | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
+| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams` ✅ (มีระดับสิทธิ์), `pulse` ✅; `AaaParticlesBridge` เลื่อนไปทำเมื่อมีเคสจริง (BHSpells จัดการ Effekseer เองอยู่แล้ว) | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
 | **1.0** | ล็อก API, เอกสาร, ตัวอย่างใน mod ทดสอบ | ทุกอย่างข้างบนบน dedicated server |
 
 ---

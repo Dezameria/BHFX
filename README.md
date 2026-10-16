@@ -28,6 +28,7 @@ dependencies {
 | คำสั่ง | ฝั่ง | ทำอะไร |
 | :--- | :--- | :--- |
 | `/bhfx_test [radius]` | server (op 2) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
+| `/bhfx_test pulse` | server (op 2) | ScreenPulse ที่ตัวเอง: สั่น + แสงวาบ + ขอบจอแดง + สีเหลื่อม (ผู้เล่นในระยะ 32 บล็อกเห็นด้วย เบาลงตามระยะ) |
 | `/bhfx stats` | client | ต้นทุนย้อนหลัง 10 วินาที: เวลา CPU ตอนวาด/ตอน tick และเวลา GPU (เฉลี่ย/สูงสุด), จำนวน fx/pass สูงสุด, VRAM ที่ถืออยู่ (นับเฉพาะเฟรมที่มีเอฟเฟค) |
 | `/bhfx bench [fx] [วินาที]` | client | ครึ่งแรกไม่มีเอฟเฟค ครึ่งหลังเล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วรายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
 | `/bhfx status` | client | สถานะ: เปิด/ปิด, quality ที่ใช้จริง, จำนวน fx/pass, ความละเอียด FX, % งบ, เวลา GPU, VRAM โดยประมาณ |
@@ -64,13 +65,13 @@ dependencies {
 
 ```
 net.deizyn.bhfx
- ├─ api/            BHFx, FxSpawn, FxParam(s), FxHandle, FxKey, StopMode, Follow, Audience
+ ├─ api/            BHFx, FxSpawn, FxParam(s), FxHandle, FxKey, StopMode, Follow, Audience, ScreenPulse
  │   ├─ timeline/   Timeline, Ease
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,
  │                  ScreenParams, ImpactStyle, ImpactSequence, CameraParams, CameraPose, FxSettings, BHFxClient,
  │                  LocalFxHandle, RegisterFxEvent
  └─ impl/           (ภายใน เปลี่ยนได้ตลอด)
-     ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate
+     ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate / S2CScreenPulse
      ├─ server/     ServerFx (id, key, อายุ, rate limit, tracker), ServerFxEvents (/bhfx_test)
      ├─ client/     ClientFxManager (ลดคุณภาพอัตโนมัติ), ClientEvents (/bhfx, F3), ShaderWarmup, ShaderpackDetector,
      │              FrameStats (/bhfx stats), FxBench (/bhfx bench), CameraParamsImpl, CameraMover, test/TestFx
@@ -99,15 +100,24 @@ include ด้วย `#include "bhfx:light.glsl"` (ไฟล์ include อย�
 | Tracker กับ entity ที่ follow | `PlayerEvent.StartTracking` | ตรวจระยะจากตำแหน่งปัจจุบันของ entity ทุก 10 tick | ใช้โค้ดชุดเดียวกับเอฟเฟคที่ไม่ follow |
 | การส่ง update | ส่งเฉพาะคนที่ได้รับเอฟเฟค | ส่งทั้ง dimension (client ที่ไม่มีเอฟเฟคนั้นจะทิ้ง) | packet เล็ก และครอบคลุมเอฟเฟคที่ไม่ persistent |
 
-## ยังไม่ได้ทำ (ส่วนที่เหลือของ 0.3)
+## Screen pulse (0.3)
 
-- `AaaParticlesBridge` (`ctx.effek(...)` เรียก Effekseer จากใน Fx ได้ถ้ามี AAA Particles)
-- `pulse` ใน `ScreenParams`
+เอฟเฟคหน้าจอสั้นๆ จากฝั่งเซิร์ฟเวอร์ ไม่ต้องเขียนคลาส Fx — เหมาะกับเติมความรู้สึกตอนเวทโดน:
+```java
+BHFx.pulse(level, target, 24, ScreenPulse.of().shake(0.6f).flash(0xFFE0B0, 0.5f, 6));  // ทุกคนในระยะ เบาลงตามระยะ
+BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));                  // คนเดียว เต็มแรง
+```
+มี `shake`, `flash`, `vignette`, `aberration`, `zoomBlur`, `desaturate` แต่ละอย่างจางหายตามจำนวน tick ของมันเอง; นับรวมใน `maxStartsPerTick` และเคารพ `flashScale` / `shakeScale` ของผู้เล่น
+
+## ยังไม่ได้ทำ
+
+- `AaaParticlesBridge` (`ctx.effek(...)`) — **เลื่อนไปทำเมื่อมีเคสจริง** ตอนนี้ BHSpells จัดการ Effekseer เองอยู่แล้ว
+- เชื่อมกับ BHSpells (bridge แบบ soft dependency ตามแผนหัวข้อ 6.0)
 
 ## สถานะการทดสอบ
 
 - ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
 - ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
 - ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
-- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: CameraParams (FOV punch ตอน `/bhfx_test` กระแทก; roll ต้องตั้ง `camera.control=FULL`), warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
+- ⏳ 0.3 **ยังไม่ได้ทดสอบในเกม**: ScreenPulse (`/bhfx_test pulse`), CameraParams (FOV punch ตอน `/bhfx_test` กระแทก; roll ต้องตั้ง `camera.control=FULL`), warmup, `/bhfx stats`, `/bhfx bench`, การรวม packet, การตรวจ shader pack (ต้องมี Oculus)
 - ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server
