@@ -1,28 +1,32 @@
-# การตัดสินใจด้านออกแบบ
+# Design decisions
 
-รูปแบบ: **เรื่อง — ตัดสินใจ — เหตุผล** พร้อมวันที่ ถ้าเปลี่ยนใจภายหลังให้เพิ่มบรรทัด "แทนที่โดย …" ไม่ต้องลบของเดิม
-การตัดสินใจตอนวางแผนแรกอยู่ใน [`API_PLAN.md`](API_PLAN.md) หัวข้อ 10 และ "ส่วนที่ทำต่างจากแผน" ใน [`../README.md`](../README.md)
+Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
+Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
-## 2026-10-17 — BHSpells ใช้ bhfx จาก `libs/` (commit jar)
-- **ตัดสินใจ**: commit `bhfx-<ver>.jar` ใน `BHSpells/libs` (เหมือน `bhweapons`) และให้ bhfx copy ไปเองหลัง build; ยังไม่ jarJar
-- **เหตุผล**: เพื่อนที่ clone BHSpells ไม่มี repo bhfx/mavenLocal; ไม่ jarJar เพราะต้องถอด bhfx ออกได้ (API_PLAN หัวข้อ 0)
+## 2026-10-17 — Notes are written in English
+- **Decision**: `README.md` and everything in `docs/` are in English. Code names stay as they are, in backticks.
+- **Reason**: the docs are in git (Dezameria/BHFX) and are read by more people than the original author.
 
-## 2026-10-17 — BHSpells ประกาศ mod ที่ใช้ตรงๆ เป็น mandatory
-- **ตัดสินใจ**: mod ที่ถูก import นอก `compat/` (15 ตัว) ประกาศ `mandatory=true` ขอบล่าง = เวอร์ชันที่ใช้ build; `bhfx` และ `epic_fight_avalon` ยังไม่บังคับ
-- **เหตุผล**: เดิมประกาศแค่ Forge/Minecraft ถ้าขาด mod จะ crash กลางเกมแบบอ่านยาก การประกาศให้ Forge บอกตั้งแต่หน้าโหลดว่าขาดอะไร; ไม่ได้เปลี่ยนพฤติกรรมเมื่อมี mod ครบ
+## 2026-10-17 — BHSpells uses bhfx from `libs/` (jar committed)
+- **Decision**: commit `bhfx-<ver>.jar` in `BHSpells/libs` (like `bhweapons`), and have bhfx copy it there after each build. No jarJar for now.
+- **Reason**: friends who clone BHSpells don't have the bhfx repo or mavenLocal. No jarJar because bhfx must stay removable (API_PLAN section 0).
 
-## 2026-10-17 — เข้าถึง Fx ของ local handle
-- **ตัดสินใจ**: เพิ่ม `BHFxClient.fx(handle, Class)`, `BHFxClient.update(handle, params)`, `BHFxClient.isAlive(handle)` แทนการเปลี่ยน `LocalFxHandle` (ยังเป็น record ที่มีแค่ id)
-- **เหตุผล**: เอฟเฟคที่ขับด้วย cue ฝั่ง client (เช่น "หมัดโดนตรงนี้") ส่งข้อมูลผ่าน params ไม่สะดวก ของเดิม Heavenly Combo ต้องดักตัวที่ factory สร้างไว้ในตัวแปร static ซึ่งเปราะ; การเพิ่ม method ไม่ทำให้ของเดิมพัง (อยู่ใน 0.3.x ได้)
+## 2026-10-17 — BHSpells declares the mods it uses directly as mandatory
+- **Decision**: mods imported outside `compat/` (15 of them) are declared `mandatory=true`, with the lower bound set to the version BHSpells is built against. `bhfx` and `epic_fight_avalon` stay optional.
+- **Reason**: before, only Forge and Minecraft were declared, so a missing mod crashed mid-game with a hard-to-read error. Declaring them makes Forge say what is missing at the loading screen. Behavior is unchanged when all mods are present.
 
-## 2026-10-17 — `/bhfx_test` เฉพาะ dev
-- **ตัดสินใจ**: ลงทะเบียนเมื่อ `!FMLEnvironment.production` เท่านั้น (ไม่ทำเป็น config)
-- **เหตุผล**: เป็นเครื่องมือทดสอบของคนพัฒนา ไม่มีประโยชน์บนเซิร์ฟจริง และไม่ต้องเพิ่มค่า config
+## 2026-10-17 — Access to the Fx behind a local handle
+- **Decision**: add `BHFxClient.fx(handle, Class)`, `BHFxClient.update(handle, params)` and `BHFxClient.isAlive(handle)` instead of changing `LocalFxHandle` (it stays a record holding only an id).
+- **Reason**: effects driven by client-side cues (for example "a blow landed here") are awkward to feed through params. Heavenly Combo used to grab the instance from its factory into a static field, which was fragile. Adding methods doesn't break existing code, so it can go into 0.3.x.
 
-## 2026-10-17 — BHSpells รับ bhfx เฉพาะ `[0.3,0.4)`
-- **ตัดสินใจ**: ล็อกช่วงเวอร์ชันไว้ที่ minor เดียว จนกว่าจะถึง 1.0 (แล้วค่อยเปลี่ยนเป็น `[1.0,2.0)`)
-- **เหตุผล**: ช่วง 0.x API เปลี่ยนได้ ถ้าเปิดกว้าง bhfx ที่ใช้ด้วยกันไม่ได้จะถูกโหลดแล้วพังกลางเกม ถ้าล็อก Forge จะแจ้งตั้งแต่หน้าโหลด mod
+## 2026-10-17 — `/bhfx_test` in dev only
+- **Decision**: register it only when `!FMLEnvironment.production` (not as a config option).
+- **Reason**: it's a developer test tool with no use on a real server, and it doesn't need another config value.
 
-## 2026-10-17 — ตรวจ shader ตอน build ด้วย glslang
-- **ตัดสินใจ**: task `checkShaders` ประกอบ shader แบบเดียวกับ `ShaderManager` แล้วส่งให้ glslang; หา glslang ไม่เจอให้เตือนแล้วข้าม (บังคับได้ด้วย `-PrequireGlslCheck`)
-- **เหตุผล**: เดิมต้องเข้าเกมถึงจะรู้ว่า shader พัง; ไม่บังคับมี glslang เพื่อให้คนที่ไม่ได้ติดตั้งยัง build ได้; ใช้ไฟล์ script เดียวกันทั้งสอง repo ให้ประกอบ shader ตรงกัน
+## 2026-10-17 — BHSpells accepts bhfx `[0.3,0.4)` only
+- **Decision**: lock the version range to a single minor version until 1.0 (then change it to `[1.0,2.0)`).
+- **Reason**: the API can still change during 0.x. With an open range, an incompatible bhfx would load and then break mid-game. With a locked range, Forge reports it at the loading screen.
+
+## 2026-10-17 — Check shaders at build time with glslang
+- **Decision**: the `checkShaders` task assembles each shader the same way `ShaderManager` does and runs glslang on it. If glslang isn't found it warns and skips; `-PrequireGlslCheck` makes it fail instead.
+- **Reason**: before, a broken shader only showed up in game. glslang isn't required, so people without it can still build. Both repos use the same script file, so shaders are assembled identically.

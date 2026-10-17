@@ -1,33 +1,33 @@
-# bhfx — คลังความรู้การพัฒนา
+# bhfx — development knowledge base
 
-ที่เก็บความรู้หลักของ bhfx เป็น markdown ทั้งหมด แบ่งตามหมวด ให้คนและ Claude เปิดอ่านต่อได้ทันที
-> `docs/` และ `README.md` อยู่ใน git (Dezameria/BHFX); `.claude/` (skill `bhfx-notes`) กับ `CLAUDE.md` ถูก gitignore เก็บในเครื่องเท่านั้น
+All bhfx development knowledge lives here as markdown, split into categories, so that people and Claude can pick up where the work left off.
+> `docs/` and `README.md` are in git (Dezameria/BHFX). `.claude/` (the `bhfx-notes` skill) and `CLAUDE.md` are gitignored and kept locally only.
 
-**ก่อนเริ่มงาน bhfx ให้อ่านไฟล์นี้ก่อน แล้วค่อยเปิดเฉพาะหมวดที่เกี่ยวข้อง** และ **พอทำงานเสร็จให้บันทึกกลับลงหมวดที่ถูกต้อง** (ขั้นตอนอยู่ใน skill `bhfx-notes` ที่ `.claude/skills/bhfx-notes/SKILL.md`)
+**Before starting bhfx work, read this file first, then open only the categories you need.** **When the work is done, record the results in the right category.** The steps are in the `bhfx-notes` skill at `.claude/skills/bhfx-notes/SKILL.md`.
 
-## หมวด
+## Categories
 
-| ไฟล์ | เก็บอะไร | อัปเดตเมื่อ |
+| File | Holds | Update when |
 | :--- | :--- | :--- |
-| [`worklog.md`](worklog.md) | บันทึกงานรายวัน (ใหม่สุดอยู่บน): ทำอะไร, ไฟล์ไหน, build/ทดสอบผลยังไง | ทุกครั้งที่จบงาน |
-| [`roadmap.md`](roadmap.md) | งานที่เหลือ, แผน 1.0, backlog, เรื่องที่รอให้ผู้ใช้ตัดสินใจ | เพิ่ม/ปิดงาน หรือแผนเปลี่ยน |
-| [`testing.md`](testing.md) | สถานะการทดสอบ (✅ ผ่าน / ⏳ ยังไม่ได้ทดสอบ) และ checklist ทดสอบในเกม | ทดสอบเสร็จ หรือมีของใหม่ที่ต้องทดสอบ |
-| [`bugs.md`](bugs.md) | บั๊กที่รู้และยังไม่แก้ + บั๊กที่แก้แล้ว (อาการ → สาเหตุ → วิธีแก้) | เจอหรือแก้บั๊ก |
-| [`decisions.md`](decisions.md) | การตัดสินใจด้านออกแบบ พร้อมเหตุผล (ทำไมเลือกแบบนี้) | ตัดสินใจเรื่องที่มีผลระยะยาว |
-| [`shaders.md`](shaders.md) | การตรวจ shader (`checkShaders` + glslang), ข้อตกลงการเขียน shader, กับดักที่เจอ | เปลี่ยนวิธีตรวจ หรือเจอกับดักใหม่ |
-| [`release.md`](release.md) | build jar จริง, ติดตั้งเซิร์ฟ/client, mod ที่ BHSpells บังคับ, checklist ก่อนปล่อย | เปลี่ยน dependency หรือวิธีปล่อย |
-| [`integrations/bhspells.md`](integrations/bhspells.md) | BHSpells ใช้ bhfx ยังไง: bridge, เวทที่ใช้, ข้อควรระวังจากการใช้จริง | เพิ่มเวทที่ใช้ bhfx หรือเจอเรื่องใหม่ฝั่ง BHSpells |
-| [`API_PLAN.md`](API_PLAN.md) | สเปก API ฉบับเต็ม (สาธารณะ) และหลักการออกแบบ | เพิ่ม/เปลี่ยน API |
+| [`worklog.md`](worklog.md) | Daily work log, newest first: what was done, which files, build/test results | At the end of every task |
+| [`roadmap.md`](roadmap.md) | Open tasks, the 1.0 plan, backlog, decisions waiting on the user | A task is added or finished, or the plan changes |
+| [`testing.md`](testing.md) | Test status (✅ passed / ⏳ not tested) and in-game checklists | Something gets tested, or new work needs testing |
+| [`bugs.md`](bugs.md) | Known open bugs and fixed bugs (symptom → cause → fix) | A bug is found or fixed |
+| [`decisions.md`](decisions.md) | Design decisions with their reasons | A decision with long-term effect is made |
+| [`shaders.md`](shaders.md) | Shader checking (`checkShaders` + glslang), shader conventions, pitfalls | The check changes, or a new pitfall turns up |
+| [`release.md`](release.md) | Release builds, server/client install, mods BHSpells requires, pre-release checklist | Dependencies or the release process change |
+| [`integrations/bhspells.md`](integrations/bhspells.md) | How BHSpells uses bhfx: the bridge, which spells, lessons from real use | A spell starts using bhfx, or something new comes up on the BHSpells side |
+| [`API_PLAN.md`](API_PLAN.md) | Full public API spec and design principles | The API is added to or changed |
 
-เอกสารที่อยู่ที่อื่น:
-- [`../README.md`](../README.md): ภาพรวมสำหรับผู้ใช้ (build, คำสั่ง, config, ระบบกัน lag)
-- `../BHSpells/docs/bhfx/`: วิธีคิดตอนออกแบบเอฟเฟคของแต่ละเวท (เช่น `heavenly_combo.md`), เทคนิค shader และเครื่องมือดู shader ในเบราว์เซอร์
-- `../BHSpells/docs/spells/<school>/<spell_id>.md`: สเปกของแต่ละเวท รวมถึงส่วน bhfx ของเวทนั้น (กฎของ BHSpells บังคับให้อัปเดต)
+Docs that live elsewhere:
+- [`../README.md`](../README.md): overview for users (build, commands, config, lag protection).
+- `../BHSpells/docs/bhfx/`: how each spell's effect was designed (for example `heavenly_combo.md`), shader techniques, and tools for previewing shaders in a browser.
+- `../BHSpells/docs/spells/<school>/<spell_id>.md`: each spell's spec, including its bhfx part. BHSpells rules require updating it.
 
-## กฎการบันทึก
+## Recording rules
 
-1. **ข้อเท็จจริงหนึ่งเรื่องอยู่ที่เดียว** ที่อื่นให้ลิงก์มาแทนการ copy
-2. **วันที่เขียนเต็มเสมอ** (`2026-10-17`) ห้ามใช้คำอย่าง "เมื่อวาน" หรือ "ล่าสุด"
-3. **ภาษา**: เนื้อหาเขียนภาษาไทย ส่วนชื่อคลาส/method/ไฟล์/คำสั่งใช้ตามโค้ดใน `backtick`
-4. **ของที่ไม่จริงแล้ว ให้แก้หรือขีดฆ่า** อย่าปล่อยให้สองบรรทัดขัดกัน (เช่นย้าย ⏳ เป็น ✅ แทนการเพิ่มบรรทัดใหม่)
-5. **บอกระดับความมั่นใจ**: แยก "build ผ่าน" / "ทดสอบในเกมแล้ว" / "ยังไม่ได้ทดสอบ" ให้ชัด
+1. **Keep one fact in one place.** Link to it from elsewhere instead of copying it.
+2. **Always write full dates** (`2026-10-17`). Never write "yesterday" or "latest".
+3. **Language**: write the notes in English, with class, method, file and command names exactly as in the code, in `backticks`.
+4. **Fix or strike text that is no longer true.** Never leave two lines that contradict each other (for example, change ⏳ to ✅ instead of adding a new line).
+5. **State how sure you are**: keep "build passed", "tested in game" and "not tested" clearly separate.

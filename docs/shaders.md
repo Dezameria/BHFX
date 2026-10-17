@@ -1,39 +1,42 @@
-# Shader: การตรวจและข้อตกลง
+# Shaders: checking and conventions
 
-ข้อตกลงพื้นฐาน (ตำแหน่งไฟล์, header ที่ bhfx เติมให้, include ที่มีให้) อยู่ใน [`API_PLAN.md`](API_PLAN.md) หัวข้อ 5
-เทคนิคการออกแบบเอฟเฟคและเครื่องมือดูในเบราว์เซอร์อยู่ที่ `../BHSpells/docs/bhfx/` (`techniques.md`, `tools/`)
+The basic conventions (file locations, the header bhfx adds, the includes it provides) are in [`API_PLAN.md`](API_PLAN.md) section 5.
+Effect design techniques and the in-browser preview tools are in `../BHSpells/docs/bhfx/` (`techniques.md`, `tools/`).
 
-## `checkShaders` (ตรวจตอน build)
+## `checkShaders` (checked at build time)
 
-ไฟล์: `gradle/glsl-check.gradle` — **เหมือนกันทั้ง bhfx และ BHSpells** แก้ที่หนึ่งต้อง copy ไปอีกที่
-ผูกกับ `check` → `build` จึงรันทุกครั้งที่ `gradlew build`; สั่งเดี่ยวได้ด้วย `gradlew checkShaders`
+File: `gradle/glsl-check.gradle`. **It is identical in bhfx and BHSpells**, so a change in one must be copied to the other.
+It is wired into `check` → `build`, so it runs on every `gradlew build`. Run it alone with `gradlew checkShaders`.
 
-ขั้นตอน:
-1. หาไฟล์ pass ทุกตัว: `assets/<ns>/shaders/bhfx/*.fsh` ใน `src/main/resources` (ไม่รวม `include/`)
-2. ประกอบเหมือน `ShaderManager` ในเกม: เติม header (`#version 150` + `DiffuseSampler`, `SceneSampler`, `DepthSampler`, `InvProj`, `InvView`, `ViewProj`, `Eye`, `OutSize`, `ScreenSize`, `GameTime`, `texCoord`, `fragColor`) แล้วแทน `#include "ns:file.glsl"` ด้วยเนื้อไฟล์ใน `assets/<ns>/shaders/bhfx/include/` ใส่ `#line` ให้เลขบรรทัดของ error ตรงกับไฟล์ต้นฉบับ
-   - bhfx หา include จาก `src/main/resources`
-   - BHSpells หา include จาก `src/main/resources` และ **jar ของ bhfx บน compileClasspath** (ตรวจกับ bhfx เวอร์ชันเดียวกับที่ compile)
-3. เขียนผลลง `build/glsl-check/<ns>_<name>.frag` แล้วรัน glslang ทีละไฟล์; มีตัวไหนไม่ผ่าน build fail พร้อม error
+Steps:
+1. Find every pass file: `assets/<ns>/shaders/bhfx/*.fsh` in `src/main/resources` (not `include/`).
+2. Assemble it the way `ShaderManager` does in game:
+   - Prepend the header: `#version 150` plus `DiffuseSampler`, `SceneSampler`, `DepthSampler`, `InvProj`, `InvView`, `ViewProj`, `Eye`, `OutSize`, `ScreenSize`, `GameTime`, `texCoord`, `fragColor`.
+   - Replace each `#include "ns:file.glsl"` with that file from `assets/<ns>/shaders/bhfx/include/`.
+   - Add `#line` directives so error line numbers match the original files.
+   - bhfx looks up includes in `src/main/resources`.
+   - BHSpells looks them up in `src/main/resources` and in **the bhfx jar on the compileClasspath**, so it checks against the same bhfx version it compiles against.
+3. Write the result to `build/glsl-check/<ns>_<name>.frag` and run glslang on each file. If any fails, the build fails with the errors.
 
-**ถ้า header ใน `ShaderManager.HEADER` เปลี่ยน ต้องแก้ `glslHeader` ใน `glsl-check.gradle` ทั้งสอง repo ด้วย**
+**If the header in `ShaderManager.HEADER` changes, update `glslHeader` in `glsl-check.gradle` in both repos too.**
 
-### หา glslang จากไหน (ตามลำดับ)
+### Where glslang is looked up (in order)
 1. `-PglslangValidator=<path>`
 2. env `GLSLANG_VALIDATOR`
-3. **`D:\Minecraft\Dev\ironspell_more\tools\glslang\bin\glslang.exe`**: สำเนาที่ใช้ร่วมกันข้าง bhfx/BHSpells (หาจาก `<repo>/../tools/glslang/bin`) ปกติใช้ตัวนี้ ไม่ต้องตั้งอะไร
+3. **`D:\Minecraft\Dev\ironspell_more\tools\glslang\bin\glslang.exe`**: the shared copy next to bhfx and BHSpells (found as `<repo>/../tools/glslang/bin`). This is the one normally used; nothing to set up.
 4. `%VULKAN_SDK%\Bin`
-5. `PATH` (`glslangValidator.exe` หรือ `glslang.exe`)
+5. `PATH` (`glslangValidator.exe` or `glslang.exe`)
 
-หาไม่เจอ: เตือน "shaders were NOT checked" แล้วผ่าน; ใส่ `-PrequireGlslCheck` ให้ fail แทน
-ตัวที่ใช้: glslang 16.6.0 จาก GitHub release ของ KhronosGroup/glslang (`glslang-16.6.0-windows-x86_64-release.zip`) เก็บเฉพาะ `bin/glslang.exe` + `VERSION.txt` ไว้ใน `ironspell_more/tools/glslang`; `tools/` ไม่อยู่ใน git ของ repo ไหน ถ้าย้ายเครื่องต้อง copy ไปเองหรือดาวน์โหลดใหม่
+If none is found, it warns "shaders were NOT checked" and passes. Add `-PrequireGlslCheck` to make it fail instead.
+Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`glslang-16.6.0-windows-x86_64-release.zip`). Only `bin/glslang.exe` and `VERSION.txt` are kept in `ironspell_more/tools/glslang`. `tools/` is not in any repo's git, so on a new machine copy it over or download it again.
 
-### จับอะไรได้ / ไม่ได้
-- **ได้**: syntax, type ไม่ตรง, ฟังก์ชัน/ตัวแปรไม่มีหรือพารามิเตอร์ผิด, ชื่อซ้ำกับ include, include หาไม่เจอ, ฟีเจอร์ที่ GLSL 1.50 ไม่มี
-- **ไม่ได้**: หน้าตาผิด, ชื่อ uniform ไม่ตรงกับฝั่ง Java (shader จะได้ 0 เงียบๆ), บั๊กเฉพาะ driver, ความช้า (ใช้ `/bhfx stats`, `/bhfx bench`), undefined behavior อย่าง `smoothstep` ที่ขอบกลับด้าน
+### What it catches, and what it doesn't
+- **Catches**: syntax errors, type mismatches, missing functions or variables, wrong parameters, names clashing with includes, missing include files, features GLSL 1.50 doesn't have.
+- **Doesn't catch**: wrong-looking output, uniform names that don't match the Java side (the shader silently gets 0), driver-specific bugs, slowness (use `/bhfx stats`, `/bhfx bench`), undefined behavior such as `smoothstep` with reversed edges.
 
-## กับดักที่เจอ
+## Pitfalls found
 
-- **`smoothstep(a, b, x)` ที่ `a > b`**: GLSL ไม่กำหนดผล driver ส่วนใหญ่คำนวณได้แต่ไม่รับประกัน → ใช้ `1.0 - smoothstep(b, a, x)` (เจอใน `annihilation_charge.fsh`, 2026-10-17)
-- **`texture()` ใน branch ที่ขึ้นกับพิกเซล**: implicit derivative ไม่กำหนดค่า → ใช้ `textureLod(..., 0.0)` (2026-10-17)
-- **`dFdx`/`dFdy` ใน branch**: ค่าไม่กำหนด → คำนวณนอก `if` แล้วค่อยใช้ข้างใน และกลับทิศ normal ให้หันเข้ากล้อง (`dot(nrm, s.dir) > 0.0 ? -nrm : nrm`)
-- **ray ต้องเริ่มที่ `Eye` ไม่ใช่ `vec3(0.0)`**: view bobbing ขยับตา (ดู `API_PLAN.md` 5.2)
+- **`smoothstep(a, b, x)` with `a > b`**: GLSL leaves the result undefined. Most drivers compute it anyway, but it isn't guaranteed. Use `1.0 - smoothstep(b, a, x)` instead (found in `annihilation_charge.fsh`, 2026-10-17).
+- **`texture()` inside a per-pixel branch**: implicit derivatives are undefined there. Use `textureLod(..., 0.0)` (2026-10-17).
+- **`dFdx`/`dFdy` inside a branch**: the values are undefined. Compute them outside the `if` and use them inside, and flip the normal to face the camera (`dot(nrm, s.dir) > 0.0 ? -nrm : nrm`).
+- **Rays must start at `Eye`, not `vec3(0.0)`**: view bobbing moves the eye (see `API_PLAN.md` 5.2).

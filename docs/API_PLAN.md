@@ -1,57 +1,57 @@
-# bhfx — แผน API (ร่าง v0.1)
+# bhfx — API plan (draft v0.1)
 
-Library mod สำหรับเอฟเฟค post-processing และ world-space shader ที่รู้ depth สำหรับ Forge 1.20.1 ให้ BHSpells (และ mod อื่นของ deizyn) import ไปใช้
+A library mod for Forge 1.20.1 that provides post-processing effects and depth-aware world-space shaders, for BHSpells (and deizyn's other mods) to import.
 
-> สถานะ: **0.1, 0.2 และ 0.3 เขียนโค้ดแล้ว** (ดู "ส่วนที่ทำต่างจากแผน" และ "ยังไม่ได้ทำ" ใน `README.md`) ชื่อคลาสและ method ทั้งหมดเปลี่ยนได้จนกว่าจะออก 1.0
-> แนวคิดได้จากการวิเคราะห์ mod The Shooting Star (เอกสาร `01`–`07` ในโฟลเดอร์ docs ของ jar ที่แตกไฟล์ไว้) แต่ **โค้ดและ shader ทั้งหมดเขียนใหม่** (ต้นฉบับเป็น All Rights Reserved)
+> Status: **0.1, 0.2 and 0.3 are implemented** (see "Where the code differs from the plan" in `README.md`, and [`roadmap.md`](roadmap.md) for what is left). All class and method names can change until 1.0.
+> The ideas came from analysing the mod The Shooting Star (documents `01`–`07` in the docs folder of the unpacked jar), but **all code and shaders were written from scratch** (the original is All Rights Reserved).
 
 ---
 
-## 0. ข้อกำหนดพื้นฐาน
+## 0. Basic requirements
 
-| หัวข้อ | ค่า |
+| Topic | Value |
 | :--- | :--- |
 | mod id / package | `bhfx` / `net.deizyn.bhfx` |
-| Minecraft / Forge | 1.20.1 / 47.4.0 (ตรงกับ BHSpells) |
-| Mappings | Parchment `2023.09.03-1.20.1` (ตรงกับ BHSpells) |
+| Minecraft / Forge | 1.20.1 / 47.4.0 (same as BHSpells) |
+| Mappings | Parchment `2023.09.03-1.20.1` (same as BHSpells) |
 | OpenGL | 3.3 core (GLSL `#version 150`) |
-| การแจก | maven local ตอนพัฒนา (`net.deizyn:bhfx:0.3.0`), **แจกเป็น jar แยก** (ไม่ `jarJar` ใน BHSpells เพราะต้องถอดออกได้) |
-| ความสัมพันธ์กับ BHSpells | **soft dependency**: BHSpells ทำงานได้ด้วย Effekseer อย่างเดียวถ้าไม่มี bhfx (หัวข้อ 6.0) |
-| Client/Server | **ต้องมี bhfx ทั้งสองฝั่งหรือไม่มีทั้งคู่** (network channel แบบ strict, หัวข้อ 3) |
-| ข้อมูลในโลก | **ไม่เก็บอะไรลง save และไม่ลงทะเบียน block/item/entity** → ถอดออกได้ทุกเมื่อโดยโลกไม่เสีย |
-| เวอร์ชัน | `0.x` = API ยังเปลี่ยนได้, `1.0` = API นิ่ง (SemVer) |
+| Distribution | maven local during development (`net.deizyn:bhfx:0.3.0`), **shipped as a separate jar** (not `jarJar`ed into BHSpells, because it must stay removable) |
+| Relationship to BHSpells | **Soft dependency**: BHSpells works with Effekseer alone when bhfx is absent (section 6.0) |
+| Client/Server | **bhfx must be on both sides or on neither** (strict network channel, section 3) |
+| World data | **Nothing is saved, and no blocks/items/entities are registered**, so it can be removed at any time without harming worlds |
+| Versioning | `0.x` = the API can still change, `1.0` = the API is stable (SemVer) |
 
-### กฎของ library
-1. **`net.deizyn.bhfx.api.*` เท่านั้นที่ mod อื่น import ได้** ส่วน `impl.*` เปลี่ยนได้ตลอดเวลา
-2. **API ฝั่ง common ห้ามอ้างถึง class ของ client** (`Minecraft`, `RenderSystem` ฯลฯ) เพื่อให้ dedicated server ไม่ crash
-3. **bhfx เป็นเจ้าของ network channel เดียว** mod ที่ใช้ไม่ต้องลงทะเบียน packet เพื่อ VFX เอง (แทน `HeavenlyComboVfxPacket` และ packet VFX เฉพาะสกิลในอนาคต)
-4. **ไม่มีเอฟเฟค = ไม่มีต้นทุน**: เมื่อไม่มี Fx ทำงาน ห้ามแตะ OpenGL เลย
-5. **ทุกอย่างลงทะเบียนด้วย `ResourceLocation`** ไม่มี `if (skill == ...)` ใน library
+### Library rules
+1. **Other mods may import only `net.deizyn.bhfx.api.*`.** `impl.*` can change at any time.
+2. **The common-side API must not reference client classes** (`Minecraft`, `RenderSystem`, etc.), so a dedicated server never crashes.
+3. **bhfx owns a single network channel.** Mods that use it don't register their own VFX packets (replacing `HeavenlyComboVfxPacket` and future skill-specific VFX packets).
+4. **No effects = no cost**: when no Fx is running, OpenGL must not be touched at all.
+5. **Everything is registered by `ResourceLocation`.** No `if (skill == ...)` in the library.
 
 ---
 
-## 1. โครงสร้าง package
+## 1. Package layout
 
 ```
 net.deizyn.bhfx
  ├─ BHFxMod                      @Mod entry
- ├─ api/                         ← สาธารณะ
- │   ├─ BHFx                     facade ฝั่งเซิร์ฟเวอร์ (start/stop/update/screen pulse)
- │   ├─ FxSpawn                  builder ข้อมูลตอนสั่ง
- │   ├─ FxParams, FxParam<T>     ค่าพารามิเตอร์แบบ typed
+ ├─ api/                         ← public
+ │   ├─ BHFx                     server-side facade (start/stop/update/screen pulse)
+ │   ├─ FxSpawn                  builder for start data
+ │   ├─ FxParams, FxParam<T>     typed parameter values
  │   ├─ FxHandle, FxKey, StopMode
- │   ├─ Audience                 ใครควรเห็น
+ │   ├─ Audience                 who should see it
  │   ├─ timeline/  Timeline, Ease
- │   └─ client/                  ← ใช้ได้เฉพาะฝั่ง client
- │       ├─ BHFxClient           facade ฝั่ง client (play แบบ local, settings)
- │       ├─ RegisterFxEvent      event ลงทะเบียน Fx
+ │   └─ client/                  ← client side only
+ │       ├─ BHFxClient           client-side facade (local play, settings)
+ │       ├─ RegisterFxEvent      event for registering Fx
  │       ├─ Fx, FxFactory, FxInit
  │       ├─ FxContext, FrameContext
  │       ├─ PassList, PassOptions, Uniforms
  │       ├─ ScreenParams, ImpactStyle
  │       ├─ CameraParams         (v0.3)
- │       └─ FxSettings           (อ่านอย่างเดียว)
- └─ impl/                        ← ภายใน
+ │       └─ FxSettings           (read-only)
+ └─ impl/                        ← internal
      ├─ net/      BHFxNetwork, S2CFxStart, S2CFxUpdate, S2CFxStop, S2CScreenPulse
      ├─ server/   ServerFxTracker
      ├─ client/   ClientFxManager, ScreenParamsImpl, CameraController
@@ -63,65 +63,65 @@ net.deizyn.bhfx
 
 ---
 
-## 2. API ฝั่งเซิร์ฟเวอร์ (common)
+## 2. Server-side API (common)
 
-### 2.1 `BHFx` — จุดเรียกหลัก
+### 2.1 `BHFx` — the main entry point
 
-ออกแบบให้ใช้คล้าย `AAALevel.addParticle(level, distance, info)` ที่ BHSpells ใช้อยู่แล้ว คือเรียกจากโค้ดเซิร์ฟเวอร์ แล้ว library จัดการส่ง packet ให้เอง
+Designed to be used like `AAALevel.addParticle(level, distance, info)`, which BHSpells already uses: call it from server code, and the library sends the packets.
 
 ```java
 public final class BHFx {
-    /** เริ่มเอฟเฟค แล้วส่งให้ผู้เล่นที่อยู่ในระยะ คืน handle ไว้ใช้หยุด/อัปเดต */
+    /** Start an effect and send it to players in range. Returns a handle for stopping/updating it. */
     public static FxHandle start(ServerLevel level, ResourceLocation fxId, FxSpawn spawn);
 
-    /** เหมือน start แต่ผูกกับ key: ถ้ามีเอฟเฟคของ key เดิมอยู่ จะถูกหยุดและแทนที่ */
+    /** Like start, but bound to a key: an effect already playing under the same key is stopped and replaced. */
     public static FxHandle start(ServerLevel level, FxKey key, ResourceLocation fxId, FxSpawn spawn);
 
-    /** หยุดตาม handle / key (เล่นช่วงจบตาม StopMode) */
+    /** Stop by handle / key (plays the ending for the StopMode). */
     public static void stop(FxHandle handle, StopMode mode);
     public static void stop(ServerLevel level, FxKey key, StopMode mode);
 
-    /** เปลี่ยนพารามิเตอร์ระหว่างที่เล่นอยู่ (เช่น ระดับการชาร์จ) */
+    /** Change parameters while it plays (for example the charge level). */
     public static void update(FxHandle handle, FxParams changed);
 
-    /** เอฟเฟคหน้าจอสั้นๆ แบบไม่ต้องมีคลาส Fx (สั่น, flash, vignette, aberration, zoomBlur, desaturate) เบาลงตามระยะ */
+    /** A short screen effect with no Fx class (shake, flash, vignette, aberration, zoomBlur, desaturate), weaker with distance. */
     public static void pulse(ServerLevel level, Vec3 at, double range, ScreenPulse pulse);
-    /** ให้ผู้เล่นคนเดียว เต็มแรง (เช่น คนที่โดน) */
+    /** For one player at full strength (for example the one who got hit). */
     public static void pulse(ServerPlayer player, ScreenPulse pulse);
     // ScreenPulse.of().shake(0.6f).flash(rgb, strength, ticks).vignette(rgb, strength, ticks) ...
 
     public static boolean isAlive(FxHandle handle);
 
-    /** หา handle ที่กำลังเล่นของ key นี้ (ถ้ามี) */
+    /** The handle currently playing under this key, if any. */
     public static Optional<FxHandle> handle(ServerLevel level, FxKey key);
 
-    /** false เมื่อเซิร์ฟเวอร์ปิด bhfx ใน config → mod ที่เรียกใช้ควรใช้ทางสำรอง (เช่น Effekseer อย่างเดียว) */
+    /** false when the server disables bhfx in its config; calling mods should use their fallback (for example Effekseer only). */
     public static boolean available(ServerLevel level);
 }
 ```
 
-### 2.2 `FxSpawn` — ข้อมูลตอนสั่ง (builder)
+### 2.2 `FxSpawn` — start data (builder)
 
 ```java
-FxSpawn.at(Vec3 origin)                      // จุดเริ่ม (บังคับ)
-    .target(Vec3 target)                     // จุดเป้า (default = origin)
-    .caster(Entity caster)                   // ผู้ร่าย → client ใช้หาตำแหน่ง/ท่า
-    .follow(Entity entity, Follow mode)      // POSITION | POSITION_AND_LOOK  (สำหรับออร่า/ชาร์จ)
-    .seed(long seed)                         // default = สุ่มจาก level random
+FxSpawn.at(Vec3 origin)                      // start point (required)
+    .target(Vec3 target)                     // target point (default = origin)
+    .caster(Entity caster)                   // caster → the client uses it for position/pose
+    .follow(Entity entity, Follow mode)      // POSITION | POSITION_AND_LOOK  (for auras/charges)
+    .seed(long seed)                         // default = random from the level
     .param(FxParam<T> key, T value)
     .params(FxParams params)
     .spellLevel(int level)                   // = .param(FxParam.SPELL_LEVEL, level)
-    .duration(int ticks)                     // override duration ของ Fx (-1 = ไม่จำกัด จนกว่าจะ stop)
-    .range(double blocks)                    // ระยะส่ง packet, default 128
+    .duration(int ticks)                     // overrides the Fx duration (-1 = unlimited, until stopped)
+    .range(double blocks)                    // packet range, default 128
     .audience(Audience audience)             // default = Audience.tracking()
-    .persistent(boolean)                     // (0.2) ส่งให้คนที่เข้ามาทีหลังด้วย (default: true ถ้า duration > 100 หรือ -1) ดูหัวข้อ 12
+    .persistent(boolean)                     // (0.2) also send to late joiners (default: true when duration > 100 or -1), see section 12
 ```
 
-`Audience`: `tracking()` (ทุกคนที่อยู่ในระยะ), `only(ServerPlayer)`, `players(Collection<ServerPlayer>)`, `exceptCaster()` (ใช้เมื่อ client ของคนร่ายเล่นไปก่อนแล้ว)
+`Audience`: `tracking()` (everyone in range), `only(ServerPlayer)`, `players(Collection<ServerPlayer>)`, `exceptCaster()` (when the caster's client already played it).
 
-### 2.3 `FxParams` / `FxParam<T>` — พารามิเตอร์แบบมี type
+### 2.3 `FxParams` / `FxParam<T>` — typed parameters
 
-ใช้ key แบบ typed แทน string ล้วน เพื่อให้ compiler จับ type ผิดได้:
+Typed keys instead of plain strings, so the compiler catches type mistakes:
 
 ```java
 public final class FxParam<T> {
@@ -130,11 +130,11 @@ public final class FxParam<T> {
     public static FxParam<Boolean> b(String name);
     public static FxParam<Vec3>    vec3(String name);
     public static FxParam<Integer> color(String name);          // 0xRRGGBB
-    public static FxParam<float[]> floats(String name);         // ≤ 64 ตัว
-    public static FxParam<List<Vec3>> points(String name);      // ≤ 32 จุด (สายฟ้าโซ่, กลุ่มดาว)
+    public static FxParam<float[]> floats(String name);         // ≤ 64 values
+    public static FxParam<List<Vec3>> points(String name);      // ≤ 32 points (chain lightning, constellations)
     public static FxParam<Integer> entity(String name);         // entity id
 
-    // key มาตรฐาน
+    // standard keys
     public static final FxParam<Integer> SPELL_LEVEL = i("spell_level");
     public static final FxParam<Float>   RADIUS      = f("radius");
     public static final FxParam<Integer> COLOR       = color("color");
@@ -142,11 +142,11 @@ public final class FxParam<T> {
 }
 
 FxParams p = FxParams.builder().put(FxParam.RADIUS, 12f).put(FxParam.COLOR, 0xFF7A20).build();
-FxParams one = FxParams.of(FxParam.RADIUS, 12f);   // ตัวเดียว
-float r = p.get(FxParam.RADIUS, 8f);   // ค่า default ถ้าไม่มี
+FxParams one = FxParams.of(FxParam.RADIUS, 12f);   // a single value
+float r = p.get(FxParam.RADIUS, 8f);   // default when missing
 ```
 
-ทั้งหมด serialize ลง `FriendlyByteBuf` ได้ ตรวจขนาดไม่ให้เกิน 32 KB ต่อ packet
+All of it serializes to a `FriendlyByteBuf`, with a size check of at most 32 KB per packet.
 
 ### 2.4 `FxHandle`, `FxKey`, `StopMode`
 
@@ -154,47 +154,47 @@ float r = p.get(FxParam.RADIUS, 8f);   // ค่า default ถ้าไม่�
 public record FxHandle(ResourceKey<Level> dimension, int id) {}
 
 public record FxKey(UUID owner, String slot) {
-    public static FxKey of(Entity owner, String slot);   // เช่น FxKey.of(caster, "bhspells:solar_charge")
+    public static FxKey of(Entity owner, String slot);   // e.g. FxKey.of(caster, "bhspells:solar_charge")
 }
 
 public enum StopMode {
-    FINISH,     // เล่นช่วงจบเต็ม (เช่น ปล่อยเวทสำเร็จ)
-    CANCEL,     // ช่วงจบแบบสั้น/ยุบตัว (โดนขัดจังหวะ)
-    IMMEDIATE   // หายทันที (เปลี่ยนมิติ, ตาย)
+    FINISH,     // play the full ending (e.g. the spell was released)
+    CANCEL,     // a short / collapsing ending (interrupted)
+    IMMEDIATE   // vanish at once (dimension change, death)
 }
 ```
 
-**ทำไมต้องมี `FxKey`**: เวท LONG/CONTINUOUS ของ Iron's เริ่มใน `onServerPreCast` แต่จบใน `onServerCastComplete` ซึ่งเป็นคนละ method การเก็บ handle ไว้ใน `MagicData` ทำได้ยาก ใช้ key ที่สร้างจาก caster + ชื่อแทน ได้ค่าเดิมทุกครั้งโดยไม่ต้องเก็บ state
+**Why `FxKey`**: Iron's LONG/CONTINUOUS spells start in `onServerPreCast` but end in `onServerCastComplete`, a different method, and keeping a handle in `MagicData` is awkward. A key built from the caster plus a name gives the same value every time without storing any state.
 
-### 2.5 `ServerFxTracker` (impl แต่กำหนดพฤติกรรมไว้)
-- เก็บ Fx ที่ `persistent` ไว้: id, spawn, เวลาเริ่ม, params ล่าสุด
-- ผู้เล่นที่เข้ามาในระยะหรือ login ทีหลัง จะได้ `S2CFxStart` พร้อม `startAge` = อายุปัจจุบัน → client เล่นต่อจากกลางไทม์ไลน์ได้ถูกต้อง (ต้นฉบับไม่มีระบบนี้)
-- ลบเมื่อหมด duration, ถูก stop, หรือ entity ที่ follow หายไป
-- ล้างทั้งหมดตอน `LevelEvent.Unload`
+### 2.5 `ServerFxTracker` (impl, but its behavior is specified)
+- Keeps `persistent` Fx: id, spawn, start time, latest params.
+- Players who come into range or log in later get an `S2CFxStart` with `startAge` = the current age, so the client continues correctly from the middle of the timeline (the original had no such system).
+- Removed when the duration ends, when stopped, or when the followed entity disappears.
+- Everything is cleared on `LevelEvent.Unload`.
 
 ---
 
 ## 3. Network (impl)
 
-| Packet | ทิศทาง | ข้อมูล |
+| Packet | Direction | Data |
 | :--- | :--- | :--- |
 | `S2CFxStart` | S → C | handle id, fxId, origin, target, casterId, followId+mode, seed, duration, startAge, params |
-| `S2CFxUpdate` | S → C | handle id, params ที่เปลี่ยน |
+| `S2CFxUpdate` | S → C | handle id, changed params |
 | `S2CFxStop` | S → C | handle id, StopMode |
-| `S2CScreenPulse` | S → C | ตำแหน่ง, ระยะ, ชนิด (shake/flash/vignette), ค่า, สี, ระยะเวลา |
+| `S2CScreenPulse` | S → C | position, range, kind (shake/flash/vignette), value, color, duration |
 
-Channel `bhfx:main`, protocol `"2"` (ตั้งแต่ 0.3; 0.1–0.2 ใช้ `"1"`) แบบ **strict** (`"2"::equals` ทั้งสองฝั่ง): client กับ server ต้องมี bhfx เวอร์ชัน protocol เดียวกัน ถ้าฝั่งใดฝั่งหนึ่งไม่มี Forge จะแจ้ง "mismatched mod channel" ตั้งแต่ตอนเชื่อมต่อ ซึ่งดีกว่าให้เข้าไปแล้วเห็นเอฟเฟคไม่ครบ
+Channel `bhfx:main`, protocol `"2"` (since 0.3; 0.1–0.2 used `"1"`), **strict** (`"2"::equals` on both sides): client and server must have bhfx with the same protocol version. If either side lacks it, Forge reports "mismatched mod channel" when connecting, which is better than joining and seeing effects only partly.
 
-**การรวม packet**: start/stop ที่เกิดใน tick เดียวกันถึงผู้เล่นคนเดียวกันจะถูกรวมเป็น packet เดียว (`S2CFxBatch`) และจำกัดจำนวนต่อ tick (หัวข้อ 11.3)
+**Packet batching**: starts/stops for the same player in the same tick are combined into one packet (`S2CFxBatch`), with a per-tick limit (section 11.3).
 
 ---
 
-## 4. API ฝั่ง client
+## 4. Client-side API
 
-### 4.1 การลงทะเบียน
+### 4.1 Registration
 
 ```java
-// ใน BHSpells (mod bus, เฉพาะ client)
+// In BHSpells (mod bus, client only)
 @SubscribeEvent
 static void onRegisterFx(RegisterFxEvent event) {
     event.register(BHSpells.id("meteor"), MeteorFx::new);
@@ -210,73 +210,73 @@ public record FxInit(ResourceLocation id, int handleId, Vec3 origin, Vec3 target
                      int followId, Follow follow, long seed, int duration, int startAge, FxParams params) {}
 ```
 
-id ที่ไม่ได้ลงทะเบียน → log เตือนครั้งเดียวแล้วข้าม (ไม่ crash)
+An unregistered id logs one warning and is skipped (no crash).
 
-### 4.2 `Fx` — คลาสแม่ของทุกเอฟเฟค
+### 4.2 `Fx` — base class of every effect
 
 ```java
 public abstract class Fx {
     protected Fx(FxInit init);
 
-    // ---------- ข้อมูล (final) ----------
+    // ---------- data (final) ----------
     protected final FxInit init();
-    protected final RandomSource random();         // seed จากเซิร์ฟเวอร์ → ผลเหมือนกันทุกเครื่อง
-    protected final float seedF();                 // seed เป็น 0..1 สำหรับส่งเข้า shader
-    protected final FxParams params();             // ค่าล่าสุด (อัปเดตตาม S2CFxUpdate)
+    protected final RandomSource random();         // seeded by the server → same result on every machine
+    protected final float seedF();                 // the seed as 0..1, for shaders
+    protected final FxParams params();             // latest values (updated by S2CFxUpdate)
 
-    // ---------- เวลา ----------
-    public final int age();                        // tick ตั้งแต่เริ่ม (รวม startAge)
+    // ---------- time ----------
+    public final int age();                        // ticks since start (including startAge)
     protected final float ticks(FrameContext f);   // age + partialTick
     protected final float seconds(FrameContext f);
-    protected final boolean stopping();            // อยู่ในช่วงจบหลังถูก stop
-    protected final float stopProgress(FrameContext f);   // 0..1 ระหว่างช่วงจบ
+    protected final boolean stopping();            // in the ending after a stop
+    protected final float stopProgress(FrameContext f);   // 0..1 through the ending
     protected final StopMode stopMode();
 
-    // ---------- lifecycle (override ได้) ----------
-    protected int duration();                      // default = init.duration(), -1 = ไม่จำกัด
-    protected int endTicks(StopMode mode);         // ความยาวช่วงจบ, default FINISH 10 / CANCEL 5 / IMMEDIATE 0
+    // ---------- lifecycle (overridable) ----------
+    protected int duration();                      // default = init.duration(), -1 = unlimited
+    protected int endTicks(StopMode mode);         // ending length, default FINISH 10 / CANCEL 5 / IMMEDIATE 0
     protected void onStart(FxContext ctx) {}
-    protected void tick(FxContext ctx, int age) {}           // 20 ครั้ง/วินาที: particle, เสียง, effekseer
+    protected void tick(FxContext ctx, int age) {}           // 20 times/second: particles, sounds, effekseer
     protected void onStop(FxContext ctx, StopMode mode) {}
     protected void onParamsChanged(FxParams changed) {}
-    protected void onRemoved() {}                             // คืน resource, หยุดเสียงที่วนอยู่
+    protected void onRemoved() {}                             // release resources, stop looping sounds
 
-    // ---------- ต่อเฟรม (override ได้) ----------
-    protected void passes(FrameContext f, PassList out) {}    // shader pass
-    protected void screen(FrameContext f, ScreenParams s) {}  // เอฟเฟคหน้าจอ
+    // ---------- per frame (overridable) ----------
+    protected void passes(FrameContext f, PassList out) {}    // shader passes
+    protected void screen(FrameContext f, ScreenParams s) {}  // screen effects
     protected void camera(FrameContext f, CameraParams c) {}  // (v0.3)
     protected void hud(GuiGraphics g, FrameContext f) {}
 
     // ---------- culling ----------
-    protected Vec3 focus(FrameContext f);           // default = target หรือตำแหน่ง follow
-    protected double cullDistance();                // default 256 ห่างกว่านี้ไม่เรียก passes/screen
+    protected Vec3 focus(FrameContext f);           // default = target, or the followed position
+    protected double cullDistance();                // default 256; beyond this passes/screen aren't called
 }
 ```
 
-**กฎการจบ**: `finished = (duration >= 0 && age > duration) || (stopping && เลยช่วง endTicks)` เมื่อ entity ที่ follow หายไป ถือว่าเป็น `CANCEL`
+**End rule**: `finished = (duration >= 0 && age > duration) || (stopping && past endTicks)`. When the followed entity disappears, it counts as `CANCEL`.
 
-### 4.3 `FxContext` (ตอน tick) และ `FrameContext` (ตอนวาด)
+### 4.3 `FxContext` (while ticking) and `FrameContext` (while drawing)
 
 ```java
 public interface FxContext {
     ClientLevel level();
     Optional<Entity> caster();
-    Vec3 position();                                   // จุดปัจจุบัน (ตาม follow ถ้ามี)
+    Vec3 position();                                   // current point (follows, if set)
     Vec3 cameraPos();
     void sound(SoundEvent s, Vec3 at, float volume, float pitch);
-    SoundHandle loopSound(SoundEvent s, Supplier<Vec3> at, float volume);   // หยุดอัตโนมัติตอน onRemoved
-    void particle(ParticleOptions p, Vec3 at, Vec3 velocity);              // เคารพ particle setting ของผู้เล่น
-    void effek(ResourceLocation effect, Vec3 at, float scale);             // ส่งต่อ AAA Particles ถ้ามี (soft)
-    void shake(Vec3 source, float amount, double range);                   // trauma ลดตามระยะ
-    boolean postAvailable();                                               // false ถ้าปิด post หรือเปิด shaderpack
+    SoundHandle loopSound(SoundEvent s, Supplier<Vec3> at, float volume);   // stops automatically in onRemoved
+    void particle(ParticleOptions p, Vec3 at, Vec3 velocity);              // respects the player's particle setting
+    void effek(ResourceLocation effect, Vec3 at, float scale);             // forwarded to AAA Particles if present (soft)
+    void shake(Vec3 source, float amount, double range);                   // trauma that fades with distance
+    boolean postAvailable();                                               // false if post is off or a shader pack is on
 }
 
 public interface FrameContext {
     float partialTick();
     Vec3 cameraPos();
-    Vec3 rel(Vec3 world);                    // world - camera (ใช้ส่งเข้า shader)
-    Vec3 position();                         // ตำแหน่ง follow แบบ interpolate
-    Optional<Vector2f> screenUv(Vec3 world); // empty ถ้าอยู่หลังกล้อง
+    Vec3 rel(Vec3 world);                    // world - camera (what shaders use)
+    Vec3 position();                         // interpolated follow position
+    Optional<Vector2f> screenUv(Vec3 world); // empty when behind the camera
     int width();  int height();
     FxSettings settings();
 }
@@ -291,9 +291,9 @@ public interface PassList {
 }
 
 public record PassOptions(int order, Resolution resolution) {
-    public enum Resolution { FX_SCALED, FULL }   // FX_SCALED = ตามงบ GPU (default)
+    public enum Resolution { FX_SCALED, FULL }   // FX_SCALED = follows the GPU budget (default)
     public static final PassOptions DEFAULT = new PassOptions(0, Resolution.FX_SCALED);
-    // order: น้อยวาดก่อน เรียงข้ามทุก Fx — แนะนำ: world-space 0, overlay/ฉากสังเคราะห์ 100
+    // order: lower draws first, sorted across all Fx. Suggested: world-space 0, overlays/synthetic scenes 100
 }
 
 public interface Uniforms {
@@ -301,19 +301,19 @@ public interface Uniforms {
     Uniforms f2(String name, float x, float y);
     Uniforms f3(String name, float x, float y, float z);
     Uniforms f4(String name, float x, float y, float z, float w);
-    Uniforms vec3(String name, Vec3 v);                 // แปลง double → float ให้
+    Uniforms vec3(String name, Vec3 v);                 // converts double → float
     Uniforms color(String name, int rgb, float alpha);  // 0xRRGGBB → linear vec4
     Uniforms floats(String name, float[] values);       // uniform array (vec4[N])
-    Uniforms points(String name, List<Vec3> worldPoints, FrameContext f);   // แปลงเป็นพิกัดเทียบกล้องให้
-    Uniforms texture(String sampler, ResourceLocation texture);              // โหลด async, ยังไม่เสร็จ = texture ดำ
+    Uniforms points(String name, List<Vec3> worldPoints, FrameContext f);   // converted to camera-relative coordinates
+    Uniforms texture(String sampler, ResourceLocation texture);              // loads async; black until loaded
 }
 ```
 
-uniform ที่ shader ไม่มีจะถูกข้ามเงียบๆ (cache location ไว้) ใช้ texture unit 6–15 ได้สำหรับ `texture()` (10 ช่อง)
+Uniforms the shader doesn't declare are skipped silently (locations are cached). Texture units 6–15 are available for `texture()` (10 slots).
 
-### 4.5 `ScreenParams` — เอฟเฟคหน้าจอ (รวมแบบเอาค่าแรงสุด)
+### 4.5 `ScreenParams` — screen effects (merged by strongest value)
 
-ทุก method รวมค่าจากหลาย Fx ด้วยกฎที่ระบุ ป้องกันสกิลซ้อนกันจนจอขาว
+Every method merges values from several Fx using the rule shown, so stacking skills can't white out the screen.
 
 ```java
 public interface ScreenParams {
@@ -321,26 +321,26 @@ public interface ScreenParams {
     ScreenParams aberration(float amount);                    // max
     ScreenParams desaturate(float amount);                    // max
     ScreenParams zoomBlur(float amount);                      // max
-    ScreenParams flash(int rgb, float strength);              // ตัวแรงสุดชนะ (ทั้งสีและค่า)
-    ScreenParams vignette(int rgb, float strength);           // ตัวแรงสุดชนะ
-    ScreenParams bloom(float strength, float radius);         // max ทั้งสองค่า
-    ScreenParams impact(ImpactStyle style, float strength, Vec3 focus);   // ตัวแรงสุดชนะ
+    ScreenParams flash(int rgb, float strength);              // strongest wins (color and value)
+    ScreenParams vignette(int rgb, float strength);           // strongest wins
+    ScreenParams bloom(float strength, float radius);         // max of both values
+    ScreenParams impact(ImpactStyle style, float strength, Vec3 focus);   // strongest wins
     ScreenParams speedLines(float amount);                    // max
     ScreenParams contrast(float amount);                      // max
     ScreenParams grain(float amount);                         // max
     ScreenParams freeze();                                    // OR
     ScreenParams afterimage(float amount);                    // max
-    ScreenParams stepFps(float fps);                          // min (ตัวที่กระตุกที่สุดชนะ)
-    ScreenParams synthetic(float coverage);                   // max: pass วาดทับทั้งจอ ไม่ต้อง detail transfer
-    ScreenParams ripple(Vec3 center, float radius, float width, float strength);   // (v0.2) ภาพบิดเป็นวงคลื่น สูงสุด 8 วง
+    ScreenParams stepFps(float fps);                          // min (the choppiest wins)
+    ScreenParams synthetic(float coverage);                   // max: a pass drawing over the whole screen, no detail transfer
+    ScreenParams ripple(Vec3 center, float radius, float width, float strength);   // (v0.2) the image bends in rings, up to 8
 }
 ```
 
-ค่าที่ผู้เล่นตั้งใน config จะคูณทับก่อนส่งเข้า shader เสมอ (เช่น `flashScale`, `shakeScale`) Fx จึงไม่ต้องเช็คเอง
+The player's config values are always multiplied in before reaching the shader (for example `flashScale`, `shakeScale`), so Fx never have to check them.
 
-### 4.6 `ImpactStyle` — impact frame แบบตั้งค่าได้
+### 4.6 `ImpactStyle` — configurable impact frames
 
-แทนการ hardcode โหมดเป็นตัวเลขหลายสิบแบบ ให้กำหนดด้วยพารามิเตอร์ ได้ความยืดหยุ่นกว่าและไม่ลอกชุดโหมดของต้นฉบับ:
+Instead of hardcoding dozens of numbered modes, styles are defined by parameters. That is more flexible and doesn't copy the original's set of modes:
 
 ```java
 public record ImpactStyle(Kind kind, int darkRgb, int lightRgb, float lineDensity, float dotSize) {
@@ -355,153 +355,153 @@ public record ImpactStyle(Kind kind, int darkRgb, int lightRgb, float lineDensit
     public ImpactStyle withFocusLines(float density);
 }
 
-// helper สำหรับสลับเฟรมแบบอนิเมะ
+// helper for anime-style frame switching
 ImpactSequence.of(0.05f, ImpactStyle.ink(0x000000, 0xFFFFFF), ImpactStyle.inverted(0x000000, 0xFFFFFF), null, ...)
-              .apply(screen, secondsSinceHit, strength, focus);   // null = เว้นเฟรม
+              .apply(screen, secondsSinceHit, strength, focus);   // null = skip a frame
 ```
 
 ### 4.7 `CameraParams` (v0.3)
 
-Fx override `camera(FrameContext, CameraParams)` (เรียกทุกเฟรมหลัง `screen`, มีผลตั้งแต่เฟรมถัดไป)
+An Fx overrides `camera(FrameContext, CameraParams)`. It is called every frame after `screen`, and takes effect from the next frame.
 
 ```java
 public interface CameraParams {
     enum Level { NONE, SUBTLE, FULL }
-    Level allowed();                                        // สิ่งที่ Fx นี้แก้ได้บนเครื่องนี้ตอนนี้
-    CameraParams fov(float multiplier);                     // SUBTLE, clamp 0.7..1.3, คูณ camera.fovScale
+    Level allowed();                                        // what this Fx may change on this machine right now
+    CameraParams fov(float multiplier);                     // SUBTLE, clamped 0.7..1.3, multiplied by camera.fovScale
     CameraParams hideHand();                                // SUBTLE
-    CameraParams roll(float degrees);                       // FULL, รวมกันแล้ว clamp ±30
-    CameraParams hideHud();                                 // FULL (แชทยังแสดง)
-    CameraParams override(CameraPose pose, float weight);   // FULL, weight สูงสุดชนะ, ใช้ทำคัตซีนสั้นๆ
+    CameraParams roll(float degrees);                       // FULL, summed then clamped to ±30
+    CameraParams hideHud();                                 // FULL (chat still shows)
+    CameraParams override(CameraPose pose, float weight);   // FULL, highest weight wins, for short cutscenes
 }
 record CameraPose(Vec3 position, float yaw, float pitch, float roll) { of(...), lookAt(from, at), withRoll(...) }
 ```
 
-**กฎความปลอดภัยบนเซิร์ฟ** (ทำทางไว้ครบ แต่ล็อกด้วย config ฝั่งผู้เล่น):
-- `camera.control` = NONE / **SUBTLE** (ค่าเริ่มต้น) / FULL — ผู้เล่นเลือกเองว่าเวทของ **ตัวเอง** ขยับกล้องได้แค่ไหน
-- `camera.fromOthers` = **false** — เวทของคนอื่นและของ mob ไม่แตะกล้องเราเลย (กัน PvP แย่งการควบคุม) เว้นแต่ผู้เล่นเปิดเอง
-- คำขอที่เกินสิทธิ์ถูกเมินเงียบๆ Fx ต้องดูดีได้แม้ไม่มีผล (สั่นจอ, flash, impact ยังทำงานกับทุกคนตาม comfort)
-- `Fx.isLocalCaster()` บอกว่าเครื่องนี้เป็นของคนร่ายหรือไม่ ใช้แยกความแรงของ flash ฯลฯ ได้
-- การย้ายตำแหน่งกล้องใช้ reflection (`Camera#setPosition`, SRG `m_90584_`) — ไม่มี mixin/AT; ถ้าหาไม่เจอจะหมุนอย่างเดียว
+**Server safety rules** (everything is implemented, but locked by player-side config):
+- `camera.control` = NONE / **SUBTLE** (default) / FULL: the player chooses how much **their own** spells may move their camera.
+- `camera.fromOthers` = **false**: spells from other players and mobs never touch your camera (prevents PvP control fights), unless the player turns it on.
+- Requests above the allowed level are ignored silently. An Fx must look fine even with no camera effect (shake, flash and impact still work for everyone, per their comfort settings).
+- `Fx.isLocalCaster()` says whether this machine belongs to the caster, for example to use a different flash strength.
+- Moving the camera position uses reflection (`Camera#setPosition`, SRG `m_90584_`), with no mixin or AT. If it can't be found, only rotation is applied.
 
-### 4.8 `BHFxClient` — facade ฝั่ง client
+### 4.8 `BHFxClient` — client-side facade
 
 ```java
 public final class BHFxClient {
-    /** เล่น Fx เฉพาะเครื่องนี้ (ไม่มี packet) เช่น onClientPreCast หรือ Epic Fight event ฝั่ง CLIENT */
+    /** Play an Fx on this machine only (no packet), e.g. onClientPreCast or a CLIENT-side Epic Fight event. */
     public static LocalFxHandle play(ResourceLocation fxId, FxSpawn spawn);
     public static void stop(LocalFxHandle handle, StopMode mode);
-    public static void update(LocalFxHandle handle, FxParams changed);              // (0.3.x) onParamsChanged ทำงาน
-    public static <T extends Fx> Optional<T> fx(LocalFxHandle handle, Class<T> type); // (0.3.x) ตัว Fx ที่กำลังเล่น สำหรับ cue ฝั่ง client
+    public static void update(LocalFxHandle handle, FxParams changed);              // (0.3.x) runs onParamsChanged
+    public static <T extends Fx> Optional<T> fx(LocalFxHandle handle, Class<T> type); // (0.3.x) the running Fx, for client-side cues
     public static boolean isAlive(LocalFxHandle handle);                            // (0.3.x)
 
     public static void shake(Vec3 source, float amount, double range);
     public static FxSettings settings();
     public static boolean postAvailable();
-    public static void reloadShaders();            // เรียกจาก /bhfx reload ด้วย
+    public static void reloadShaders();            // also called by /bhfx reload
 }
 ```
 
-### 4.9 `FxSettings` (config ฝั่ง client, อ่านอย่างเดียว)
+### 4.9 `FxSettings` (client config, read-only)
 
-| ค่า | default | ความหมาย |
+| Value | Default | Meaning |
 | :--- | :--- | :--- |
-| `quality` | `HIGH` | `OFF` / `LOW` / `MEDIUM` / `HIGH` → คุมงบความละเอียดและ bloom; `OFF` = ไม่สร้าง Fx และไม่แตะ GL เลย (ต้นทุน ≈ 0, ยังเข้าเซิร์ฟเวอร์ได้) |
-| `autoDowngrade` | `true` | ลดคุณภาพอัตโนมัติเมื่อเกินงบ GPU ต่อเนื่อง (หัวข้อ 11.3) |
-| `maxActiveFx` / `maxPassesPerFrame` | `32` / `8` | ขีดจำกัดฝั่ง client |
-| `gpuBudgetMs` | `6.0` | เป้าเวลา GPU ของ FX ต่อเฟรม (ต้นฉบับใช้ 16 ซึ่งสูงเกินไป) |
-| `maxFxMegapixels` | `2.3` | เพดานความละเอียดของ pass |
+| `quality` | `HIGH` | `OFF` / `LOW` / `MEDIUM` / `HIGH` → controls the resolution budget and bloom. `OFF` = no Fx created and GL never touched (cost ≈ 0, you can still join servers) |
+| `autoDowngrade` | `true` | Lower quality automatically when the GPU budget is exceeded for a while (section 11.3) |
+| `maxActiveFx` / `maxPassesPerFrame` | `32` / `8` | Client-side limits |
+| `gpuBudgetMs` | `6.0` | Target GPU time for FX per frame (the original used 16, which is too high) |
+| `maxFxMegapixels` | `2.3` | Pass resolution cap |
 | `bloom` | `true` | |
-| `flashScale` | `1.0` | 0 = ปิดแสงวาบ (สำหรับผู้ที่ไวต่อแสงกะพริบ) |
+| `flashScale` | `1.0` | 0 = no flashes (for players sensitive to flashing light) |
 | `impactFrames` | `true` | |
 | `shakeScale` | `1.0` | |
-| `cameraEffects` | `true` | คัตซีน/FOV/roll |
-| `shaderpackMode` | `AUTO` | `AUTO` = ปิด post เมื่อตรวจเจอ Iris/Oculus, `FORCE` = เปิดเสมอ |
+| `cameraEffects` | `true` | Cutscenes/FOV/roll |
+| `shaderpackMode` | `AUTO` | `AUTO` = turn post off when Iris/Oculus is detected, `FORCE` = always on |
 
 ---
 
-## 5. ข้อตกลงของ Shader
+## 5. Shader conventions
 
-### 5.1 ตำแหน่งไฟล์
+### 5.1 File locations
 ```
-assets/<namespace>/shaders/bhfx/<name>.fsh          ← pass (เรียกด้วย ResourceLocation "<ns>:<name>")
-assets/<namespace>/shaders/bhfx/include/<name>.glsl ← ไฟล์ include
+assets/<namespace>/shaders/bhfx/<name>.fsh          ← pass (called by ResourceLocation "<ns>:<name>")
+assets/<namespace>/shaders/bhfx/include/<name>.glsl ← include file
 ```
-ใช้โฟลเดอร์ `bhfx/` เพื่อไม่ชนกับ `shaders/core` และ `shaders/post` ของ vanilla โหลดผ่าน ResourceManager ทำให้ resource pack ทับได้ และ reload ได้ด้วย F3+T หรือ `/bhfx reload`
+The `bhfx/` folder avoids clashing with vanilla's `shaders/core` and `shaders/post`. Files are loaded through the ResourceManager, so resource packs can override them, and they reload with F3+T or `/bhfx reload`.
 
-### 5.2 ส่วนหัวที่ library เติมให้อัตโนมัติ
+### 5.2 Header the library adds automatically
 ```glsl
 #version 150
-uniform sampler2D DiffuseSampler;   // ผลของ pass ก่อนหน้า (หรือภาพโลกถ้าเป็น pass แรก)
-uniform sampler2D SceneSampler;     // ภาพโลกดั้งเดิมก่อนมีเอฟเฟค
-uniform sampler2D DepthSampler;     // depth ของโลก
+uniform sampler2D DiffuseSampler;   // the previous pass's result (or the world image for the first pass)
+uniform sampler2D SceneSampler;     // the original world image before any effects
+uniform sampler2D DepthSampler;     // world depth
 uniform mat4 InvProj, InvView, ViewProj;
-uniform vec3 Eye;                   // จุดเริ่มของ ray (camera-relative) ไม่ใช่ 0 เสมอ เพราะ view bobbing ขยับตาตอนเดิน
-uniform vec2 OutSize;               // ขนาด target ของ pass นี้
-uniform float GameTime;             // วินาที (วนรอบวัน)
+uniform vec3 Eye;                   // ray origin (camera-relative), not always 0, because view bobbing moves the eye while walking
+uniform vec2 OutSize;               // this pass's target size
+uniform float GameTime;             // seconds (wraps daily)
 in vec2 texCoord;
-out vec4 fragColor;                 // a = 1 แสง, a = 0 วัตถุทึบที่วาด (ใช้เป็น mask ของ bloom)
+out vec4 fragColor;                 // a = 1 light, a = 0 opaque drawn object (used as the bloom mask)
 ```
-Shape แบบ analytic (ray กับทรงกระบอก ทรงกลม ฯลฯ) ต้องใช้ `Eye` (หรือ `Scene.origin`) เป็นจุดเริ่มของ ray ห้ามใช้ `vec3(0.0)` ไม่งั้นเอฟเฟคจะโยกเทียบกับพื้นตอนเดิน
+Analytic shapes (rays against cylinders, spheres, etc.) must use `Eye` (or `Scene.origin`) as the ray origin, never `vec3(0.0)`. Otherwise the effect wobbles relative to the ground while walking.
 
-คำสั่ง `#include "bhfx:light.glsl"` ถูกแทนที่ตอนโหลด พร้อมใส่ `#line` เพื่อให้ error ระบุบรรทัดตรงกับไฟล์จริง
+`#include "bhfx:light.glsl"` is replaced at load time, with `#line` directives so errors point at the right line of the real file.
 
-### 5.3 ไลบรารี include ที่ bhfx มีให้ (เขียนใหม่ทั้งหมด)
-| ไฟล์ | ฟังก์ชัน |
+### 5.3 Include library bhfx provides (all written from scratch)
+| File | Functions |
 | :--- | :--- |
 | `scene.glsl` | `sceneDepth`, `depthIsSky`, `viewDir`, `unprojectAt`, `sceneAt` (struct `Scene`), `projectUv`, `pixelAngle` |
 | `shapes.glsl` | `rayLine`, `raySphere`, `rayCylinderY`, `rayPlane`, `rayAxisY` |
-| `light.glsl` | `glowGauss`, `glowExp`, `glowExp2` (หมอก 2 ชั้น), `lineLight` (1/d), `blackbody`, `tonemapSoft` |
-| `ground.glsl` (0.3, ต้อง include `scene.glsl` ก่อน) | `groundAA`, `groundBand`, `groundDistance`, `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
+| `light.glsl` | `glowGauss`, `glowExp`, `glowExp2` (two-layer haze), `lineLight` (1/d), `blackbody`, `tonemapSoft` |
+| `ground.glsl` (0.3, include `scene.glsl` first) | `groundAA`, `groundBand`, `groundDistance`, `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
 | `noise.glsl` | `hash11/12/13/22`, `vnoise2/3`, `fbm2/3` |
-| `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤8 มุม), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
+| `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤ 8 corners), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
 
 ---
 
-## 6. ตัวอย่างการใช้กับ BHSpells
+## 6. Examples with BHSpells
 
-### 6.0 เรียกผ่าน bridge (เพราะ bhfx ไม่บังคับ)
-BHSpells ห้ามอ้างถึง class ของ bhfx ตรงๆ ในโค้ดที่โหลดเสมอ ไม่อย่างนั้นจะ `NoClassDefFoundError` เมื่อไม่มี bhfx ให้ใช้รูปแบบเดียวกับ `compat/aaaparticles/AaaParticlesCompat` + `AaaParticlesLoadedBridge` ที่มีอยู่แล้ว:
+### 6.0 Calling through a bridge (because bhfx is optional)
+BHSpells must not reference bhfx classes directly in code that is always loaded, or it gets `NoClassDefFoundError` when bhfx is absent. Use the same pattern as the existing `compat/aaaparticles/AaaParticlesCompat` + `AaaParticlesLoadedBridge`:
 
 ```
 BHSpells
- ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")   + runtimeOnly ตอน dev
- │                       (ไม่ใช่ implementation และไม่ jarJar)
+ ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")   + runtimeOnly during dev
+ │                       (not implementation, and no jarJar)
  ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3,0.4)"
  └─ compat/bhfx/
-     ├─ BhfxCompat.java          ← โหลดได้เสมอ: ตรวจ ModList.isLoaded("bhfx") แล้วส่งต่อ ห้าม import bhfx
-     ├─ BhfxLoadedBridge.java    ← import bhfx ได้ ถูกโหลดเฉพาะเมื่อมี bhfx
-     └─ fx/                      ← คลาส Fx ฝั่ง client ทั้งหมด (MeteorFx ฯลฯ) ถูกโหลดผ่าน bridge เท่านั้น
+     ├─ BhfxCompat.java          ← always loadable: checks ModList.isLoaded("bhfx") and forwards; must not import bhfx
+     ├─ BhfxLoadedBridge.java    ← may import bhfx; only loaded when bhfx is present
+     └─ fx/                      ← all client-side Fx classes (MeteorFx, etc.), loaded only through the bridge
 ```
 
 ```java
-// compat/bhfx/BhfxCompat.java  (ห้าม import net.deizyn.bhfx.*)
+// compat/bhfx/BhfxCompat.java  (must not import net.deizyn.bhfx.*)
 public final class BhfxCompat {
     private static final boolean LOADED = ModList.get().isLoaded("bhfx");
 
-    /** true ถ้ามี bhfx และเซิร์ฟเวอร์เปิดใช้อยู่ */
+    /** true when bhfx is installed and the server has it enabled */
     public static boolean available(ServerLevel level) { return LOADED && BhfxLoadedBridge.available(level); }
 
     public static void meteor(ServerLevel level, LivingEntity caster, Vec3 target, int spellLevel) {
         if (LOADED) BhfxLoadedBridge.meteor(level, caster, target, spellLevel);
     }
-    // ... หนึ่ง method ต่อหนึ่งเอฟเฟค ทำให้โค้ด spell ไม่ต้องรู้จัก FxSpawn/FxParam
+    // ... one method per effect, so spell code never needs to know FxSpawn/FxParam
 }
 ```
 
-ในโค้ด spell เรียกแบบนี้ (สังเกตว่า **Effekseer เล่นเสมอ** ส่วน bhfx เป็นชั้นเสริม ตามหัวข้อ 11.1):
+Spell code calls it like this (note that **Effekseer always plays** and bhfx is an extra layer, per section 11.1):
 ```java
-AAALevel.addParticle(server, 96, METEOR_EFFEK.clone().position(target));   // หน้าตาหลัก: เล่นเสมอ
-BhfxCompat.meteor(server, entity, target, spellLevel);                    // post-FX: ถ้ามี bhfx
+AAALevel.addParticle(server, 96, METEOR_EFFEK.clone().position(target));   // main visuals: always played
+BhfxCompat.meteor(server, entity, target, spellLevel);                    // post-FX: when bhfx is present
 ```
-ตัวอย่าง 6.1–6.5 ด้านล่างเป็นโค้ด **ภายใน `BhfxLoadedBridge` / `compat/bhfx/fx/`** ไม่ใช่ใน spell โดยตรง
-การลงทะเบียน `RegisterFxEvent` ต้องทำใน class ที่ถูกโหลดเฉพาะเมื่อมี bhfx (subscribe ผ่าน bridge ตอน client setup)
+Examples 6.1–6.5 below are code **inside `BhfxLoadedBridge` / `compat/bhfx/fx/`**, not in the spell itself.
+`RegisterFxEvent` registration must happen in a class that is only loaded when bhfx is present (subscribe through the bridge during client setup).
 
-### 6.1 เวท INSTANT
+### 6.1 INSTANT spell
 ```java
 @Override
 public void onCast(Level level, int spellLevel, LivingEntity entity, CastSource src, MagicData data) {
-    Vec3 target = /* raycast ของสกิล */;
+    Vec3 target = /* the skill's raycast */;
     if (level instanceof ServerLevel server) {
         BHFx.start(server, BHSpells.id("meteor"),
                 FxSpawn.at(entity.position()).target(target).caster(entity)
@@ -511,7 +511,7 @@ public void onCast(Level level, int spellLevel, LivingEntity entity, CastSource 
 }
 ```
 
-### 6.2 เวท LONG (ชาร์จก่อนปล่อย)
+### 6.2 LONG spell (charge, then release)
 ```java
 static final String CHARGE = "bhspells:solar_charge";
 
@@ -531,12 +531,12 @@ public void onServerCastComplete(Level level, int spellLevel, LivingEntity entit
 }
 ```
 
-### 6.3 เวท CONTINUOUS (ร่ายค้าง)
-เหมือน 6.2 แต่ระหว่างร่ายอัปเดตค่าได้:
+### 6.3 CONTINUOUS spell (held cast)
+Same as 6.2, but values can be updated during the cast:
 ```java
 @Override
 public void onServerCastTick(Level level, int spellLevel, LivingEntity entity, @Nullable MagicData data) {
-    // ทุก 5 tick พอ ไม่ต้องทุก tick
+    // every 5 ticks is enough, not every tick
     if (entity.tickCount % 5 == 0 && level instanceof ServerLevel server)
         BHFx.handle(server, FxKey.of(entity, CHANNEL))
             .ifPresent(h -> BHFx.update(h, FxParams.of(POWER, currentPower)));
@@ -547,12 +547,12 @@ public void onServerCastTick(Level level, int spellLevel, LivingEntity entity, @
 ```java
 AnimationEvent.InTimeEvent.create(0.85F, (patch, anim, params) -> {
     LivingEntity e = patch.getOriginal();
-    BHFxClient.play(BHSpells.id("heavenly_slash"), FxSpawn.at(e.position()).caster(e));   // ไม่ต้องส่ง packet
+    BHFxClient.play(BHSpells.id("heavenly_slash"), FxSpawn.at(e.position()).caster(e));   // no packet needed
 }, AnimationEvent.Side.CLIENT)
 ```
-ท่าของ Epic Fight เล่นบนทุก client ที่เห็น entity อยู่แล้ว ใช้ `Side.CLIENT` + `BHFxClient.play` ได้โดยไม่ต้องมี packet (แทน `HeavenlyComboVfxPacket`) ถ้าเอฟเฟคต้องตรงกันทุกเครื่องเป๊ะ ให้ใช้ `Side.SERVER` + `BHFx.start` แทน
+Epic Fight animations already play on every client that can see the entity, so `Side.CLIENT` + `BHFxClient.play` works without a packet (replacing `HeavenlyComboVfxPacket`). If the effect must match exactly on every machine, use `Side.SERVER` + `BHFx.start` instead.
 
-### 6.5 ฝั่ง client ของ meteor
+### 6.5 Client side of the meteor
 ```java
 public final class MeteorFx extends Fx {
     static final Timeline T = Timeline.ticks()
@@ -596,21 +596,21 @@ public final class MeteorFx extends Fx {
 public final class Timeline {
     public static Builder ticks();
     public interface Builder {
-        Builder phase(String name, int start, int end);   // ช่วง [start, end)
-        Builder event(String name, int tick);             // จุดเดียว
+        Builder phase(String name, int start, int end);   // range [start, end)
+        Builder event(String name, int tick);             // a single point
         Timeline build();
     }
 
-    // ใช้ใน tick() (int)
-    public boolean at(String event, int tick);            // ตรง tick ของ event/ต้น phase พอดี
+    // for tick() (int)
+    public boolean at(String event, int tick);            // exactly the event's tick / the start of a phase
     public boolean in(String phase, int tick);
 
-    // ใช้ใน passes()/screen() (float = ticks + partial)
-    public float progress(String phase, float t);         // 0..1 ภายใน phase
-    public float since(String eventOrPhase, float t);     // วินาทีนับจากจุดเริ่ม, < 0 ถ้ายังไม่ถึง
-    public float env(String phase, float t, float fadeInTicks, float fadeOutTicks);   // 0→1→0 นุ่ม
-    public float pulse(String event, float t, float riseTicks, float fallTicks);      // แสงวาบสั้น
-    public float decay(String eventOrPhase, float t, float halfLifeTicks);            // ลดลงแบบ exponential
+    // for passes()/screen() (float = ticks + partial)
+    public float progress(String phase, float t);         // 0..1 within the phase
+    public float since(String eventOrPhase, float t);     // seconds since the start, < 0 if not reached yet
+    public float env(String phase, float t, float fadeInTicks, float fadeOutTicks);   // smooth 0→1→0
+    public float pulse(String event, float t, float riseTicks, float fallTicks);      // a short flash
+    public float decay(String eventOrPhase, float t, float halfLifeTicks);            // exponential decay
     public int start(String name);  public int end(String name);
 }
 
@@ -622,152 +622,152 @@ public final class Ease {
 }
 ```
 
-Timeline เก็บข้อมูลเป็น record ที่ไม่เปลี่ยนค่า จึงประกาศเป็น `static final` ได้ ต่อไปจะโหลดจาก JSON (`assets/<ns>/bhfx/timelines/<name>.json`) ได้โดยไม่เปลี่ยน API
+A Timeline stores its data as an immutable record, so it can be declared `static final`. Later it can be loaded from JSON (`assets/<ns>/bhfx/timelines/<name>.json`) without changing the API.
 
 ---
 
-## 8. ส่วน impl ที่ต้องมี (ไม่ใช่ API แต่ต้องวางแผน)
+## 8. Required impl parts (not API, but they need planning)
 
-| คอมโพเนนต์ | หน้าที่ | ปรับปรุงจากต้นฉบับ |
+| Component | Role | Improvement over the original |
 | :--- | :--- | :--- |
-| `LevelRendererMixin` | HEAD เก็บ matrix, RETURN เรียก render | — |
-| `PostRenderer` | snapshot → passes → bloom → composite | เรียง pass ตาม `order` ข้ามทุก Fx |
-| `GlStateGuard` | capture/restore | คืนเฉพาะ texture unit ที่ใช้จริง |
-| `TargetPool` | จอง FBO/texture | แยกกลุ่มขนาดจอกับขนาด FX, ไม่ realloc ทั้งชุด |
-| `GpuTimer` | วัดเวลา GPU | `GL_TIME_ELAPSED` query แบบ ring 3 ตัว ไม่ใช้ `glFinish` |
-| `ResolutionController` | ปรับความละเอียด FX | เป้าตาม `gpuBudgetMs` ใน config |
-| `ShaderManager` | โหลด/คอมไพล์/include/reload | อ่านจากทุก namespace, reload ตาม resource reload |
-| `ShaderWarmup` | คอมไพล์ล่วงหน้า | วาดจริง 1×1 ลงทุก format, ทำแบบแบ่งเวลาตอนโหลด world |
-| `ClientFxManager` | เก็บ Fx, tick, cull, จำกัด 32 ตัว | follow entity, ช่วงจบ, startAge |
-| `ScreenParamsImpl` | รวมค่า + คูณ config | — |
-| `ShaderpackDetector` | ตรวจ Iris/Oculus | ปิด post อัตโนมัติ |
-| `AaaParticlesBridge` (เลื่อน) | `ctx.effek(...)` | soft dependency แบบเดียวกับ `AaaParticlesLoadedBridge` ของ BHSpells — ทำเมื่อต้องการให้ Effekseer ชิ้นเสริมตรงจังหวะกับ Timeline ของ Fx |
+| `LevelRendererMixin` | HEAD captures matrices, RETURN calls render | — |
+| `PostRenderer` | snapshot → passes → bloom → composite | Passes sorted by `order` across all Fx |
+| `GlStateGuard` | capture/restore | Restores only the texture units actually used |
+| `TargetPool` | allocates FBOs/textures | Screen-size and FX-size groups kept separate; never reallocates the whole set |
+| `GpuTimer` | measures GPU time | Ring of 3 `GL_TIME_ELAPSED` queries, no `glFinish` |
+| `ResolutionController` | adjusts FX resolution | Targets `gpuBudgetMs` from the config |
+| `ShaderManager` | load/compile/include/reload | Reads every namespace, reloads with resource reloads |
+| `ShaderWarmup` | compiles ahead of time | Real 1×1 draw for every format, spread over time while the world loads |
+| `ClientFxManager` | holds Fx, ticks, culls, limit 32 | Entity follow, endings, startAge |
+| `ScreenParamsImpl` | merges values + applies config | — |
+| `ShaderpackDetector` | detects Iris/Oculus | Turns post off automatically |
+| `AaaParticlesBridge` (postponed) | `ctx.effek(...)` | Soft dependency like BHSpells' `AaaParticlesLoadedBridge`. Do it when extra Effekseer pieces need to sync with an Fx Timeline |
 
-Pass ที่ใช้ภายใน library: `bhfx:bloom_down`, `bhfx:bloom_up`, `bhfx:composite` (เขียนใหม่ทั้งหมด)
+Passes used inside the library: `bhfx:bloom_down`, `bhfx:bloom_up`, `bhfx:composite` (all written from scratch).
 
 ---
 
-## 9. ขอบเขตแต่ละเวอร์ชัน
+## 9. Scope per version
 
-| เวอร์ชัน | ขอบเขต | ทดสอบด้วย |
+| Version | Scope | Tested with |
 | :--- | :--- | :--- |
-| **0.1** | `BHFx.start/stop/available` (handle), `FxSpawn`, `FxParams`, `RegisterFxEvent`, `Fx` (lifecycle + passes), `PassList`, `Uniforms`, `Timeline`, `BHFxClient.play/stop`, include `scene/shapes/light/noise`, composite ขั้นต่ำ, config `quality`/`enabled` ทั้งสองฝั่ง, ขีดจำกัด Fx/pass, ปิดตัวเองเมื่อ GL error, `/bhfx reload/on/off` | วงเตือนบนพื้น + ลำแสงที่ภูเขาบังถูกต้อง + bridge ใน BHSpells ทำงานได้ทั้งตอนมีและไม่มี bhfx |
-| **0.2** | bloom, `ScreenParams` ครบ, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (หัวข้อ 12), `FxSettings` ครบ, `GpuTimer` + `ResolutionController` + ลดคุณภาพอัตโนมัติ, F3, rate limit ฝั่งเซิร์ฟเวอร์ (`ShaderWarmup`, `ground/sdf2d`, `/bhfx stats/bench` เลื่อนไป 0.3) | เติม post-FX ให้เวทที่มีอยู่ 1 ตัวใน BHSpells + ผ่านเกณฑ์ 11.4 |
-| **0.3** | ส่วนที่เลื่อนจาก 0.2 + รวม start เป็น batch (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (ทำใน 0.2), `CameraParams` ✅ (มีระดับสิทธิ์), `pulse` ✅; `AaaParticlesBridge` เลื่อนไปทำเมื่อมีเคสจริง (BHSpells จัดการ Effekseer เองอยู่แล้ว) | เวท LONG/CONTINUOUS 1 ตัว + Epic Fight event 1 ท่า |
-| **1.0** | ล็อก API, เอกสาร, ตัวอย่างใน mod ทดสอบ | ทุกอย่างข้างบนบน dedicated server |
+| **0.1** | `BHFx.start/stop/available` (handle), `FxSpawn`, `FxParams`, `RegisterFxEvent`, `Fx` (lifecycle + passes), `PassList`, `Uniforms`, `Timeline`, `BHFxClient.play/stop`, includes `scene/shapes/light/noise`, minimal composite, `quality`/`enabled` config on both sides, Fx/pass limits, self-disable on GL errors, `/bhfx reload/on/off` | A ground warning ring + a light beam correctly hidden by mountains + the BHSpells bridge working both with and without bhfx |
+| **0.2** | bloom, full `ScreenParams`, `ImpactStyle`, `FxKey`, `update`, `ServerFxTracker` (section 12), full `FxSettings`, `GpuTimer` + `ResolutionController` + automatic downgrade, F3, server-side rate limits (`ShaderWarmup`, `ground/sdf2d`, `/bhfx stats/bench` postponed to 0.3) | Post-FX added to 1 existing BHSpells spell + passing the 11.4 criteria |
+| **0.3** | What was postponed from 0.2 + batched starts (protocol 2) ✅, `ShaderpackDetector` ✅, `ripple` ✅ (done in 0.2), `CameraParams` ✅ (with permission levels), `pulse` ✅. `AaaParticlesBridge` postponed until there is a real use case (BHSpells handles Effekseer itself) | 1 LONG/CONTINUOUS spell + 1 Epic Fight event |
+| **1.0** | API lock, documentation, examples in a test mod | Everything above on a dedicated server |
 
 ---
 
-## 10. บันทึกการตัดสินใจ
+## 10. Decision log
 
-| # | เรื่อง | ตัดสินใจ | ผลต่อการออกแบบ |
+| # | Topic | Decision | Effect on the design |
 | :--- | :--- | :--- | :--- |
-| 1 | ชื่อ | `bhfx` / `net.deizyn.bhfx` | — |
-| 2 | Dependency ใน BHSpells | **ไม่บังคับ** ใช้แค่ Effekseer ได้ถ้าไม่มี | BHSpells ต้องเรียกผ่าน bridge (6.0) และออกแบบ bhfx เป็น "ชั้นเสริม" ไม่ใช่ตัวหลัก |
-| 3 | Client/Server ต่างกัน | **ต้องมีเหมือนกันทั้งสองฝั่ง** + ต้องมั่นใจเรื่อง performance และถอดออกได้ | channel แบบ strict (3), มีสวิตช์ปิดทั้ง client/server + ระบบป้องกัน lag (11) |
-| 4 | ส่งให้คนที่เข้ามาทีหลัง | **ทำใน 0.2** | 0.1 ใช้วิธีแก้ชั่วคราวผ่าน entity (12.3) จึงย้าย `BHFxClient.play` มาไว้ 0.1 |
-| 5 | ตำแหน่ง repo | `D:\Minecraft\Dev\ironspell_more\bhfx` | อยู่ข้าง `BHSpells` ใช้ `publishToMavenLocal` แล้ว BHSpells อ่านจาก `mavenLocal()` |
+| 1 | Name | `bhfx` / `net.deizyn.bhfx` | — |
+| 2 | Dependency in BHSpells | **Optional**; Effekseer alone works without it | BHSpells must call through a bridge (6.0), and bhfx is designed as an "extra layer", not the main visuals |
+| 3 | Client/server mismatch | **Must match on both sides**, with confidence in performance and the ability to remove it | Strict channel (3), off switches on client and server + lag protection (11) |
+| 4 | Sending to late joiners | **Done in 0.2** | 0.1 used a temporary workaround through entities (12.3), so `BHFxClient.play` moved into 0.1 |
+| 5 | Repo location | `D:\Minecraft\Dev\ironspell_more\bhfx` | Next to `BHSpells`; `publishToMavenLocal`, and BHSpells reads from `mavenLocal()` (since 2026-10-17 BHSpells resolves it from `libs/` instead, see [`decisions.md`](decisions.md)) |
 
 ---
 
-## 11. Performance และการถอดออก
+## 11. Performance and removal
 
-เป้าหมาย: **คนที่ลง bhfx ต้องไม่ lag** และถ้าวันหนึ่งพบว่ากินทรัพยากรเกิน **ต้องปิดหรือถอดออกได้ทันทีโดยไม่มีอะไรพัง**
+Goal: **players with bhfx installed must not lag**, and if it ever turns out to use too much, **it can be turned off or removed at once with nothing breaking**.
 
-### 11.1 หลักการ "ชั้นเสริม" (สำคัญที่สุด)
-ให้แต่ละเวทใน BHSpells **ยังคงมีหน้าตาหลักจาก Effekseer/GeckoLib เหมือนเดิม** แล้ว bhfx แค่ **เติม** สิ่งที่ Effekseer ทำไม่ได้ (bloom, flash, impact frame, วงเตือนตามพื้น, ลำแสงที่ถูกบังถูกต้อง)
+### 11.1 The "extra layer" principle (most important)
+Every BHSpells spell **keeps its main visuals from Effekseer/GeckoLib as before**, and bhfx only **adds** what Effekseer can't do (bloom, flash, impact frames, ground warning rings, correctly occluded light beams).
 
 ```
-ไม่มี bhfx / ปิด bhfx   →  เวทเล่นด้วย Effekseer ปกติ (หน้าตาเหมือน BHSpells ตอนนี้)
-มี bhfx                 →  Effekseer เหมือนเดิม + post-FX เพิ่มด้านบน
+No bhfx / bhfx off   →  spells play with Effekseer as usual (looks like BHSpells today)
+With bhfx            →  the same Effekseer + post-FX on top
 ```
 
-ข้อดี: **ไม่ต้องเขียนเอฟเฟคสองชุด** การถอด bhfx ออกจะเสียแค่ส่วนที่เติมเข้ามา เวทยังเล่นได้และอ่านจังหวะได้ครบ
+Benefit: **no need to write every effect twice**. Removing bhfx only loses the added parts; spells still play and their timing is still readable.
 
-### 11.2 สวิตช์ปิด 3 ระดับ
+### 11.2 Three levels of off switch
 
-| ระดับ | วิธี | ผล |
+| Level | How | Result |
 | :--- | :--- | :--- |
-| **ผู้เล่น (client)** | `bhfx-client.toml` → `quality = "OFF"` หรือ `/bhfx off` ระหว่างเล่น | ไม่สร้าง Fx, ไม่แตะ GL, รับ packet แล้วทิ้ง **ต้นทุน ≈ 0** แต่ยังเข้าเซิร์ฟเวอร์ได้ |
-| **เซิร์ฟเวอร์** | `bhfx-server.toml` → `enabled = false` | ไม่ส่ง packet เลย, `BHFx.available(level)` คืน `false` → BHSpells กลับไปใช้ Effekseer อย่างเดียว |
-| **ถอดออก** | ลบ `bhfx.jar` ออกจาก **ทั้ง** client และ server | BHSpells ตรวจไม่เจอ mod → ใช้ Effekseer อย่างเดียว โลกไม่เสียเพราะ bhfx ไม่เก็บข้อมูลลง save |
+| **Player (client)** | `bhfx-client.toml` → `quality = "OFF"`, or `/bhfx off` while playing | No Fx created, GL untouched, packets received and dropped. **Cost ≈ 0**, and you can still join servers |
+| **Server** | `bhfx-server.toml` → `enabled = false` | No packets sent at all; `BHFx.available(level)` returns `false` → BHSpells falls back to Effekseer only |
+| **Removal** | Delete `bhfx.jar` from **both** client and server | BHSpells doesn't detect the mod → Effekseer only. Worlds are unharmed because bhfx stores nothing in saves |
 
-### 11.3 ระบบป้องกัน lag ที่ใส่ไว้ตั้งแต่แรก
+### 11.3 Lag protection built in from the start
 
-**ฝั่ง client (GPU/CPU)**
-| กลไก | ค่าเริ่มต้น | เวอร์ชัน |
+**Client side (GPU/CPU)**
+| Mechanism | Default | Version |
 | :--- | :--- | :--- |
-| ไม่มี Fx = ไม่แตะ OpenGL เลย | — | 0.1 |
-| จำกัดจำนวน Fx พร้อมกัน (เกินแล้วตัวเก่าสุดถูกตัด) | 32 | 0.1 |
-| จำกัดจำนวน pass ต่อเฟรม (เกินแล้วตัด pass ที่ `order` สูง/ไกลกล้องที่สุด) | 8 | 0.1 |
-| Cull ตามระยะกล้อง | 256 บล็อก | 0.1 |
-| งบความละเอียด FX (pixel cap) | 2.3 MP | 0.1 |
-| ปรับความละเอียดตามเวลา GPU จริง (timer query ไม่ใช้ `glFinish`) | เป้า 6 ms | 0.2 |
-| **ลดคุณภาพอัตโนมัติ**: ถ้าเกินงบต่อเนื่อง 5 วินาทีแม้ลดความละเอียดสุดแล้ว → ลด `quality` ลง 1 ระดับ + แจ้งในแชทครั้งเดียว | — | 0.2 |
-| **ปิดตัวเองอัตโนมัติ**: shader compile ไม่ผ่าน / framebuffer ไม่ครบ / GL error ซ้ำ → ปิด post ทั้ง session + log | — | 0.1 |
-| คอมไพล์ shader ล่วงหน้าตอนโหลดโลก (ไม่กระตุกตอนร่ายครั้งแรก) | — | 0.2 |
-| ไม่สร้าง object ใหม่ทุกเฟรม (reuse list/matrix) | — | 0.1 |
-| particle ผ่าน `ctx.particle` เคารพ particle setting ของผู้เล่น | — | 0.1 |
+| No Fx = OpenGL not touched at all | — | 0.1 |
+| Limit on concurrent Fx (the oldest is dropped beyond it) | 32 | 0.1 |
+| Limit on passes per frame (beyond it, the highest-`order` / farthest passes are dropped) | 8 | 0.1 |
+| Cull by camera distance | 256 blocks | 0.1 |
+| FX resolution budget (pixel cap) | 2.3 MP | 0.1 |
+| Resolution scaled by real GPU time (timer queries, no `glFinish`) | target 6 ms | 0.2 |
+| **Automatic downgrade**: over budget for 5 seconds straight even at the lowest resolution → `quality` drops one level + one chat message | — | 0.2 |
+| **Automatic self-disable**: a shader fails to compile / an incomplete framebuffer / repeated GL errors → post off for the session + log | — | 0.1 |
+| Shaders compiled ahead of time while the world loads (no stutter on the first cast) | — | 0.2 |
+| No new objects every frame (reused lists/matrices) | — | 0.1 |
+| Particles through `ctx.particle` respect the player's particle setting | — | 0.1 |
 
-**ฝั่ง server / network**
-| กลไก | ค่าเริ่มต้น |
+**Server / network side**
+| Mechanism | Default |
 | :--- | :--- |
-| จำกัดจำนวน `start` ต่อ level ต่อ tick (เกิน = ทิ้ง + log เตือน) | 64 |
-| จำกัด Fx ที่ active ต่อผู้ร่าย 1 คน | 16 |
-| รวม packet ที่เกิดใน tick เดียวกันเป็นก้อนเดียว | — |
-| จำกัดขนาด `FxParams` | 32 KB |
-| `ServerFxTracker` (0.2) ตรวจระยะทุก 10 tick ไม่ใช่ทุก tick | — |
+| Limit on `start`s per level per tick (beyond it = dropped + a log warning) | 64 |
+| Limit on active Fx per caster | 16 |
+| Packets from the same tick combined into one | — |
+| `FxParams` size limit | 32 KB |
+| `ServerFxTracker` (0.2) checks range every 10 ticks, not every tick | — |
 
-### 11.4 เครื่องมือวัด (เพื่อตอบว่า "กินทรัพยากรขนาดไหน" ด้วยตัวเลขจริง)
-| คำสั่ง / ที่แสดง | สิ่งที่บอก | เวอร์ชัน |
+### 11.4 Measuring tools (to answer "how much does it cost" with real numbers)
+| Command / display | What it shows | Version |
 | :--- | :--- | :--- |
-| บรรทัดใน F3 | `bhfx: 3 fx, 4 pass, 2.1 ms GPU, 78% res, 72 MB` | 0.2 |
-| `/bhfx stats` | ค่าเฉลี่ย/สูงสุดของเวลา GPU และ CPU ต่อเฟรม, VRAM, จำนวน Fx/pass ย้อนหลัง 10 วินาที | 0.3 |
-| `/bhfx bench [fx] [วินาที]` | ครึ่งแรกไม่มี Fx ครึ่งหลังเล่น Fx ที่เลือกซ้ำ แล้วรายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง | 0.3 |
-| `/bhfx off` / `/bhfx on` | สลับระหว่างเล่นเพื่อเทียบด้วยตาเปล่า | 0.1 |
-| `/bhfx reload` | โหลด shader ใหม่ | 0.1 |
+| A line in F3 | `bhfx: 3 fx, 4 pass, 2.1 ms GPU, 78% res, 72 MB` | 0.2 |
+| `/bhfx stats` | Average/max GPU and CPU time per frame, VRAM, Fx/pass counts over the last 10 seconds | 0.3 |
+| `/bhfx bench [fx] [seconds]` | Plays the chosen Fx repeatedly while toggling bhfx drawing, then reports average frame time, the worst 1% and the difference | 0.3 |
+| `/bhfx off` / `/bhfx on` | Toggle while playing to compare by eye | 0.1 |
+| `/bhfx reload` | Reload shaders | 0.1 |
 
-**เกณฑ์ผ่านก่อนออกแต่ละเวอร์ชัน** (วัดบนเครื่องสเปกกลาง, 1080p, ร่ายเวทหนักสุด 1 ตัว):
-- ไม่มี Fx: frame time ต่างจากตอนไม่ลง bhfx **< 0.1 ms**
-- มี Fx: เวลา GPU ของ bhfx **≤ `gpuBudgetMs`** (6 ms) หลังระบบปรับตัวแล้ว
-- ไม่มีการกระตุกเกิน 50 ms ตอนร่ายครั้งแรก (หลัง warmup)
-- VRAM ที่จองไว้ **≤ 80 MB** ที่ 1080p และคืนหลังไม่มี Fx 30 วินาที
+**Pass criteria before each release** (on a mid-range machine, 1080p, casting the heaviest spell once):
+- No Fx: frame time differs from not having bhfx by **< 0.1 ms**
+- With Fx: bhfx GPU time **≤ `gpuBudgetMs`** (6 ms) after the system adapts
+- No hitch over 50 ms on the first cast (after warmup)
+- Allocated VRAM **≤ 80 MB** at 1080p, released 30 seconds after the last Fx
 
-### 11.5 ขั้นตอนถอดออก (สำหรับใส่ใน README ของ modpack)
-1. ลบ `bhfx-x.y.z.jar` ออกจากโฟลเดอร์ `mods` ของ **เซิร์ฟเวอร์และ client ทุกเครื่อง**
-2. (ถ้ามี) ลบ `config/bhfx-client.toml` และ `config/bhfx-server.toml` (ไม่ลบก็ไม่มีผล)
-3. ไม่ต้องทำอะไรกับโลก BHSpells จะกลับไปใช้ Effekseer อย่างเดียวโดยอัตโนมัติ
+### 11.5 Removal steps (for a modpack README)
+1. Delete `bhfx-x.y.z.jar` from the `mods` folder on **the server and every client**.
+2. (Optional) Delete `config/bhfx-client.toml` and `config/bhfx-server.toml` (leaving them does nothing).
+3. Nothing to do for worlds. BHSpells falls back to Effekseer only automatically.
 
 ---
 
-## 12. ระบบส่งเอฟเฟคให้คนที่เข้ามาทีหลัง (`ServerFxTracker`, v0.2)
+## 12. Sending effects to late joiners (`ServerFxTracker`, v0.2)
 
-### 12.1 ปัญหาที่ระบบนี้แก้
-ถ้าไม่มี tracker เซิร์ฟเวอร์จะส่ง `S2CFxStart` **ครั้งเดียวตอนเริ่ม** ให้เฉพาะคนที่อยู่ในระยะตอนนั้น ใครที่มาทีหลังจะไม่เห็นอะไรเลย:
+### 12.1 The problem it solves
+Without a tracker, the server sends `S2CFxStart` **once at the start**, only to players in range at that moment. Anyone who arrives later sees nothing:
 
-| สถานการณ์ | ไม่มี tracker (0.1) | มี tracker (0.2) |
+| Situation | No tracker (0.1) | With tracker (0.2) |
 | :--- | :--- | :--- |
-| A ร่าย domain 60 วินาที แล้ว B เดินเข้ามาในวินาทีที่ 20 | B **ไม่เห็น domain** แต่ยังโดนดาเมจ/ดีบัฟจากเซิร์ฟเวอร์ | B เห็น domain ที่กำลังเล่นอยู่วินาทีที่ 20 ต่อจนจบ |
-| หลุมไฟยังลุกอยู่ 30 วินาที แล้วมีคน login | คนที่ login เห็นพื้นปกติ | เห็นหลุมไฟที่กำลังเย็นลงตรงจังหวะ |
-| B วาร์ป/ตาย/เกิดใหม่/เปลี่ยนมิติกลับมา | เอฟเฟคหายจากจอ B | ได้รับใหม่ตอนกลับเข้ามาในระยะ |
-| เอฟเฟคสั้น (ระเบิด 2 วินาที) | ไม่ต่างกันมาก | ไม่ต่างกัน (ไม่ต้องจำ) |
+| A casts a 60-second domain, and B walks in at second 20 | B **doesn't see the domain** but still takes damage/debuffs from the server | B sees the domain as it is at second 20 and watches it to the end |
+| A fire pit burns for 30 seconds, and someone logs in | The new player sees normal ground | They see the fire pit cooling down, in sync |
+| B teleports / dies / respawns / changes dimension and comes back | The effect disappears from B's screen | B gets it again on coming back into range |
+| A short effect (a 2-second explosion) | Barely different | No difference (nothing to remember) |
 
-### 12.2 วิธีทำงาน (0.2)
-1. ตอน `BHFx.start(...)` ถ้า `persistent` (default: true เมื่อ duration > 100 tick หรือ = -1) เซิร์ฟเวอร์จะเก็บไว้: id, spawn, tick ที่เริ่ม, params ล่าสุด, ชุดผู้เล่นที่ส่งไปแล้ว
-2. **ทุก 10 tick** ตรวจผู้เล่นใน level นั้น: ใครเข้ามาในระยะแต่ยังไม่ได้รับ → ส่ง `S2CFxStart` พร้อม `startAge = อายุปัจจุบัน`, ใครออกนอกระยะ → เอาออกจากชุด (ถ้ากลับเข้ามาจะได้รับใหม่)
-3. Fx ที่ `follow` entity: ใช้ `PlayerEvent.StartTracking` ของ entity นั้นแทนการตรวจระยะ (ตรงกับระบบ tracking ของ vanilla)
-4. Client ที่ได้ `startAge > 0` จะข้าม `onStart` และเหตุการณ์ใน `tick()` ที่ผ่านไปแล้ว แต่ `passes()`/`screen()` คำนวณจาก `age` จึงแสดงสถานะที่ถูกต้องของจังหวะนั้นทันที (เช่น ผนังที่เย็นลงไปแล้วครึ่งหนึ่ง)
-5. ลบออกเมื่อหมด duration, ถูก stop, entity ที่ follow หายไป หรือ level unload
+### 12.2 How it works (0.2)
+1. On `BHFx.start(...)`, if `persistent` (default: true when duration > 100 ticks or = -1), the server keeps: id, spawn, start tick, latest params, and the set of players it was sent to.
+2. **Every 10 ticks** it checks the players in that level. Anyone in range who hasn't received it gets `S2CFxStart` with `startAge = current age`. Anyone who leaves the range is removed from the set (and gets it again on returning).
+3. Fx that `follow` an entity use that entity's `PlayerEvent.StartTracking` instead of a range check (matching vanilla's tracking).
+4. A client that receives `startAge > 0` skips `onStart` and the `tick()` events already passed, but `passes()`/`screen()` compute from `age`, so they show the correct state for that moment immediately (for example a wall already half cooled).
+5. Removed when the duration ends, when stopped, when the followed entity disappears, or on level unload.
 
-**ต้นทุน**: หน่วยความจำไม่กี่ร้อยไบต์ต่อ Fx, การตรวจ = ผู้เล่น × Fx ที่ persistent ทุก 10 tick (เช่น 20 คน × 10 Fx = 200 ครั้งคำนวณระยะ ต่อครึ่งวินาที ถือว่าน้อยมาก)
+**Cost**: a few hundred bytes of memory per Fx. The check is players × persistent Fx every 10 ticks (for example 20 players × 10 Fx = 200 distance checks per half second, which is very little).
 
-### 12.3 ระหว่างที่ยังเป็น 0.1: วิธีแก้ชั่วคราว
-เวทที่ยาวใน BHSpells ส่วนใหญ่มี **entity** อยู่แล้ว (เช่น AoE, zone, domain) และ vanilla ส่ง entity ให้คนที่เข้ามาทีหลังอยู่แล้ว ดังนั้นให้ **client ของ entity เป็นคนเริ่ม Fx เอง**:
+### 12.3 While still on 0.1: a temporary workaround
+Most long BHSpells spells already have an **entity** (AoE, zone, domain), and vanilla already sends entities to late joiners. So **let the entity's client start the Fx itself**:
 
 ```java
-// ใน client tick / renderer ของ entity (ผ่าน bridge)
+// in the entity's client tick / renderer (through the bridge)
 if (!fxStarted) { fxHandle = BHFxClient.play(BHSpells.id("domain"), FxSpawn.at(position()).follow(this, Follow.POSITION).duration(-1)); fxStarted = true; }
-// ตอน entity ถูกลบฝั่ง client → BHFxClient.stop(fxHandle, StopMode.FINISH)
+// when the entity is removed on the client → BHFxClient.stop(fxHandle, StopMode.FINISH)
 ```
 
-ด้วยเหตุนี้ `BHFxClient.play/stop` จึงย้ายมาอยู่ใน **0.1** ส่วนเวทที่ไม่มี entity และยาวกว่า 5 วินาที ให้รอ 0.2
+That's why `BHFxClient.play/stop` moved into **0.1**. Spells longer than 5 seconds with no entity have to wait for 0.2.

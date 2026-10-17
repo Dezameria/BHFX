@@ -1,38 +1,40 @@
-# BHSpells ใช้ bhfx ยังไง
+# How BHSpells uses bhfx
 
-BHSpells (`../BHSpells`) ใช้ bhfx แบบ **soft dependency**: ไม่มี bhfx ก็เล่นได้ปกติ (หน้าตาหลักยังเป็น Effekseer/GeckoLib/particle) ตาม `API_PLAN.md` หัวข้อ 6.0 และ 11.1
+BHSpells (`../BHSpells`) uses bhfx as a **soft dependency**: it plays normally without bhfx, and its main visuals still come from Effekseer, GeckoLib and particles (see `API_PLAN.md` sections 6.0 and 11.1).
 
-## โครงสร้าง bridge (`net.offkung.bhspells.compat.bhfx`)
+## Bridge layout (`net.offkung.bhspells.compat.bhfx`)
 
-| คลาส | ฝั่ง | หน้าที่ |
+| Class | Side | Role |
 | :--- | :--- | :--- |
-| `BhfxCompat` | common | จุดที่โค้ด spell เรียก; **ห้าม import bhfx**; เช็ค `CompatMods.isBhfxLoaded()` และจับ `LinkageError` |
-| `BhfxLoadedBridge` | common | คลาสเดียวฝั่งเซิร์ฟที่เรียก `BHFx.*` |
-| `BhfxIds` | common | id ของเอฟเฟค, slot ของ `FxKey`, `FxParam` ที่ใช้ร่วมกันระหว่าง server กับ client (import bhfx ได้ เพราะโหลดผ่าน bridge เท่านั้น) |
-| `BhfxPulse` | common | คำอธิบาย ScreenPulse ที่ไม่อ้าง class ของ bhfx |
-| `client/BhfxClientCompat` | client | เหมือน `BhfxCompat` ฝั่ง client (เรียกผ่าน `DistExecutor` CLIENT ใน `CompatBootstrap`) |
-| `client/BhfxClientBridge` | client | ลงทะเบียน Fx (`RegisterFxEvent`) และเล่น local Fx |
-| `client/*Fx` | client | คลาส Fx ของแต่ละเวท |
+| `BhfxCompat` | common | What spell code calls. **Must not import bhfx.** Checks `CompatMods.isBhfxLoaded()` and catches `LinkageError`. |
+| `BhfxLoadedBridge` | common | The only server-side class that calls `BHFx.*`. |
+| `BhfxIds` | common | Effect ids, `FxKey` slots and `FxParam`s shared by server and client. It may import bhfx because it is only loaded through the bridge. |
+| `BhfxPulse` | common | Describes a ScreenPulse without referencing bhfx classes. |
+| `client/BhfxClientCompat` | client | Client-side counterpart of `BhfxCompat` (called through `DistExecutor` CLIENT in `CompatBootstrap`). |
+| `client/BhfxClientBridge` | client | Registers the Fx classes (`RegisterFxEvent`) and plays local Fx. |
+| `client/*Fx` | client | One Fx class per spell. |
 
-Shader อยู่ที่ `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`
-`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3,0.4)"`
-`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")` หาเจอจาก **`BHSpells/libs/bhfx-0.3.0.jar`** (`flatDir` อยู่ก่อน `mavenLocal`) jar นี้ commit อยู่ใน BHSpells เพื่อนที่ clone ไปจึง build ได้โดยไม่ต้องมี repo bhfx
-- **แก้ bhfx แล้วต้อง `./gradlew.bat build` ใน bhfx** task `copyToBHSpells` (ผูกท้าย `build`) จะเอา jar ที่ reobf แล้วไปทับใน `../BHSpells/libs` และลบ `bhfx-*.jar` ตัวเก่า; ถ้าลืม BHSpells จะใช้ jar เก่าใน `libs/` แม้ mavenLocal จะใหม่กว่า
-- jar ใน `libs/` เปลี่ยนเมื่อไร ต้อง commit ใน BHSpells ด้วย; ถ้าเปลี่ยนเวอร์ชัน bhfx ต้องแก้เลขใน `build.gradle` ของ BHSpells ให้ตรงกับชื่อไฟล์
+Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`.
 
-## เวทที่ใช้ bhfx
+`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3,0.4)"`.
 
-| เวท | ใช้อะไร | ไฟล์ |
+`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")`, resolved from **`BHSpells/libs/bhfx-0.3.0.jar`** (`flatDir` comes before `mavenLocal`). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
+- **After changing bhfx, run `./gradlew.bat build` in bhfx.** The `copyToBHSpells` task (which finalizes `build`) copies the reobfuscated jar over the one in `../BHSpells/libs` and deletes older `bhfx-*.jar` files. If you forget, BHSpells keeps using the old jar in `libs/`, even if mavenLocal is newer.
+- Whenever the jar in `libs/` changes, commit it in BHSpells too. If the bhfx version changes, update the version in BHSpells' `build.gradle` to match the file name.
+
+## Spells that use bhfx
+
+| Spell | What it uses | Files |
 | :--- | :--- | :--- |
-| Annihilation Arrow | **ตัวแรกที่ใช้ `BHFx.start` + `FxKey` + `update` + `stop`** จากเซิร์ฟ: เริ่มใน `onServerPreCast`, `update(READY)` ตอนชาร์จครบ 200 tick, `stop` ใน `onServerCastComplete`; follow ผู้ร่าย, `UNTIL_STOPPED`, ระยะ 64, persistent (คนมาทีหลังเห็นต่อ) | `client/AnnihilationChargeFx`, `annihilation_charge.fsh`, spec: `docs/spells/fire/annihilation_arrow.md` |
-| Heavenly Combo | `BHFxClient.play` เล่น local Fx จาก cue ที่มีอยู่แล้ว (ไม่มี packet เพิ่ม), `BHFxClient.fx(...)` ดึงตัว Fx มาสั่ง blow/slam | `client/HeavenlyComboFx`, `heavenly_combo.fsh`, การออกแบบ: `docs/bhfx/heavenly_combo.md` |
-| Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) | ใน spell class ผ่าน `BhfxCompat.pulse` |
+| Annihilation Arrow | **The first user of `BHFx.start` + `FxKey` + `update` + `stop`** from the server: starts in `onServerPreCast`, sends `update(READY)` when the charge reaches 200 ticks, stops in `onServerCastComplete`. Follows the caster, `UNTIL_STOPPED`, range 64, persistent (late joiners see it continue). | `client/AnnihilationChargeFx`, `annihilation_charge.fsh`, spec: `docs/spells/fire/annihilation_arrow.md` |
+| Heavenly Combo | `BHFxClient.play` plays a local Fx from the existing VFX cues (no extra packets). `BHFxClient.fx(...)` gets the Fx instance to trigger blow/slam. | `client/HeavenlyComboFx`, `heavenly_combo.fsh`, design notes: `docs/bhfx/heavenly_combo.md` |
+| Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) | In the spell class, through `BhfxCompat.pulse` |
 
-## ข้อควรระวังจากการใช้จริง
+## Lessons from real use
 
-1. **Iron's ยกเลิก cast หลังเปลี่ยนมิติจาก level ใหม่** แต่ `FxKey` แยกตามมิติ → stop ต้องวนทุก level (`level.getServer().getAllLevels()`) ดู [`../bugs.md`](../bugs.md)
-2. **mob ที่ถูกขัด Iron's เรียก `onServerCastComplete(..., cancelled=false)`** (`AbstractSpellCastingMob.cancelCast` → `castComplete`) → ถือว่าถูกขัดเมื่อไม่ใช่ `Player` และ `getCastDurationRemaining() > 0`
-3. **คนที่เข้ามาทีหลังอาจได้ start ก่อน client จะ track ผู้ร่าย** (bhfx ส่งตามระยะฝั่งเซิร์ฟ 64 บล็อก แต่ vanilla track ตาม view distance) → Fx ฝั่ง client ห้ามจบตัวเองเพราะ "ไม่เจอผู้ร่าย" จนกว่าจะเคยเห็นแล้ว (`casterSeen`)
-4. **ค่าที่ส่งด้วย `update` ถูก merge เข้า params ของคนที่มาทีหลังแล้ว** → constructor ของ Fx ต้องเช็ค `init.params()` ด้วย (เช่น `READY` อยู่แล้ว = แสดง halo โดยไม่วาบซ้ำ)
-5. **Iron's ไม่เรียก `onServerPreCast`/`onServerCastComplete` ให้ทุกเส้นทางเสมอ** — Annihilation มี `releaseCharge` ของตัวเองที่เรียก complete เอง; stop ซ้ำไม่เป็นไร (key หายแล้ว = ไม่ทำอะไร)
-6. ทุก method ใน `BhfxCompat` ต้องเช็ค `isLoaded()` และจับ `LinkageError` แบบเดียวกัน; โค้ด spell ห้าม import อะไรจาก `net.deizyn.bhfx`
+1. **Iron's cancels a cast after a dimension change from the new level**, but `FxKey` is per dimension, so the stop has to loop over every level (`level.getServer().getAllLevels()`). See [`../bugs.md`](../bugs.md).
+2. **For an interrupted mob, Iron's calls `onServerCastComplete(..., cancelled=false)`** (`AbstractSpellCastingMob.cancelCast` → `castComplete`). Treat it as interrupted when the caster isn't a `Player` and `getCastDurationRemaining() > 0`.
+3. **A late joiner can get the start before its client tracks the caster.** bhfx sends by server-side range (64 blocks), but vanilla tracks entities by view distance. So a client Fx must not end itself for "caster not found" until it has seen the caster at least once (`casterSeen`).
+4. **Values sent with `update` are already merged into the params a late joiner receives.** So the Fx constructor must check `init.params()` too (for example, if `READY` is already set, show the halo without replaying its flash).
+5. **Iron's doesn't always go through `onServerPreCast`/`onServerCastComplete`.** Annihilation has its own `releaseCharge`, which calls complete itself. A second stop is harmless: once the key is gone it does nothing.
+6. Every method in `BhfxCompat` must check `isLoaded()` and catch `LinkageError` the same way. Spell code must never import anything from `net.deizyn.bhfx`.

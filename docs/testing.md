@@ -1,35 +1,38 @@
-# การทดสอบ
+# Testing
 
-✅ = ผ่าน (บอกว่าผ่านแบบไหน), ⏳ = ยังไม่ได้ทดสอบ พอทดสอบแล้วให้ย้ายจาก ⏳ เป็น ✅ พร้อมวันที่ อย่าเพิ่มบรรทัดใหม่ที่ขัดกัน
+✅ = passed (say how), ⏳ = not tested. Once something is tested, change its ⏳ to ✅ with the date. Don't add new lines that contradict old ones.
 
 ## bhfx
 
-- ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
-- ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
-- ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
-- ✅ 0.3 ทดสอบในเกมรอบแรก (dev client, โลก flat + ภูเขา): warmup 4 shader (278 ms ตอนโหลดโลก), `/bhfx_test`, `/bhfx_test pulse`, `/bhfx bench` ทำงาน, GPU ของ bhfx 0.3–0.5 ms ต่อเฟรม, ไม่มี exception
-  - bench 30 วินาที: ส่วนต่าง +2.0 ms เมื่อมีสั่นจอ/FOV punch แต่ **+0.09 ms** เมื่อปิด (`shakeScale=0`, `control=NONE`) — การวาดของ bhfx เองถูกมาก ส่วนใหญ่เป็นค่าที่ Minecraft คำนวณ chunk ที่มองเห็นใหม่ทุกเฟรมเมื่อกล้องขยับ
-- ✅ dedicated server (dev): server เปิดได้, client ต่อได้, tracker ส่งเอฟเฟคต่อหลัง login ใหม่ และหลังตายแล้วเกิดใหม่
-- ✅ 2026-10-17 glslang 16.6.0: shader ของ bhfx 4 ตัวผ่าน (`checkShaders`)
-- ⏳ 0.3: tracker กรณีเดินเข้าระยะทีหลัง (`/bhfx_test tracker`), ผู้เล่น 2 คน, `CameraParams` แบบ FULL, การตรวจ shader pack (ต้องมี Oculus)
-- ⏳ 0.2 ในเกม: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่)
-- ⏳ 2026-10-17: `followSeen` fix — เปลี่ยนมิติภายใน 0.5 วินาทีหลังเริ่ม แล้วดูว่าเอฟเฟคไม่ค้างบนเซิร์ฟ
-- ⏳ 2026-10-17: `/bhfx_test` ไม่มีใน jar ที่ build จริง (production)
-- ✅ 2026-10-17 BHSpells `runServer` (dedicated, dev): mod ทั้งหมดโหลดผ่านรวม dependency ที่ประกาศใหม่, ไม่มี client class crash, เจอ bhfx — ⏳ ยังไม่ได้เข้าโลก (โลกถูกล็อกโดย dev server อีกตัว)
+- ✅ 0.1: tested in game (flat world). Effects render, no shader/GL errors in the log.
+- ✅ 0.2: `gradlew build` passed. `composite`, `test`, `bloom_down` and `bloom_up` (includes inlined) compile in WebGL2 / GLSL ES 3.00.
+- ✅ 0.3 (finished parts): `gradlew build` passed. All shaders, including `ground.glsl` and `sdf2d.glsl`, compile in WebGL2.
+- ✅ 0.3 first in-game round (dev client, flat world + mountains):
+  - Warmup compiled 4 shaders (278 ms while loading the world).
+  - `/bhfx_test`, `/bhfx_test pulse` and `/bhfx bench` work.
+  - bhfx GPU time was 0.3–0.5 ms per frame, with no exceptions.
+  - 30-second bench: +2.0 ms with screen shake / FOV punch, but **+0.09 ms** with them off (`shakeScale=0`, `control=NONE`). bhfx's own drawing is very cheap. Most of the cost is Minecraft recomputing visible chunks every frame while the camera moves.
+- ✅ Dedicated server (dev): the server starts, a client connects, and the tracker re-sends effects after logging in again and after dying and respawning.
+- ✅ 2026-10-17 glslang 16.6.0: all 4 bhfx shaders pass (`checkShaders`).
+- ⏳ 0.3: tracker when walking into range later (`/bhfx_test tracker`), 2 players, `CameraParams` FULL, shader pack detection (needs Oculus).
+- ⏳ 0.2 in game: bloom, impact frames, ripple, resolution scaling by GPU time, automatic quality downgrade, tracker (walking into range later / logging in mid-effect / dying and respawning).
+- ⏳ 2026-10-17: `followSeen` fix. Change dimension within 0.5 seconds of the start, then check the effect doesn't stay stuck on the server.
+- ⏳ 2026-10-17: `/bhfx_test` is absent from the release (production) jar.
+- ✅ 2026-10-17 BHSpells `runServer` (dedicated, dev): all mods load, including the newly declared dependencies. No client-class crash, and bhfx is detected. ⏳ The world was not opened (it was locked by another dev server).
 
-## BHSpells ที่ใช้ bhfx
+## BHSpells spells that use bhfx
 
 ### Annihilation Arrow (`bhspells:annihilation_charge`)
-- ✅ 2026-10-17 ผู้ใช้ทดสอบในเกม: shader คอมไพล์และแสดงผล, ชาร์จจนเต็ม (halo) → ยิง (streak), ยกเลิก/ตายระหว่างชาร์จ, เกมที่ไม่มี bhfx
-- ✅ 2026-10-17 glslang ผ่าน
-- ⏳ multiplayer — checklist:
-  1. เพื่อนยืนดูห่าง ~20 บล็อกตอนชาร์จ เห็นแสง/เส้นไฟไหม
-  2. เพื่อนเดินเข้ามาจากนอก 64 บล็อกระหว่างชาร์จ (ก่อนและหลังชาร์จเต็ม) เห็นต่อจากจังหวะเดิม และ halo ไม่วาบซ้ำ
-  3. เซิร์ฟ view-distance ต่ำ (≤ 4) เพื่อนอยู่ ~50 บล็อก แล้วเดินเข้ามา: เอฟเฟคต้องไม่ยุบหายเอง
-  4. ยิง, ยกเลิก (สลับไอเทม), ตาย, logout, เปลี่ยนมิติระหว่างชาร์จ — เพื่อนเห็นจบถูกแบบ (ยิง = แสงพุ่ง, อื่นๆ = ยุบ)
-  5. mob ที่ร่ายเวทนี้ (ถ้ามี) ถูกขัดแล้วต้องยุบ ไม่ใช่แสงพุ่ง
+- ✅ 2026-10-17, tested in game by the user: the shader compiles and renders; charge to full (halo) → fire (streak); cancel or die mid-charge; game without bhfx.
+- ✅ 2026-10-17 glslang passed.
+- ⏳ Multiplayer checklist:
+  1. A friend watches from about 20 blocks while you charge. Do they see the light and fire lines?
+  2. A friend walks in from beyond 64 blocks during the charge, before and after it is full. They should see it continue from the current point, and the halo flash should not replay.
+  3. On a server with low view distance (≤ 4), a friend starts about 50 blocks away and walks in. The effect must not collapse on its own.
+  4. Fire, cancel (switch items), die, log out and change dimension mid-charge. The friend should see the right ending (fire = a streak of light; everything else = collapse).
+  5. If a mob can cast this spell, interrupting it must collapse the effect, not show the release streak.
 
 ### Heavenly Combo (`bhspells:heavenly_combo`)
-- ✅ 2026-10-17 glslang ผ่าน
-- ⏳ 2026-10-17 หลังเปลี่ยน bridge มาใช้ `BHFxClient.fx(...)`: ต่อยแล้วเอฟเฟคขึ้นเหมือนเดิม (ออร่า, หมัด, slam)
-- ข้อที่ต้องดูเพิ่ม: ดู `../BHSpells/docs/bhfx/heavenly_combo.md`
+- ✅ 2026-10-17 glslang passed.
+- ⏳ 2026-10-17, after the bridge switched to `BHFxClient.fx(...)`: punches still show the effect as before (aura, blows, slam).
+- More to check: see `../BHSpells/docs/bhfx/heavenly_combo.md`.

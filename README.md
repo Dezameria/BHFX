@@ -1,69 +1,68 @@
 # bhfx (BeeHouse FX)
 
-Library mod สำหรับ Forge 1.20.1: เอฟเฟค post-processing และ shader ในโลกที่รู้ depth ให้ BHSpells และ mod อื่นเรียกใช้ได้
-เป็น **ชั้นเสริม** — mod ที่ใช้ยังคงหน้าตาหลักจาก Effekseer/GeckoLib และทำงานได้ถ้าไม่มี bhfx
+A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware world-space shaders for BHSpells and other mods to use.
+It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
-- แผน API ฉบับเต็ม: [`docs/API_PLAN.md`](docs/API_PLAN.md)
-- เวอร์ชัน: **0.3.0** (กำลังทำ, API ยังเปลี่ยนได้) — protocol ของ network เป็น `2` ใช้ร่วมกับ 0.2 ไม่ได้
+- Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md)
+- Version: **0.3.0** (in progress; the API can still change). The network protocol is `2`, which is not compatible with 0.2.
 
-## Build / ใช้งาน
+## Build / use
 
 ```bash
-./gradlew.bat build                 # jar อยู่ที่ build/libs/bhfx-0.3.0.jar
-./gradlew.bat publishToMavenLocal   # ให้ BHSpells อ่านได้จาก mavenLocal()
-./gradlew.bat runClient             # ทดสอบ (/bhfx_test มีเฉพาะตอนรันแบบนี้)
-./gradlew.bat checkShaders          # ตรวจ shader ด้วย glslang (อยู่ใน build ด้วย) ดู docs/shaders.md
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.0.jar, also copied to ../BHSpells/libs
+./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
+./gradlew.bat runClient             # testing (/bhfx_test exists only in runs like this)
+./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
 ```
 
-ฝั่ง BHSpells (soft dependency, ดู `docs/API_PLAN.md` หัวข้อ 6.0):
+On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
-repositories { mavenLocal() }
 dependencies {
     compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")   // เฉพาะตอน dev ถ้าอยากรันพร้อมกัน
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")   // dev only, to run them together
 }
 ```
 
-## ทดสอบในเกม
+## Testing in game
 
-| คำสั่ง | ฝั่ง | ทำอะไร |
+| Command | Side | What it does |
 | :--- | :--- | :--- |
-| `/bhfx_test [radius]` | server (op 2, เฉพาะ dev) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
-| `/bhfx_test pulse` | server (op 2, เฉพาะ dev) | ScreenPulse ที่ตัวเอง: สั่น + แสงวาบ + ขอบจอแดง + สีเหลื่อม (ผู้เล่นในระยะ 32 บล็อกเห็นด้วย เบาลงตามระยะ) |
-| `/bhfx_test tracker [range]` | server (op 2, เฉพาะ dev) | วงบนพื้นค้าง 60 วินาที ตรงที่มอง ส่งเฉพาะคนในระยะ (ค่าเริ่มต้น 16) มุมซ้ายบนบอกอายุเอฟเฟคและระยะห่าง — ยืนนอกระยะตอนสั่งแล้วเดินเข้าไป ต้องเห็นอายุนับต่อ (ไม่เริ่มจาก 0) |
-| `/bhfx stats` | client | ต้นทุนย้อนหลัง 10 วินาที: เวลา CPU ตอนวาด/ตอน tick และเวลา GPU (เฉลี่ย/สูงสุด), จำนวน fx/pass สูงสุด, VRAM ที่ถืออยู่ (นับเฉพาะเฟรมที่มีเอฟเฟค) |
-| `/bhfx bench [fx] [วินาที]` | client | เล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วสลับปิด/เปิดการวาดของ bhfx ทุก 1 วินาที รายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
-| `/bhfx status` | client | สถานะ: เปิด/ปิด, quality ที่ใช้จริง, จำนวน fx/pass, ความละเอียด FX, % งบ, เวลา GPU, VRAM โดยประมาณ |
-| F3 | client | บรรทัด `[bhfx] ...` ด้านซ้ายแสดงข้อมูลเดียวกันแบบสด |
-| `/bhfx off` / `/bhfx on` | client | ปิด/เปิดชั่วคราวเพื่อเทียบ FPS (ปิด = ไม่สร้าง fx และไม่แตะ GPU) |
-| `/bhfx reload` | client | คอมไพล์ shader ใหม่, ล้างสถานะ "ปิดเพราะ GL error" และยกเลิกการลดคุณภาพอัตโนมัติ (F3+T ก็คอมไพล์ใหม่) |
+| `/bhfx_test [radius]` | server (op 2, dev only) | Plays the test effect where you look: a warning ring on the ground → a light beam correctly hidden by mountains, plus bloom, impact frame, ripple, zoom blur, flash, screen shake, and ground that heats up and cools down |
+| `/bhfx_test pulse` | server (op 2, dev only) | A ScreenPulse on yourself: shake, flash, red screen edges and colour fringing (players within 32 blocks see it too, weaker with distance) |
+| `/bhfx_test tracker [range]` | server (op 2, dev only) | A ground ring that lasts 60 seconds where you look, sent only to players within range (default 16). The top-left corner shows the effect's age and your distance. Stand outside the range when you run it, then walk in: the age must keep counting (not restart from 0). |
+| `/bhfx stats` | client | Cost over the last 10 seconds: CPU time while drawing and ticking, GPU time (average/max), max fx/pass count, VRAM held (counting only frames with effects) |
+| `/bhfx bench [fx] [seconds]` | client | Plays the fx repeatedly where you look (on your machine only), toggling bhfx drawing off and on every 1 second. Reports average frame time, the worst 1% and the difference (default `bhfx:test`, 10 seconds) |
+| `/bhfx status` | client | Status: on/off, the quality actually in use, fx/pass count, FX resolution, % of budget, GPU time, estimated VRAM |
+| F3 | client | A live `[bhfx] ...` line on the left with the same information |
+| `/bhfx off` / `/bhfx on` | client | Turn off/on temporarily to compare FPS (off = no fx created and the GPU is not touched) |
+| `/bhfx reload` | client | Recompile shaders, clear the "disabled after a GL error" state and undo the automatic quality downgrade (F3+T also recompiles) |
 
 ## Config
 
 - `config/bhfx-client.toml`
-  - quality: `quality` (OFF/LOW/MEDIUM/HIGH — LOW ไม่มี bloom), `maxFxMegapixels`, `gpuBudgetMs` (ค่าเริ่มต้น 6), `autoDowngrade`, `bloom`, `warmup`
+  - quality: `quality` (OFF/LOW/MEDIUM/HIGH; LOW has no bloom), `maxFxMegapixels`, `gpuBudgetMs` (default 6), `autoDowngrade`, `bloom`, `warmup`
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
-  - camera: `control` (NONE / **SUBTLE** / FULL — เวทของตัวเองขยับกล้องได้แค่ไหน), `fromOthers` (**false** — เวทคนอื่นไม่แตะกล้องเรา), `fovScale`
-  - compat: `offWithShaderpack` (ค่าเริ่มต้น true — ปิด post ขณะเปิด shader pack ของ Iris/Oculus)
-- `config/bhfx-server.toml`: `enabled` (false = ไม่ส่งเอฟเฟค, mod ที่ใช้กลับไปใช้ทางสำรอง), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
+  - camera: `control` (NONE / **SUBTLE** / FULL: how much your own spells may move your camera), `fromOthers` (**false**: other players' spells never touch your camera), `fovScale`
+  - compat: `offWithShaderpack` (default true: turn post-processing off while an Iris/Oculus shader pack is on)
+- `config/bhfx-server.toml`: `enabled` (false = send no effects; mods that use bhfx fall back to their own visuals), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
 
-## ระบบป้องกัน lag ที่ทำงานอยู่
+## Lag protection in place
 
-- **ไม่มีเอฟเฟค = ไม่แตะ GPU**; ถ้ามีแค่การสั่นจอ ก็ไม่รัน post-processing
-- **วัดเวลา GPU จริง** ด้วย `GL_TIME_ELAPSED` query (อ่านผลย้อนหลัง ไม่ทำให้ CPU รอ GPU) แล้วลดพิกเซลของ pass ลงได้ถึง 25% เพื่อให้อยู่ใต้ `gpuBudgetMs` (ลดทันที เพิ่มกลับช้าๆ ปรับทีละ 1/8 จึงไม่ต้องจอง texture ใหม่ทุกเฟรม)
-- **ลดคุณภาพอัตโนมัติ**: ถ้ายังเกินงบ 25% ต่อเนื่อง 5 วินาทีทั้งที่ลดความละเอียดสุดแล้ว จะลด quality ลง 1 ระดับเฉพาะ session นี้ (HIGH → MEDIUM → LOW) แจ้งในแชทและ log `/bhfx reload` เพื่อคืนค่า
-- Bloom, freeze และ stepped-frame จอง texture **เฉพาะตอนที่มีเอฟเฟคใช้** และทั้งหมดคืนให้ GPU หลังไม่มีเอฟเฟค 30 วินาที
-- เซิร์ฟเวอร์จำกัดจำนวน start ต่อ tick และจำนวนเอฟเฟคต่อผู้ร่าย
-- **Shader warmup** (0.3): หลังเข้าโลก คอมไพล์ shader ทุกตัวของทุก mod (`assets/*/shaders/bhfx/**.fsh`) ทีละ 1 ตัวต่อเฟรม พร้อมวาดจริงลง target 1x1 (บาง driver คอมไพล์เสร็จตอนวาดครั้งแรก) การร่ายครั้งแรกจึงไม่กระตุก log บอกเวลารวมและตัวที่ช้าสุด
-- **Shader pack** (0.3): ถ้า Iris/Oculus เปิด shader pack อยู่ จะปิด post ให้อัตโนมัติ (depth ไม่ตรงกับภาพของ pack) สั่นจอยังทำงาน และ `BHFxClient.postAvailable()` คืน false ให้ mod ที่ใช้เลือกทางสำรองได้
-- **รวม packet** (0.3): start ที่เกิดใน tick เดียวกันของผู้เล่นคนเดียวจะส่งรวมเป็นก้อนเดียว (สูงสุด 16 ต่อก้อน) ส่วน stop/update จะส่ง start ที่ค้างอยู่ออกไปก่อน ลำดับจึงไม่สลับ
+- **No effects = the GPU is not touched.** With only screen shake, post-processing doesn't run either.
+- **Real GPU time is measured** with `GL_TIME_ELAPSED` queries (read back later, so the CPU never waits for the GPU). Pass resolution can drop to 25% of the pixels to stay under `gpuBudgetMs`. It drops immediately and recovers slowly, in steps of 1/8, so textures aren't reallocated every frame.
+- **Automatic quality downgrade**: if the budget is still exceeded by 25% for 5 seconds straight at the lowest resolution, quality drops one level for this session (HIGH → MEDIUM → LOW), with a chat message and a log line. `/bhfx reload` restores it.
+- Bloom, freeze and stepped-frame textures are allocated **only while an effect uses them**, and all of them are released to the GPU after 30 seconds without effects.
+- The server limits starts per tick and effects per caster.
+- **Shader warmup** (0.3): after joining a world, every shader from every mod (`assets/*/shaders/bhfx/**.fsh`) is compiled one per frame, with a real draw to a 1x1 target (some drivers only finish compiling on the first draw). The first cast therefore doesn't stutter. The log reports the total time and the slowest shader.
+- **Shader packs** (0.3): when an Iris/Oculus shader pack is on, post-processing is turned off automatically (the depth doesn't match the pack's image). Screen shake still works, and `BHFxClient.postAvailable()` returns false so mods can pick a fallback.
+- **Packet batching** (0.3): starts for the same player in the same tick are sent in one batch (up to 16 per batch). A stop or update first flushes pending starts, so the order is never swapped.
 
-## ถอดออก
+## Removing bhfx
 
-ลบ `bhfx-*.jar` ออกจาก **ทั้ง** server และ client (network channel เป็นแบบ strict ต้องมีหรือไม่มีเหมือนกันทั้งสองฝั่ง) bhfx ไม่เก็บอะไรลง save โลกจึงไม่เสีย
+Delete `bhfx-*.jar` from **both** the server and every client (the network channel is strict, so both sides must have it or both must not). bhfx stores nothing in saves, so worlds are not affected.
 
-## โครงสร้าง
+## Layout
 
 ```
 net.deizyn.bhfx
@@ -72,10 +71,10 @@ net.deizyn.bhfx
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,
  │                  ScreenParams, ImpactStyle, ImpactSequence, CameraParams, CameraPose, FxSettings, BHFxClient,
  │                  LocalFxHandle, RegisterFxEvent
- └─ impl/           (ภายใน เปลี่ยนได้ตลอด)
+ └─ impl/           (internal, can change at any time)
      ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate / S2CScreenPulse
-     ├─ server/     ServerFx (id, key, อายุ, rate limit, tracker), ServerFxEvents (/bhfx_test)
-     ├─ client/     ClientFxManager (ลดคุณภาพอัตโนมัติ), ClientEvents (/bhfx, F3), ShaderWarmup, ShaderpackDetector,
+     ├─ server/     ServerFx (ids, keys, age, rate limits, tracker), ServerFxEvents (/bhfx_test)
+     ├─ client/     ClientFxManager (automatic downgrade), ClientEvents (/bhfx, F3), ShaderWarmup, ShaderpackDetector,
      │              FrameStats (/bhfx stats), FxBench (/bhfx bench), CameraParamsImpl, CameraMover, test/TestFx
      └─ render/     PostRenderer, GpuTimer, ResolutionController, GlStateGuard, ShaderManager, UniformBinder
 assets/bhfx/shaders/bhfx/
@@ -85,33 +84,33 @@ assets/bhfx/shaders/bhfx/
  └─ test.fsh
 ```
 
-Shader ของ mod อื่นวางที่ `assets/<ns>/shaders/bhfx/<name>.fsh` แล้วเรียกด้วย `"<ns>:<name>"`;
-include ด้วย `#include "bhfx:light.glsl"` (ไฟล์ include อยู่ที่ `assets/<ns>/shaders/bhfx/include/`)
+Other mods put their shaders at `assets/<ns>/shaders/bhfx/<name>.fsh` and call them as `"<ns>:<name>"`.
+Include files with `#include "bhfx:light.glsl"` (include files live in `assets/<ns>/shaders/bhfx/include/`).
 
-## ส่วนที่ทำต่างจากแผน
+## Where the code differs from the plan
 
-| เรื่อง | ในแผน | ที่ทำจริง | เหตุผล |
+| Topic | Plan | Actual | Reason |
 | :--- | :--- | :--- | :--- |
-| Hook การเรนเดอร์ | Mixin `LevelRenderer` | **ไม่มี mixin เลย**: `RenderLevelStageEvent` (เก็บ matrix ที่ `AFTER_SKY`/`AFTER_SOLID_BLOCKS`, วาดที่ `AFTER_LEVEL`) + `ViewportEvent` สำหรับสั่นจอ | เข้ากับ mod อื่นง่ายกว่า ไม่ต้อง refmap |
-| Depth | snapshot ทั้ง color และ depth | sample depth ของ Minecraft ตรงๆ, copy แค่ color | FBO ของ bhfx ไม่ attach depth จึงไม่มี feedback loop ประหยัด ~8 MB ที่ 1080p |
-| Duration | override `duration()` | override **`defaultDuration()`**; `duration()` เป็น final และเคารพค่าใน `FxSpawn` | ให้ฝั่งที่สั่งกำหนดเวลาได้เสมอ |
-| `PassOptions` | `order` + `resolution` | เฉพาะ `order` | ทุก pass ใช้ความละเอียด FX เดียวกัน |
-| คำสั่งทดสอบ | `/bhfx test` | `/bhfx_test` (server) แยกจาก `/bhfx ...` (client) | client กับ server command ใช้ชื่อ root เดียวกันแล้วชนกัน |
-| Texture ใน pass | — | ครั้งแรกที่ขอจะโหลดหลังจบเฟรม texture จึงขึ้นตั้งแต่เฟรมถัดไป | ไม่ให้การโหลดของ Minecraft ไปเปลี่ยน GL state ระหว่างที่ bhfx ถืออยู่ |
-| Bloom | 13-tap / 9-tap | dual filter 5-tap ลง / 8-tap ขึ้น (บวกกับชั้นเดียวกัน) | ถูกกว่า และไม่เหมือน implementation ของต้นฉบับ |
-| Tracker กับ entity ที่ follow | `PlayerEvent.StartTracking` | ตรวจระยะจากตำแหน่งปัจจุบันของ entity ทุก 10 tick | ใช้โค้ดชุดเดียวกับเอฟเฟคที่ไม่ follow |
-| การส่ง update | ส่งเฉพาะคนที่ได้รับเอฟเฟค | ส่งทั้ง dimension (client ที่ไม่มีเอฟเฟคนั้นจะทิ้ง) | packet เล็ก และครอบคลุมเอฟเฟคที่ไม่ persistent |
+| Render hook | Mixin into `LevelRenderer` | **No mixins at all**: `RenderLevelStageEvent` (matrices captured at `AFTER_SKY`/`AFTER_SOLID_BLOCKS`, drawing at `AFTER_LEVEL`) + `ViewportEvent` for screen shake | Easier to get along with other mods, no refmap needed |
+| Depth | Snapshot both color and depth | Sample Minecraft's depth directly, copy only color | bhfx's FBOs don't attach depth, so there's no feedback loop; saves ~8 MB at 1080p |
+| Duration | Override `duration()` | Override **`defaultDuration()`**; `duration()` is final and honors the value in `FxSpawn` | The caller can always set the duration |
+| `PassOptions` | `order` + `resolution` | `order` only | Every pass uses the same FX resolution |
+| Test command | `/bhfx test` | `/bhfx_test` (server), separate from `/bhfx ...` (client) | Client and server commands with the same root name clash |
+| Textures in a pass | — | On first request, the texture loads after the frame ends, so it shows from the next frame | Keeps Minecraft's loading from changing GL state while bhfx holds it |
+| Bloom | 13-tap / 9-tap | Dual filter: 5-tap down / 8-tap up (added onto the same level) | Cheaper, and different from the original's implementation |
+| Tracker for followed entities | `PlayerEvent.StartTracking` | Range check from the entity's current position every 10 ticks | Same code path as effects that don't follow |
+| Sending updates | Only to players who have the effect | To the whole dimension (clients without that effect drop it) | Small packets, and it covers non-persistent effects |
 
 ## Screen pulse (0.3)
 
-เอฟเฟคหน้าจอสั้นๆ จากฝั่งเซิร์ฟเวอร์ ไม่ต้องเขียนคลาส Fx — เหมาะกับเติมความรู้สึกตอนเวทโดน:
+A short screen effect sent from the server, with no Fx class to write. Good for adding impact when a spell hits:
 ```java
-BHFx.pulse(level, target, 24, ScreenPulse.of().shake(0.6f).flash(0xFFE0B0, 0.5f, 6));  // ทุกคนในระยะ เบาลงตามระยะ
-BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));                  // คนเดียว เต็มแรง
+BHFx.pulse(level, target, 24, ScreenPulse.of().shake(0.6f).flash(0xFFE0B0, 0.5f, 6));  // everyone in range, weaker with distance
+BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));                  // one player, full strength
 ```
-มี `shake`, `flash`, `vignette`, `aberration`, `zoomBlur`, `desaturate` แต่ละอย่างจางหายตามจำนวน tick ของมันเอง; นับรวมใน `maxStartsPerTick` และเคารพ `flashScale` / `shakeScale` ของผู้เล่น
+It has `shake`, `flash`, `vignette`, `aberration`, `zoomBlur` and `desaturate`, each fading out over its own number of ticks. Pulses count toward `maxStartsPerTick` and respect the player's `flashScale` / `shakeScale`.
 
-## เอกสารการพัฒนา
+## Development docs
 
-ความรู้ระหว่างพัฒนาเก็บเป็น markdown แยกหมวดใน [`docs/`](docs/README.md):
-งานที่เหลือ/แผน 1.0 ([`roadmap.md`](docs/roadmap.md)), สถานะการทดสอบ ([`testing.md`](docs/testing.md)), บั๊ก ([`bugs.md`](docs/bugs.md)), การตัดสินใจ ([`decisions.md`](docs/decisions.md)), การตรวจ shader ([`shaders.md`](docs/shaders.md)), การใช้งานใน BHSpells ([`integrations/bhspells.md`](docs/integrations/bhspells.md)) และบันทึกงานรายวัน ([`worklog.md`](docs/worklog.md))
+Development knowledge is kept as markdown, split by category, in [`docs/`](docs/README.md):
+open work and the 1.0 plan ([`roadmap.md`](docs/roadmap.md)), test status ([`testing.md`](docs/testing.md)), bugs ([`bugs.md`](docs/bugs.md)), decisions ([`decisions.md`](docs/decisions.md)), shader checking ([`shaders.md`](docs/shaders.md)), releasing ([`release.md`](docs/release.md)), use in BHSpells ([`integrations/bhspells.md`](docs/integrations/bhspells.md)) and the daily work log ([`worklog.md`](docs/worklog.md)).

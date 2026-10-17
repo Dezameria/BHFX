@@ -1,40 +1,41 @@
 # Roadmap
 
-งานที่เหลือและแผน เมื่อทำเสร็จให้ติ๊ก `[x]` พร้อมวันที่ แล้วบันทึกรายละเอียดใน [`worklog.md`](worklog.md)
+Open work and plans. When something is done, tick it as `[x]` with the date, and record the details in [`worklog.md`](worklog.md).
 
-## ตอนนี้ (0.3.x)
+## Now (0.3.x)
 
-- [ ] ทดสอบ Annihilation Arrow แบบ multiplayer กับเพื่อน (checklist ใน [`testing.md`](testing.md))
-- [ ] ทดสอบ Heavenly Combo หลังเปลี่ยน bridge มาใช้ `BHFxClient.fx(...)` (2026-10-17)
-- [x] 2026-10-17 glslang ถาวรที่ `ironspell_more/tools/glslang` build หาเจอเอง (ดู [`shaders.md`](shaders.md))
-- [x] 2026-10-17 commit งานค้าง (ผู้ใช้ commit เอง)
-- [x] 2026-10-17 ประกาศ mod ที่ BHSpells บังคับใน `mods.toml` (ดู [`release.md`](release.md))
-- [ ] ยืนยัน dedicated server เข้าโลกได้กับชุด mod จริง (2026-10-17 โหลด mod ผ่าน แต่โลกถูกล็อกโดย server อีกตัว)
-- [x] 2026-10-17 แก้ `followSeen` leak ใน `ServerFx`
-- [x] 2026-10-17 ล็อกเวอร์ชันใน BHSpells `mods.toml` เป็น `[0.3,0.4)`
-- [x] 2026-10-17 `/bhfx_test` เฉพาะ dev
-- [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` สำหรับ local handle
-- [x] 2026-10-17 `checkShaders` ด้วย glslang
+- [ ] Test Annihilation Arrow in multiplayer with a friend (checklist in [`testing.md`](testing.md)).
+- [ ] Test Heavenly Combo after the bridge switched to `BHFxClient.fx(...)` (2026-10-17).
+- [x] 2026-10-17 Permanent glslang at `ironspell_more/tools/glslang`; the build finds it on its own (see [`shaders.md`](shaders.md)).
+- [x] 2026-10-17 Commit pending work (the user committed it).
+- [x] 2026-10-17 Declare the mods BHSpells requires in `mods.toml` (see [`release.md`](release.md)).
+- [ ] Confirm a dedicated server can open a world with the real mod set (2026-10-17: mods loaded, but the world was locked by another server).
+- [x] 2026-10-17 Fix the `followSeen` leak in `ServerFx`.
+- [x] 2026-10-17 Lock the bhfx version range in BHSpells `mods.toml` to `[0.3,0.4)`.
+- [x] 2026-10-17 `/bhfx_test` in dev only.
+- [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` for local handles.
+- [x] 2026-10-17 `checkShaders` with glslang.
+- [x] 2026-10-17 Docs translated to English.
 
-## แผน 1.0
+## 1.0 plan
 
-| ขั้น | งาน | เสร็จเมื่อ |
+| Step | Work | Done when |
 | :--- | :--- | :--- |
-| 1. ล็อก API | ไล่ทุกคลาสใน `api.*` แบ่งเป็น นิ่ง / `@ApiStatus.Experimental` / ตัดทิ้ง; ตัดสินใจเรื่อง `stopEverywhere(server, key)`, `ctx.effek(...)`, Timeline จาก JSON; javadoc ครบ | มีรายการ API ที่สัญญาไม่เปลี่ยนตลอด 1.x |
-| 2. เทสอัตโนมัติ (JUnit) | `FxParams` (encode/decode, merge, ขนาด), `Timeline`/`Ease`, `ScreenPulse`; แยกตรรกะ tracker ของ `ServerFx` ออกจาก `ServerLevel` แล้วเทสกรณี entity หายใน 10 tick แรก; แยกกฎรวมค่าของ `ScreenParamsImpl`; (เสริม) Forge GameTest | `gradlew test` ผ่าน และบั๊กเก่ามีเทสคุม |
-| 3. ตรวจ shader จริง | glslang ถาวร + build ใช้ `-PrequireGlslCheck` | shader ทุกตัวทั้งสอง mod ผ่าน |
-| 4. ทดสอบกับ mod อื่น + หลายคน | Embeddium, Oculus (เปิด/ปิด pack), Epic Fight มุม 1/3, dedicated server 2 คน, `CameraParams` FULL | ไม่เหลือ ⏳ ใน [`testing.md`](testing.md) |
-| 5. วัด performance | ไม่มี Fx ต่างจากไม่ลง bhfx < 0.1 ms; GPU ของ bhfx ≤ 6 ms; ร่ายครั้งแรกกระตุก < 50 ms; VRAM ≤ 80 MB และคืนหลัง 30 วินาที (`/bhfx bench`, `/bhfx stats`) | ผ่านทุกเกณฑ์บนเครื่องสเปกกลาง 1080p |
-| 6. ออก 1.0 | เวอร์ชัน 1.0.0, changelog, BHSpells รับ `[1.0,2.0)` | — |
+| 1. Lock the API | Go through every class in `api.*` and mark it stable, `@ApiStatus.Experimental`, or removed. Decide on `stopEverywhere(server, key)`, `ctx.effek(...)` and Timeline loaded from JSON. Complete the javadoc. | There is a list of APIs promised not to change throughout 1.x |
+| 2. Automated tests (JUnit) | `FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`. Pull the `ServerFx` tracker logic away from `ServerLevel` and test an entity vanishing in the first 10 ticks. Pull out the merge rules of `ScreenParamsImpl`. Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
+| 3. Real shader checks | Permanent glslang, and the build uses `-PrequireGlslCheck` | Every shader in both mods passes |
+| 4. Test with other mods and several players | Embeddium, Oculus (pack on/off), Epic Fight in 1st/3rd person, a dedicated server with 2 players, `CameraParams` FULL | No ⏳ left in [`testing.md`](testing.md) |
+| 5. Measure performance | With no Fx, under 0.1 ms difference from not having bhfx; bhfx GPU time ≤ 6 ms; first cast hitches < 50 ms; VRAM ≤ 80 MB and freed after 30 seconds (`/bhfx bench`, `/bhfx stats`) | Every criterion passes on a mid-range machine at 1080p |
+| 6. Release 1.0 | Version 1.0.0, changelog, BHSpells accepts `[1.0,2.0)` | — |
 
-ลำดับที่แนะนำ: 1 → 2 → 3 ทำในเครื่องได้เลย; 4–5 ต้องเข้าเกม/มีเพื่อน ทำคู่กับเทส multiplayer
+Suggested order: 1 → 2 → 3 can be done locally right away. 4–5 need time in game and a friend; do them together with the multiplayer test.
 
-## รอผู้ใช้ตัดสินใจ
+## Waiting on the user
 
-- แจก bhfx ที่ไหน: modpack ตัวเองอย่างเดียว หรือ Modrinth/CurseForge
-- license: คง All Rights Reserved ไหม ถ้าให้ mod คนอื่น import
+- Where to distribute bhfx: only your own modpack, or Modrinth/CurseForge.
+- License: keep All Rights Reserved if other mods are going to import it?
 
-## Backlog (ยังไม่ได้วางเวลา)
+## Backlog (not scheduled)
 
-- `AaaParticlesBridge` (`ctx.effek(...)`) — ทำเมื่อมีเคสจริง
-- เวทใน BHSpells ที่เหมาะจะใช้ bhfx ต่อ: Indigo Lightning, Fiery Dance, Venomous Blossomfall (LONG/CONTINUOUS ที่มี hook ครบ) และเวทแบบโซนค้างนาน (ทดสอบ tracker กับเอฟเฟคยาว)
+- `AaaParticlesBridge` (`ctx.effek(...)`): when there is a real use case.
+- BHSpells spells that would suit bhfx next: Indigo Lightning, Fiery Dance, Venomous Blossomfall (LONG/CONTINUOUS with all the hooks), and long-lasting zone spells (to test the tracker with long effects).
