@@ -16,7 +16,9 @@ BHSpells (`../BHSpells`) ใช้ bhfx แบบ **soft dependency**: ไม่
 
 Shader อยู่ที่ `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`
 `mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3,0.4)"`
-`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")` จาก `mavenLocal()` — **แก้ bhfx แล้วต้อง `publishToMavenLocal` ก่อน BHSpells จะเห็น**
+`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.0")` หาเจอจาก **`BHSpells/libs/bhfx-0.3.0.jar`** (`flatDir` อยู่ก่อน `mavenLocal`) jar นี้ commit อยู่ใน BHSpells เพื่อนที่ clone ไปจึง build ได้โดยไม่ต้องมี repo bhfx
+- **แก้ bhfx แล้วต้อง `./gradlew.bat build` ใน bhfx** task `copyToBHSpells` (ผูกท้าย `build`) จะเอา jar ที่ reobf แล้วไปทับใน `../BHSpells/libs` และลบ `bhfx-*.jar` ตัวเก่า; ถ้าลืม BHSpells จะใช้ jar เก่าใน `libs/` แม้ mavenLocal จะใหม่กว่า
+- jar ใน `libs/` เปลี่ยนเมื่อไร ต้อง commit ใน BHSpells ด้วย; ถ้าเปลี่ยนเวอร์ชัน bhfx ต้องแก้เลขใน `build.gradle` ของ BHSpells ให้ตรงกับชื่อไฟล์
 
 ## เวทที่ใช้ bhfx
 

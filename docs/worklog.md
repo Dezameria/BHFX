@@ -11,6 +11,11 @@
 
 ---
 
+## 2026-10-17 — bhfx jar ใน `BHSpells/libs`
+- bhfx `build.gradle`: task `copyToBHSpells` (หลัง `reobfJar`, ผูกท้าย `build`) copy jar ไป `../BHSpells/libs` แทนตัวเก่า
+- BHSpells: commit `libs/bhfx-0.3.0.jar` เพื่อให้เพื่อน clone แล้ว build ได้ (ยังไม่ push)
+- ผล: build bhfx แล้ว jar ไปอยู่ใน `libs/` ถูกต้อง; ย้าย bhfx ออกจาก mavenLocal ชั่วคราวแล้วสั่ง BHSpells `compileJava --refresh-dependencies` ผ่าน (exit 0) = เพื่อนที่ไม่มี mavenLocal build ได้จาก `libs/`; ย้าย mavenLocal กลับแล้ว
+
 ## 2026-10-17 — glslang ถาวร
 - `D:\Minecraft\Dev\ironspell_more\tools\glslang\bin\glslang.exe` (16.6.0, 4.9 MB) + `VERSION.txt`
 - bhfx + BHSpells `gradle/glsl-check.gradle`: หา `<repo>/../tools/glslang/bin` อัตโนมัติ (ไฟล์ยังเหมือนกันทั้งสอง repo)

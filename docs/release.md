@@ -2,7 +2,7 @@
 
 ## Build jar สำหรับใช้จริง
 
-ลำดับสำคัญ: bhfx ก่อน (BHSpells compile กับ bhfx จาก `mavenLocal`)
+ลำดับสำคัญ: bhfx ก่อน — `build` ของ bhfx copy jar ไปที่ `BHSpells/libs/` ให้เอง (task `copyToBHSpells`) แล้ว BHSpells compile กับตัวนั้น
 
 ```bash
 cd bhfx

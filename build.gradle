@@ -103,3 +103,21 @@ tasks.withType(JavaCompile).configureEach {
 ext.glslShaderRoots = { -> [file('src/main/resources')] }
 ext.glslIncludeRoots = { -> [file('src/main/resources')] }
 apply from: 'gradle/glsl-check.gradle'
+
+// BHSpells builds against bhfx from its libs/ folder (flatDir, checked before mavenLocal), so friends who clone it can
+// build without this repo. After every build, replace the bhfx jar there with this one (reobfuscated, not -sources).
+def bhspellsLibs = file('../BHSpells/libs')
+tasks.register('copyToBHSpells', Copy) {
+    group = 'distribution'
+    description = 'Copies the built bhfx jar into ../BHSpells/libs, replacing older bhfx jars.'
+    dependsOn 'reobfJar'
+    onlyIf { bhspellsLibs.isDirectory() }
+    doFirst {
+        project.delete(fileTree(bhspellsLibs) { include "${mod_id}-*.jar" })
+    }
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into bhspellsLibs
+}
+tasks.named('build') {
+    finalizedBy 'copyToBHSpells'
+}

@@ -3,6 +3,10 @@
 รูปแบบ: **เรื่อง — ตัดสินใจ — เหตุผล** พร้อมวันที่ ถ้าเปลี่ยนใจภายหลังให้เพิ่มบรรทัด "แทนที่โดย …" ไม่ต้องลบของเดิม
 การตัดสินใจตอนวางแผนแรกอยู่ใน [`API_PLAN.md`](API_PLAN.md) หัวข้อ 10 และ "ส่วนที่ทำต่างจากแผน" ใน [`../README.md`](../README.md)
 
+## 2026-10-17 — BHSpells ใช้ bhfx จาก `libs/` (commit jar)
+- **ตัดสินใจ**: commit `bhfx-<ver>.jar` ใน `BHSpells/libs` (เหมือน `bhweapons`) และให้ bhfx copy ไปเองหลัง build; ยังไม่ jarJar
+- **เหตุผล**: เพื่อนที่ clone BHSpells ไม่มี repo bhfx/mavenLocal; ไม่ jarJar เพราะต้องถอด bhfx ออกได้ (API_PLAN หัวข้อ 0)
+
 ## 2026-10-17 — BHSpells ประกาศ mod ที่ใช้ตรงๆ เป็น mandatory
 - **ตัดสินใจ**: mod ที่ถูก import นอก `compat/` (15 ตัว) ประกาศ `mandatory=true` ขอบล่าง = เวอร์ชันที่ใช้ build; `bhfx` และ `epic_fight_avalon` ยังไม่บังคับ
 - **เหตุผล**: เดิมประกาศแค่ Forge/Minecraft ถ้าขาด mod จะ crash กลางเกมแบบอ่านยาก การประกาศให้ Forge บอกตั้งแต่หน้าโหลดว่าขาดอะไร; ไม่ได้เปลี่ยนพฤติกรรมเมื่อมี mod ครบ
