@@ -11,6 +11,12 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — Work that needed no game: tests, changelog, bridge
+- bhfx: `impl/client/SelectorSpec` (new, parsing pulled out of `ClientSelector`); `ScreenParamsImplTest`, `SelectorSpecTest`; 41 tests in all. `CHANGELOG.md` (0.1.0 to 0.3.2).
+- BHSpells: `BhfxLoadedBridge.annihilationChargeEnd` makes one `BHFx.stop` instead of looping over every level; `mods.toml` bhfx range `[0.3.2,0.4)`. No spell code changed.
+- Dedicated server: the world opens (log from a 12:45 dev server, bhfx 0.3.0). That server (PID 19392) was still running and holds `run/world`; left running for the user to decide.
+- result: bhfx `gradlew build` (41 tests, shader check) and BHSpells `gradlew build` passed. bhfx jar refreshed in `BHSpells/libs` and the Mingyue Eclipse `mods/`; the modpack's BHSpells jar was not replaced. Not tested in game.
+
 ## 2026-10-17 — API lock (0.3.2)
 - bhfx API removed: `ScreenParams` speedLines/contrast/grain/freeze/afterimage/stepFps/synthetic (with `PostRenderer` hold/step targets and the `composite.fsh` / `bloom_down.fsh` code), `CameraParams` hideHand/roll/hideHud/override/FULL, `CameraPose`, `CameraMover`, `Uniforms.points/texture` (with `UniformBinder` texture loading), `FxParam.EMPOWERED`, `BHFxClient.register/reloadShaders`.
 - bhfx `ServerFx`: `FxKey` is server-wide. `Audience` keeps player UUIDs. `@ApiStatus.Internal` on `Fx.bhfx*`, `ScreenPulse.write/read`, `Audience.kind/playerIds`. Javadoc filled in (`FxSettings`, `FrameContext`, `FxContext`, `Uniforms`, `BHFxClient`).

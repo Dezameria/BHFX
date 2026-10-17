@@ -9,7 +9,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 Permanent glslang at `ironspell_more/tools/glslang`; the build finds it on its own (see [`shaders.md`](shaders.md)).
 - [x] 2026-10-17 Commit pending work (the user committed it).
 - [x] 2026-10-17 Declare the mods BHSpells requires in `mods.toml` (see [`release.md`](release.md)).
-- [ ] Confirm a dedicated server can open a world with the real mod set (2026-10-17: mods loaded, but the world was locked by another server).
+- [x] 2026-10-17 Confirm a dedicated server can open a world with the real mod set (see [`testing.md`](testing.md)).
 - [x] 2026-10-17 Fix the `followSeen` leak in `ServerFx`.
 - [x] 2026-10-17 Lock the bhfx version range in BHSpells `mods.toml` to `[0.3,0.4)`.
 - [x] 2026-10-17 `/bhfx_test` in dev only (replaced by `/bhfx_play` the same day).
@@ -26,7 +26,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 | Step | Work | Done when |
 | :--- | :--- | :--- |
 | 1. Lock the API | ~~Go through every class in `api.*` and mark it stable, `@ApiStatus.Experimental`, or removed. Decide on `stopEverywhere(server, key)`, `ctx.effek(...)` and Timeline loaded from JSON. Complete the javadoc.~~ done 2026-10-17 in 0.3.2 (see [`API_PLAN.md`](API_PLAN.md) section 0.1). Checked in game the same day. | There is a list of APIs promised not to change throughout 1.x |
-| 2. Automated tests (JUnit) | ~~`FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`, the `ServerFx` tracker rules (`impl/server/Tracking`) incl. an entity vanishing in the first 10 ticks~~ done 2026-10-17 (31 tests). Left: the merge rules of `ScreenParamsImpl`, `ClientSelector` (needs a client level; maybe pull its parsing out). Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
+| 2. Automated tests (JUnit) | ~~`FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`, the `ServerFx` tracker rules (`impl/server/Tracking`) incl. an entity vanishing in the first 10 ticks~~ done 2026-10-17 (31 tests); ~~the merge rules of `ScreenParamsImpl`, `ClientSelector` parsing (`SelectorSpec`)~~ done the same day (41 tests). Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
 | 3. Real shader checks | ~~Permanent glslang, and the build uses `-PrequireGlslCheck`~~ done 2026-10-17: bhfx requires it in `gradle.properties`; BHSpells stays optional for friends (see [`shaders.md`](shaders.md)) | Every shader in both mods passes (bhfx 4, BHSpells 2 on 2026-10-17) |
 | 4. Test with other mods and several players | Embeddium, Oculus (pack on/off), Epic Fight in 1st/3rd person, a dedicated server with 2 players | No ⏳ left in [`testing.md`](testing.md) |
 | 5. Measure performance | With no Fx, under 0.1 ms difference from not having bhfx; bhfx GPU time ≤ 6 ms; first cast hitches < 50 ms; VRAM ≤ 80 MB and freed after 30 seconds (`/bhfx bench`, `/bhfx stats`) | Every criterion passes on a mid-range machine at 1080p |

@@ -16,7 +16,7 @@ BHSpells (`../BHSpells`) uses bhfx as a **soft dependency**: it plays normally w
 
 Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`.
 
-`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3,0.4)"`.
+`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.2,0.4)"` (0.3.2 because the bridge relies on server-wide keys).
 
 `build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")`, resolved from **`BHSpells/libs/bhfx-0.3.2.jar`** (`flatDir` comes before `mavenLocal`). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
 - **After changing bhfx, run `./gradlew.bat build` in bhfx.** The `copyToBHSpells` task (which finalizes `build`) copies the reobfuscated jar over the one in `../BHSpells/libs` and deletes older `bhfx-*.jar` files. If you forget, BHSpells keeps using the old jar in `libs/`, even if mavenLocal is newer.
@@ -32,7 +32,7 @@ Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>
 
 ## Lessons from real use
 
-1. **Iron's cancels a cast after a dimension change from the new level**, but `FxKey` is per dimension, so the stop has to loop over every level (`level.getServer().getAllLevels()`). See [`../bugs.md`](../bugs.md). Since bhfx 0.3.2 keys are server-wide, so a single `BHFx.stop` from any level is enough; the loop is now redundant but harmless.
+1. **Iron's cancels a cast after a dimension change from the new level**, but `FxKey` is per dimension, so the stop has to loop over every level (`level.getServer().getAllLevels()`). See [`../bugs.md`](../bugs.md). Since bhfx 0.3.2 keys are server-wide, so `BhfxLoadedBridge.annihilationChargeEnd` now makes a single `BHFx.stop` (2026-10-17), and `annihilationChargeReady` also finds the charge after a dimension change.
 2. **For an interrupted mob, Iron's calls `onServerCastComplete(..., cancelled=false)`** (`AbstractSpellCastingMob.cancelCast` → `castComplete`). Treat it as interrupted when the caster isn't a `Player` and `getCastDurationRemaining() > 0`.
 3. **A late joiner can get the start before its client tracks the caster.** bhfx sends by server-side range (64 blocks), but vanilla tracks entities by view distance. So a client Fx must not end itself for "caster not found" until it has seen the caster at least once (`casterSeen`).
 4. **Values sent with `update` are already merged into the params a late joiner receives.** So the Fx constructor must check `init.params()` too (for example, if `READY` is already set, show the halo without replaying its flash).

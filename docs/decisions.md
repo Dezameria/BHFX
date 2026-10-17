@@ -43,6 +43,7 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 ## 2026-10-17 — BHSpells accepts bhfx `[0.3,0.4)` only
 - **Decision**: lock the version range to a single minor version until 1.0 (then change it to `[1.0,2.0)`).
 - **Reason**: the API can still change during 0.x. With an open range, an incompatible bhfx would load and then break mid-game. With a locked range, Forge reports it at the loading screen.
+- 2026-10-17: raised to `[0.3.2,0.4)`, because the bridge now relies on server-wide `FxKey`s.
 
 ## 2026-10-17 — Check shaders at build time with glslang
 - **Decision**: the `checkShaders` task assembles each shader the same way `ShaderManager` does and runs glslang on it. If glslang isn't found it warns and skips; `-PrequireGlslCheck` makes it fail instead.

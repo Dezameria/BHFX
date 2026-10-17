@@ -474,7 +474,7 @@ BHSpells must not reference bhfx classes directly in code that is always loaded,
 BHSpells
  ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.2")   + runtimeOnly during dev
  │                       (not implementation, and no jarJar)
- ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3,0.4)"
+ ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3.2,0.4)"
  └─ compat/bhfx/
      ├─ BhfxCompat.java          ← always loadable: checks ModList.isLoaded("bhfx") and forwards; must not import bhfx
      ├─ BhfxLoadedBridge.java    ← may import bhfx; only loaded when bhfx is present

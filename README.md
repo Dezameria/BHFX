@@ -3,7 +3,7 @@
 A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware world-space shaders for BHSpells and other mods to use.
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
-- Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md)
+- Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md); changes per version: [`CHANGELOG.md`](CHANGELOG.md)
 - Version: **0.3.2** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
