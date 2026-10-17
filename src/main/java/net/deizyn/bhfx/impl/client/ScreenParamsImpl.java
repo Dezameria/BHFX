@@ -29,13 +29,6 @@ public final class ScreenParamsImpl implements ScreenParams {
     private ImpactStyle impactStyle;
     private float impactU = 0.5f;
     private float impactV = 0.5f;
-    private float speedLines;
-    private float contrast;
-    private float grain;
-    private boolean freeze;
-    private float afterimage;
-    private float stepFps;
-    private float synthetic;
     private final float[] rippleA = new float[MAX_RIPPLES * 4];
     private final float[] rippleB = new float[MAX_RIPPLES * 4];
     private int ripples;
@@ -46,11 +39,10 @@ public final class ScreenParamsImpl implements ScreenParams {
 
     void reset() {
         shake = flash = vignette = desaturate = aberration = zoomBlur = bloom = bloomRadius = 0f;
-        impact = speedLines = contrast = grain = afterimage = stepFps = synthetic = 0f;
+        impact = 0f;
         flashRgb = vignetteRgb = 0;
         impactStyle = null;
         impactU = impactV = 0.5f;
-        freeze = false;
         ripples = 0;
         java.util.Arrays.fill(rippleA, 0f);
         java.util.Arrays.fill(rippleB, 0f);
@@ -59,8 +51,7 @@ public final class ScreenParamsImpl implements ScreenParams {
     /** True when the image needs no post pass (shake moves the camera, bloom needs passes to have drawn light). */
     boolean imageIdle() {
         return flash < 1e-4f && vignette < 1e-4f && desaturate < 1e-4f && aberration < 1e-4f && zoomBlur < 1e-4f
-                && impact < 1e-4f && speedLines < 1e-4f && contrast < 1e-4f && grain < 1e-4f && !freeze
-                && afterimage < 1e-4f && stepFps < 0.5f && ripples == 0;
+                && impact < 1e-4f && ripples == 0;
     }
 
     // ------------------------------------------------------------------ ScreenParams
@@ -128,50 +119,6 @@ public final class ScreenParamsImpl implements ScreenParams {
     }
 
     @Override
-    public ScreenParams speedLines(float amount) {
-        speedLines = Math.max(speedLines, amount);
-        return this;
-    }
-
-    @Override
-    public ScreenParams contrast(float amount) {
-        contrast = Math.max(contrast, amount);
-        return this;
-    }
-
-    @Override
-    public ScreenParams grain(float amount) {
-        grain = Math.max(grain, amount);
-        return this;
-    }
-
-    @Override
-    public ScreenParams freeze() {
-        freeze = true;
-        return this;
-    }
-
-    @Override
-    public ScreenParams afterimage(float amount) {
-        afterimage = Math.max(afterimage, amount);
-        return this;
-    }
-
-    @Override
-    public ScreenParams stepFps(float fps) {
-        if (fps > 0.5f) {
-            stepFps = stepFps > 0.5f ? Math.min(stepFps, fps) : fps;
-        }
-        return this;
-    }
-
-    @Override
-    public ScreenParams synthetic(float coverage) {
-        synthetic = Math.max(synthetic, coverage);
-        return this;
-    }
-
-    @Override
     public ScreenParams ripple(Vec3 center, float radius, float width, float strength) {
         if (ripples >= MAX_RIPPLES || strength <= 1e-4f) {
             return this;
@@ -211,13 +158,6 @@ public final class ScreenParamsImpl implements ScreenParams {
     @Nullable public ImpactStyle impactStyle() { return impactStyle; }
     public float impactU() { return impactU; }
     public float impactV() { return impactV; }
-    public float speedLinesValue() { return speedLines; }
-    public float contrastValue() { return contrast; }
-    public float grainValue() { return grain; }
-    public boolean freezeRequested() { return freeze; }
-    public float afterimageValue() { return afterimage; }
-    public float stepFpsValue() { return stepFps; }
-    public float syntheticValue() { return synthetic; }
     public int rippleCount() { return ripples; }
     public float[] rippleA() { return rippleA; }
     public float[] rippleB() { return rippleB; }

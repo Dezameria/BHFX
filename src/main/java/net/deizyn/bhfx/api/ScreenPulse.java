@@ -1,5 +1,6 @@
 package net.deizyn.bhfx.api;
 
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.util.Mth;
 
@@ -110,6 +111,7 @@ public final class ScreenPulse {
         return shake <= 0f && flash <= 0f && vignette <= 0f && aberration <= 0f && zoomBlur <= 0f && desaturate <= 0f;
     }
 
+    @ApiStatus.Internal
     public void write(FriendlyByteBuf buf) {
         buf.writeFloat(shake);
         buf.writeInt(flashRgb);
@@ -127,6 +129,7 @@ public final class ScreenPulse {
     }
 
     /** Values are clamped again, so a modified packet cannot ask for more than the builder allows. */
+    @ApiStatus.Internal
     public static ScreenPulse read(FriendlyByteBuf buf) {
         ScreenPulse p = new ScreenPulse();
         p.shake(buf.readFloat());

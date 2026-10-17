@@ -1,7 +1,6 @@
 package net.deizyn.bhfx.impl.client;
 
 import net.deizyn.bhfx.api.ScreenPulse;
-import net.deizyn.bhfx.api.client.ScreenParams;
 
 /** One screen pulse playing on this client, already weighted by distance. */
 final class ActivePulse {
@@ -24,7 +23,7 @@ final class ActivePulse {
         return age > pulse.length();
     }
 
-    void apply(ScreenParams screen, float partial) {
+    void apply(ScreenParamsImpl screen, float partial) {
         float t = age + partial;
         if (pulse.flash() > 0f) {
             screen.flash(pulse.flashRgb(), pulse.flash() * weight * fade(t, pulse.flashTicks(), 0f));

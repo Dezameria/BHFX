@@ -31,27 +31,6 @@ public interface ScreenParams {
     /** Anime impact frame centred on a world point, 0..1. Strongest wins. Ignored when the player turned impact frames off. */
     ScreenParams impact(ImpactStyle style, float strength, Vec3 focus);
 
-    /** Streaks rushing in from the screen edges, 0..1 (max). */
-    ScreenParams speedLines(float amount);
-
-    /** Extra contrast, 0..1 (max). */
-    ScreenParams contrast(float amount);
-
-    /** Film grain, 0..1 (max). */
-    ScreenParams grain(float amount);
-
-    /** Hold the current image while any effect requests it (OR). */
-    ScreenParams freeze();
-
-    /** After a freeze ends, a ghost of the held image fading by this amount, 0..1 (max). */
-    ScreenParams afterimage(float amount);
-
-    /** Show the image at this frame rate (anime "on twos"); the lowest request wins. 0 = off. */
-    ScreenParams stepFps(float fps);
-
-    /** Share of the screen a pass drew outright with no world behind it, 0..1 (max): turns off detail restoration there. */
-    ScreenParams synthetic(float coverage);
-
     /** The image ripples in a ring round a world point: radius and width in blocks, strength 0..1. Up to 8 per frame. */
     ScreenParams ripple(Vec3 center, float radius, float width, float strength);
 }

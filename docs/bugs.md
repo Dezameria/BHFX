@@ -4,11 +4,14 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Open / known limitations
 
-- **`FxKey` is per dimension** (`ServerFx` uses `KeyInLevel(dimension, key)`). If the code calling stop only knows the caster's current level (for example, Iron's cancels the cast after the dimension change), the key isn't found.
-  - Current workaround: BHSpells calls `BHFx.stop` on every level (`BhfxLoadedBridge.annihilationChargeEnd`).
-  - Planned fix: add a `stopEverywhere(server, key)` API (decide during the API-lock step in [`roadmap.md`](roadmap.md)).
+- (none)
 
 ## Fixed
+
+### 2026-10-17 — `FxKey` was per dimension (0.3.2)
+- **Symptom**: stopping by key from a level other than the one the effect started in did nothing (Iron's cancels a cast from the new level after a dimension change).
+- **Cause**: `ServerFx` stored keys as `KeyInLevel(dimension, key)`.
+- **Fix**: keys are server-wide (`ServerFx.KEYS: Map<FxKey, Integer>`); `BHFx.stop(level, key, mode)` and `handle(level, key)` find the effect in any dimension. BHSpells' loop over every level still works and can be simplified later.
 
 ### 2026-10-17 — Effects not visible in the Mingyue Eclipse modpack (resolved)
 - **Symptom**: bhfx loaded and warmed up its shaders, but the user saw no effects.

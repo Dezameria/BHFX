@@ -35,14 +35,17 @@ public final class BHFx {
         ServerFx.stop(handle, mode);
     }
 
-    /** Stop the effect playing under {@code key}, if any. */
+    /**
+     * Stop the effect playing under {@code key}, if any. Keys are server-wide, so this finds the effect whichever
+     * dimension it plays in; {@code level} only has to belong to this server.
+     */
     public static void stop(ServerLevel level, FxKey key, StopMode mode) {
-        ServerFx.stop(level, key, mode);
+        ServerFx.stop(key, mode);
     }
 
-    /** The handle playing under {@code key}, if any. */
+    /** The effect playing under {@code key} in any dimension of this server. */
     public static Optional<FxHandle> handle(ServerLevel level, FxKey key) {
-        return ServerFx.handle(level, key);
+        return ServerFx.handle(key);
     }
 
     /**

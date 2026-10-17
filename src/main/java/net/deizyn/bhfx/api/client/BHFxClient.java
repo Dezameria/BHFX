@@ -9,14 +9,9 @@ import net.deizyn.bhfx.impl.client.ClientFxManager;
 
 import java.util.Optional;
 
-/** Client-side entry point. Render thread only. */
+/** Client-side entry point. Render thread only. Register effects with {@link RegisterFxEvent}. */
 public final class BHFxClient {
     private BHFxClient() {
-    }
-
-    /** Register an effect directly (alternative to {@link RegisterFxEvent}); call during client setup. */
-    public static void register(ResourceLocation id, FxFactory factory) {
-        ClientFxManager.register(id, factory);
     }
 
     /**
@@ -27,6 +22,7 @@ public final class BHFxClient {
         return ClientFxManager.startLocal(fxId, spawn);
     }
 
+    /** Stop a local effect; {@code mode} picks its ending. Unknown or finished handles are ignored. */
     public static void stop(LocalFxHandle handle, StopMode mode) {
         ClientFxManager.stopLocal(handle, mode);
     }
@@ -49,6 +45,7 @@ public final class BHFxClient {
         return ClientFxManager.isLocalAlive(handle);
     }
 
+    /** Camera shake on this client, 0..1, fading with the camera's distance from {@code source} out to {@code range}. */
     public static void shake(Vec3 source, float amount, double range) {
         ClientFxManager.shake(source, amount, range);
     }
@@ -61,9 +58,5 @@ public final class BHFxClient {
     /** True when effects are enabled and post-processing is working on this client. */
     public static boolean postAvailable() {
         return ClientFxManager.postAvailable();
-    }
-
-    public static void reloadShaders() {
-        ClientFxManager.reloadShaders();
     }
 }

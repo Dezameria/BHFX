@@ -92,9 +92,8 @@ public final class TestFx extends Fx {
 
     @Override
     protected void camera(FrameContext frame, CameraParams camera) {
-        // the caster's own screen: a short FOV punch on impact, and a small tilt only if they allow FULL control
-        float hit = T.pulse("impact", ticks(frame), 0, 10);
-        camera.fov(1f + 0.1f * hit).roll(5f * hit);
+        // the caster's own screen: a short FOV punch on impact
+        camera.fov(1f + 0.1f * T.pulse("impact", ticks(frame), 0, 10));
     }
 
     private static final ImpactSequence HIT = ImpactSequence.of(0.05f,

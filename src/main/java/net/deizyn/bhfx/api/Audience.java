@@ -1,21 +1,25 @@
 package net.deizyn.bhfx.api;
 
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** Who receives an effect started on the server. */
 public final class Audience {
+    @ApiStatus.Internal
     public enum Kind { TRACKING, EXCEPT_CASTER, PLAYERS }
 
-    private static final Audience TRACKING = new Audience(Kind.TRACKING, List.of());
-    private static final Audience EXCEPT_CASTER = new Audience(Kind.EXCEPT_CASTER, List.of());
+    private static final Audience TRACKING = new Audience(Kind.TRACKING, Set.of());
+    private static final Audience EXCEPT_CASTER = new Audience(Kind.EXCEPT_CASTER, Set.of());
 
     private final Kind kind;
-    private final List<ServerPlayer> players;
+    private final Set<UUID> players;
 
-    private Audience(Kind kind, List<ServerPlayer> players) {
+    private Audience(Kind kind, Set<UUID> players) {
         this.kind = kind;
         this.players = players;
     }
@@ -30,19 +34,24 @@ public final class Audience {
         return EXCEPT_CASTER;
     }
 
+    /** Only this player, wherever they are in the effect's dimension (range is ignored). */
     public static Audience only(ServerPlayer player) {
-        return new Audience(Kind.PLAYERS, List.of(player));
+        return new Audience(Kind.PLAYERS, Set.of(player.getUUID()));
     }
 
+    /** Only these players, wherever they are in the effect's dimension (range is ignored). */
     public static Audience players(Collection<ServerPlayer> players) {
-        return new Audience(Kind.PLAYERS, List.copyOf(players));
+        return new Audience(Kind.PLAYERS, players.stream().map(ServerPlayer::getUUID).collect(Collectors.toUnmodifiableSet()));
     }
 
+    @ApiStatus.Internal
     public Kind kind() {
         return kind;
     }
 
-    public List<ServerPlayer> players() {
+    /** Ids, not player objects: a respawn replaces the {@code ServerPlayer}. */
+    @ApiStatus.Internal
+    public Set<UUID> playerIds() {
         return players;
     }
 }

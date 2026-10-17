@@ -10,13 +10,16 @@ import java.util.Optional;
 
 /** What an effect can use while ticking (20 times per second). Valid only during the call. */
 public interface FxContext {
+    /** The level the effect plays in. */
     ClientLevel level();
 
+    /** The caster from {@code FxSpawn.caster}, when this client has it loaded. */
     Optional<Entity> caster();
 
     /** Current position: the followed entity's position, else the origin. */
     Vec3 position();
 
+    /** Camera position in world space. */
     Vec3 cameraPos();
 
     void sound(SoundEvent sound, Vec3 at, float volume, float pitch);

@@ -7,13 +7,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
-import net.deizyn.bhfx.api.client.CameraPose;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.event.RenderHandEvent;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -52,19 +46,6 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        CameraParamsImpl cam = ClientFxManager.camera();
-        if (!cam.idle()) {
-            CameraPose pose = cam.pose();
-            if (pose != null) {
-                float w = cam.poseWeight();
-                event.setYaw(event.getYaw() + Mth.wrapDegrees(pose.yaw() - event.getYaw()) * w);
-                event.setPitch(Mth.lerp(w, event.getPitch(), pose.pitch()));
-                event.setRoll(Mth.lerp(w, event.getRoll(), pose.roll()));
-                Camera camera = event.getCamera();
-                CameraMover.move(camera, camera.getPosition().lerp(pose.position(), w));
-            }
-            event.setRoll(event.getRoll() + cam.rollDegrees());
-        }
         float amount = (float) (ClientFxManager.shakeAmount() * BHFxConfig.SHAKE_SCALE.get());
         if (amount < 1e-4f) {
             return;
@@ -81,20 +62,6 @@ public final class ClientEvents {
         float mul = ClientFxManager.camera().fovMultiplier();
         if (event.usedConfiguredFov() && mul != 1f) {
             event.setFOV(event.getFOV() * mul);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onRenderHand(RenderHandEvent event) {
-        if (ClientFxManager.camera().hideHandRequested()) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
-        if (ClientFxManager.camera().hideHudRequested() && !event.getOverlay().id().equals(VanillaGuiOverlay.CHAT_PANEL.id())) {
-            event.setCanceled(true);
         }
     }
 

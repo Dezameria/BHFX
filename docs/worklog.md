@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — API lock (0.3.2)
+- bhfx API removed: `ScreenParams` speedLines/contrast/grain/freeze/afterimage/stepFps/synthetic (with `PostRenderer` hold/step targets and the `composite.fsh` / `bloom_down.fsh` code), `CameraParams` hideHand/roll/hideHud/override/FULL, `CameraPose`, `CameraMover`, `Uniforms.points/texture` (with `UniformBinder` texture loading), `FxParam.EMPOWERED`, `BHFxClient.register/reloadShaders`.
+- bhfx `ServerFx`: `FxKey` is server-wide. `Audience` keeps player UUIDs. `@ApiStatus.Internal` on `Fx.bhfx*`, `ScreenPulse.write/read`, `Audience.kind/playerIds`. Javadoc filled in (`FxSettings`, `FrameContext`, `FxContext`, `Uniforms`, `BHFxClient`).
+- BHSpells: `build.gradle` → bhfx 0.3.2; no spell code changed (`desaturate` kept for Heavenly Combo).
+- result: bhfx `gradlew build` (31 tests, required shader check) and BHSpells `compileJava` + `checkShaders -PrequireGlslCheck` passed. Jar 0.3.2 in `BHSpells/libs` and the Mingyue Eclipse `mods/` (0.3.1 removed). Tested in game by the user: works as before.
+- next: 1.0 steps 4-5 (multiplayer, other mods, performance).
+
 ## 2026-10-17 — 1.0 steps 2 and 3: tests and required shader check
 - bhfx `gradle.properties`: `requireGlslCheck=true`; `gradle/glsl-check.gradle` (both repos, identical) honours `-PrequireGlslCheck=false`. `checkShaders`: bhfx 4 OK, BHSpells 2 OK (with the flag).
 - bhfx `impl/server/Tracking` (new): expiry, follow-lost and enter/leave rules pulled out of `ServerFx` (behaviour unchanged).

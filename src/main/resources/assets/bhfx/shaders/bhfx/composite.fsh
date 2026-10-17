@@ -1,13 +1,12 @@
 // bhfx composite: the last pass (or the world) to the screen at native resolution with the frame's screen effects.
-// Order: ripples → aberration / zoom blur → bloom → grade → tone-map → impact frame → speed lines → afterimage →
-// flash → grain. Everything after the tone-map works in display space.
+// Order: ripples → aberration / zoom blur → bloom → desaturate / vignette → tone-map → impact frame → flash.
+// Everything after the tone-map works in display space.
 
 #include "bhfx:light.glsl"
 #include "bhfx:noise.glsl"
 
 uniform sampler2D SceneLowSampler;
 uniform sampler2D BloomSampler;
-uniform sampler2D HoldSampler;
 uniform float Upscaled;     // 0..1 how much detail to restore
 uniform float Bloom;
 uniform vec4 Flash;         // rgb, strength (above 1 washes to white)
@@ -15,8 +14,6 @@ uniform vec4 Vignette;      // rgb, strength
 uniform float Desaturate;
 uniform float Aberration;
 uniform float ZoomBlur;
-uniform float SpeedLines;
-uniform vec4 Grade;         // contrast, grain, afterimage, unused
 uniform vec4 ImpactA;       // strength, kind, focus uv
 uniform vec4 ImpactB;       // dark rgb, focus-line density
 uniform vec4 ImpactC;       // light rgb, kind parameter (dot size px / slash angle deg)
@@ -173,9 +170,6 @@ void main() {
     if (Desaturate > 0.001) {
         col = mix(col, vec3(luma(col)), clamp(Desaturate, 0.0, 1.0));
     }
-    if (Grade.x > 0.001) {
-        col = max((col - 0.42) * (1.0 + Grade.x) + 0.42, 0.0);
-    }
     if (Vignette.a > 0.001) {
         float edge = smoothstep(0.15, 0.75, r2);
         col = mix(col, col * Vignette.rgb * 1.2 + Vignette.rgb * 0.03, clamp(edge * Vignette.a, 0.0, 1.0));
@@ -186,26 +180,9 @@ void main() {
     if (ImpactA.x > 0.001) {
         col = impactFrame(uv, col);
     }
-    if (SpeedLines > 0.001) {
-        float ang = atan(fromCentre.y, fromCentre.x);
-        float id = floor((ang / TAU + 0.5) * 140.0);
-        float on = step(0.86, hash12(vec2(id, floor(GameTime * 18.0))));
-        col = mix(col, vec3(1.0), on * smoothstep(0.35, 0.8, sqrt(r2)) * SpeedLines * 0.7);
-    }
-    if (Grade.z > 0.001) {
-        vec2 px = 3.0 / OutSize;
-        vec3 held = (texture(HoldSampler, uv).rgb * 2.0
-                + texture(HoldSampler, uv + vec2(px.x, 0.0)).rgb + texture(HoldSampler, uv - vec2(px.x, 0.0)).rgb
-                + texture(HoldSampler, uv + vec2(0.0, px.y)).rgb + texture(HoldSampler, uv - vec2(0.0, px.y)).rgb) / 6.0;
-        vec3 ghost = clamp(held * smoothstep(0.1, 0.9, luma(held)) * Grade.z, 0.0, 1.0);
-        col = 1.0 - (1.0 - col) * (1.0 - ghost);
-    }
     if (Flash.a > 0.001) {
         col += Flash.rgb * Flash.a;
         col = mix(col, vec3(1.0), clamp(Flash.a - 1.0, 0.0, 1.0));
-    }
-    if (Grade.y > 0.001) {
-        col += (hash12(uv * OutSize + fract(GameTime * 7.13) * 419.0) - 0.5) * Grade.y * 0.18;
     }
     fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

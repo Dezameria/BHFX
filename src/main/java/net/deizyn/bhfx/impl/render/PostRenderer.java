@@ -33,7 +33,7 @@ import java.util.Set;
  *       feedback loop and no depth copy.</li>
  *   <li>Passes run in RGBA16F at a resolution capped by pixels and by measured GPU time; the composite tone-maps once
  *       and restores world detail when passes ran below native resolution.</li>
- *   <li>Bloom, freeze and stepped-frame targets exist only while something uses them.</li>
+ *   <li>Bloom targets exist only while something uses them.</li>
  *   <li>Any GL failure disables post-processing for the session instead of breaking the game.</li>
  * </ul>
  */
@@ -47,11 +47,10 @@ public final class PostRenderer {
     private static final int UNIT_DEPTH = 2;
     private static final int UNIT_AUX = 3;
     private static final int UNIT_BLOOM = 4;
-    private static final int UNIT_HOLD = 5;
 
     private final ShaderManager shaders = new ShaderManager();
     private final GlStateGuard guard = new GlStateGuard();
-    private final UniformBinder binder = new UniformBinder(guard);
+    private final UniformBinder binder = new UniformBinder();
     private final GpuTimer timer = new GpuTimer();
     private final ResolutionController resolution = new ResolutionController();
     private final Matrix4f invProj = new Matrix4f();
@@ -84,18 +83,7 @@ public final class PostRenderer {
     private int bloomForW;
     private int bloomForH;
 
-    private int holdFbo;
-    private int holdTex;
-    private int holdW;
-    private int holdH;
-    private boolean holding;
 
-    private int stepFbo;
-    private int stepTex;
-    private int stepW;
-    private int stepH;
-    private boolean stepHeld;
-    private long stepAt;
 
     private int warmVao;
     private int warmFbo;
@@ -146,7 +134,7 @@ public final class PostRenderer {
                 bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
             }
         }
-        return bytes + (long) holdW * holdH * 4 + (long) stepW * stepH * 4;
+        return bytes;
     }
 
     public double resolutionShare() {
@@ -198,23 +186,6 @@ public final class PostRenderer {
         try {
             int w = main.width;
             int h = main.height;
-
-            // stepped frames ("on twos"): between steps show the held image and skip all other work
-            float stepFps = screen.stepFpsValue();
-            if (stepFps > 0.5f && stepHeld && stepW == w && stepH == h && now - stepAt < (long) (1.0e9 / stepFps)) {
-                ensureCore();
-                attachOutput(color);
-                blit(stepFbo, outFbo, w, h, w, h, GL11.GL_NEAREST);
-                return;
-            }
-            // frozen: keep showing the held image
-            boolean freeze = screen.freezeRequested();
-            if (freeze && holding && holdW == w && holdH == h) {
-                ensureCore();
-                attachOutput(color);
-                blit(holdFbo, outFbo, w, h, w, h, GL11.GL_NEAREST);
-                return;
-            }
 
             double ms = timer.poll();
             if (ms >= 0) {
@@ -295,27 +266,11 @@ public final class PostRenderer {
                 timer.end();
             }
 
-            if (freeze && !holding) {
-                ensureHold(w, h);
-                blit(outFbo, holdFbo, w, h, w, h, GL11.GL_NEAREST);
-                holding = true;
-            } else if (!freeze && screen.afterimageValue() <= 0.001f) {
-                holding = false;
-            }
-            if (stepFps > 0.5f) {
-                ensureStep(w, h);
-                blit(outFbo, stepFbo, w, h, w, h, GL11.GL_NEAREST);
-                stepHeld = true;
-                stepAt = now;
-            } else {
-                stepHeld = false;
-            }
         } catch (RuntimeException e) {
             disable(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), e);
         } finally {
             guard.restore();
         }
-        binder.loadPendingTextures();
     }
 
     /**
@@ -351,7 +306,7 @@ public final class PostRenderer {
             GL11.glColorMask(true, true, true, true);
             GL30.glBindVertexArray(warmVao);
             GL20.glUseProgram(program.id());
-            for (int unit = UNIT_INPUT; unit <= UNIT_HOLD; unit++) {
+            for (int unit = UNIT_INPUT; unit <= UNIT_BLOOM; unit++) {
                 // no texture: samples read zero, and nothing samples the target being drawn
                 guard.touchUnit(unit);
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
@@ -382,17 +337,13 @@ public final class PostRenderer {
         begin(p, input, depth, w, h, time);
         bindUnit(UNIT_AUX, upscaled ? sceneLowTex : snapshotTex, p, "SceneLowSampler");
         bindUnit(UNIT_BLOOM, bloom != 0 ? bloom : snapshotTex, p, "BloomSampler");
-        boolean ghost = holding && s.afterimageValue() > 0.001f;
-        bindUnit(UNIT_HOLD, ghost ? holdTex : snapshotTex, p, "HoldSampler");
-        binder.f1("Upscaled", upscaled ? 1f - Math.min(1f, s.syntheticValue()) : 0f);
+        binder.f1("Upscaled", upscaled ? 1f : 0f);
         binder.f1("Bloom", bloom != 0 ? s.bloomStrength() : 0f);
         rgb(p, "Flash", s.flashRgb(), s.flashStrength());
         rgb(p, "Vignette", s.vignetteRgb(), s.vignetteStrength());
         binder.f1("Desaturate", s.desaturateValue());
         binder.f1("Aberration", s.aberrationValue());
         binder.f1("ZoomBlur", s.zoomBlurValue());
-        binder.f1("SpeedLines", s.speedLinesValue());
-        binder.f4("Grade", s.contrastValue(), s.grainValue(), ghost ? s.afterimageValue() : 0f, 0f);
         ImpactStyle style = s.impactStyle();
         float impact = s.impactStrength();
         if (style != null && impact > 0.001f) {
@@ -427,7 +378,6 @@ public final class PostRenderer {
             begin(down, input, depth, bloomSize[i][0], bloomSize[i][1], time);
             binder.f2("TexelSize", 1f / inW, 1f / inH);
             binder.f1("Prefilter", i == 0 ? 1f : 0f);
-            binder.f1("Synthetic", screen.syntheticValue());
             GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
             input = downTex[i];
             inW = bloomSize[i][0];
@@ -577,35 +527,6 @@ public final class PostRenderer {
         bloomForH = fxH;
     }
 
-    private void ensureHold(int w, int h) {
-        if (holdFbo == 0) {
-            holdFbo = GL30.glGenFramebuffers();
-            holdTex = GL11.glGenTextures();
-        }
-        if (holdW != w || holdH != h) {
-            guard.touchUnit(0);
-            texture(holdTex, w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
-            attach(holdFbo, holdTex, "hold");
-            holdW = w;
-            holdH = h;
-        }
-    }
-
-    private void ensureStep(int w, int h) {
-        if (stepFbo == 0) {
-            stepFbo = GL30.glGenFramebuffers();
-            stepTex = GL11.glGenTextures();
-        }
-        if (stepW != w || stepH != h) {
-            guard.touchUnit(0);
-            texture(stepTex, w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
-            attach(stepFbo, stepTex, "step");
-            stepW = w;
-            stepH = h;
-            stepHeld = false;
-        }
-    }
-
     private void attachOutput(int color) {
         if (color != outAttached) {
             attach(outFbo, color, "output");
@@ -658,15 +579,9 @@ public final class PostRenderer {
             deleteTex(upTex[i]);
             upFbo[i] = upTex[i] = 0;
         }
-        deleteFbo(holdFbo);
-        deleteTex(holdTex);
-        deleteFbo(stepFbo);
-        deleteTex(stepTex);
         timer.delete();
         vao = outFbo = snapshotFbo = snapshotTex = sceneLowFbo = sceneLowTex = 0;
-        holdFbo = holdTex = stepFbo = stepTex = 0;
-        outAttached = fullW = fullH = fxW = fxH = bloomForW = bloomForH = holdW = holdH = stepW = stepH = 0;
-        holding = stepHeld = false;
+        outAttached = fullW = fullH = fxW = fxH = bloomForW = bloomForH = 0;
         BHFxMod.LOGGER.debug("bhfx released its GPU targets");
     }
 

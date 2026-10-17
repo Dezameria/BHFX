@@ -4,12 +4,12 @@ A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
 - Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md)
-- Version: **0.3.1** (in progress; the API can still change). The network protocol is `2`, which is not compatible with 0.2.
+- Version: **0.3.2** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
 
 ```bash
-./gradlew.bat build                 # jar at build/libs/bhfx-0.3.1.jar, also copied to ../BHSpells/libs
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.2.jar, also copied to ../BHSpells/libs
 ./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
 ./gradlew.bat runClient             # testing
 ./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
@@ -18,8 +18,8 @@ It is an **extra layer**: mods that use it keep their main visuals from Effeksee
 On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.3.1")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.1")   // dev only, to run them together
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.2")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")   // dev only, to run them together
 }
 ```
 
@@ -69,7 +69,7 @@ Spell effects (`bhspells:annihilation_charge`, `bhspells:heavenly_combo`, ...) b
   - quality: `quality` (OFF/LOW/MEDIUM/HIGH; LOW has no bloom), `maxFxMegapixels`, `gpuBudgetMs` (default 6), `autoDowngrade`, `bloom`, `warmup`
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
-  - camera: `control` (NONE / **SUBTLE** / FULL: how much your own spells may move your camera), `fromOthers` (**false**: other players' spells never touch your camera), `fovScale`
+  - camera: `control` (NONE / **SUBTLE**: whether your own spells may punch your FOV), `fromOthers` (**false**: other players' spells never touch your camera), `fovScale`
   - compat: `offWithShaderpack` (default true: turn post-processing off while an Iris/Oculus shader pack is on)
 - `config/bhfx-server.toml`: `enabled` (false = send no effects; mods that use bhfx fall back to their own visuals), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
 
@@ -78,7 +78,7 @@ Spell effects (`bhspells:annihilation_charge`, `bhspells:heavenly_combo`, ...) b
 - **No effects = the GPU is not touched.** With only screen shake, post-processing doesn't run either.
 - **Real GPU time is measured** with `GL_TIME_ELAPSED` queries (read back later, so the CPU never waits for the GPU). Pass resolution can drop to 25% of the pixels to stay under `gpuBudgetMs`. It drops immediately and recovers slowly, in steps of 1/8, so textures aren't reallocated every frame.
 - **Automatic quality downgrade**: if the budget is still exceeded by 25% for 5 seconds straight at the lowest resolution, quality drops one level for this session (HIGH → MEDIUM → LOW), with a chat message and a log line. `/bhfx reload` restores it.
-- Bloom, freeze and stepped-frame textures are allocated **only while an effect uses them**, and all of them are released to the GPU after 30 seconds without effects.
+- Bloom textures are allocated **only while an effect uses them**, and all of them are released to the GPU after 30 seconds without effects.
 - The server limits starts per tick and effects per caster.
 - **Shader warmup** (0.3): after joining a world, every shader from every mod (`assets/*/shaders/bhfx/**.fsh`) is compiled one per frame, with a real draw to a 1x1 target (some drivers only finish compiling on the first draw). The first cast therefore doesn't stutter. The log reports the total time and the slowest shader.
 - **Shader packs** (0.3): when an Iris/Oculus shader pack is on, post-processing is turned off automatically (the depth doesn't match the pack's image). Screen shake still works, and `BHFxClient.postAvailable()` returns false so mods can pick a fallback.
@@ -95,7 +95,7 @@ net.deizyn.bhfx
  ├─ api/            BHFx, FxSpawn, FxParam(s), FxHandle, FxKey, StopMode, Follow, Audience, ScreenPulse
  │   ├─ timeline/   Timeline, Ease
  │   └─ client/     Fx, FxInit, FxFactory, FxContext, FrameContext, PassList, PassOptions, Uniforms,
- │                  ScreenParams, ImpactStyle, ImpactSequence, CameraParams, CameraPose, FxSettings, BHFxClient,
+ │                  ScreenParams, ImpactStyle, ImpactSequence, CameraParams, FxSettings, BHFxClient,
  │                  LocalFxHandle, RegisterFxEvent
  └─ impl/           (internal, can change at any time)
      ├─ net/        channel bhfx:main (protocol 2) + S2CFxStart / S2CFxStartBatch / S2CFxStop / S2CFxUpdate / S2CScreenPulse
@@ -107,7 +107,7 @@ net.deizyn.bhfx
 assets/bhfx/shaders/bhfx/
  ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl, ground.glsl, sdf2d.glsl
  ├─ bloom_down.fsh, bloom_up.fsh
- ├─ composite.fsh   (ripple, aberration, zoom blur, bloom, grade, tone-map, impact, speed lines, afterimage, flash, grain)
+ ├─ composite.fsh   (ripple, aberration, zoom blur, bloom, desaturate, vignette, tone-map, impact, flash)
  └─ test.fsh
 ```
 

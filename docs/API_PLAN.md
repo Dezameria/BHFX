@@ -2,7 +2,7 @@
 
 A library mod for Forge 1.20.1 that provides post-processing effects and depth-aware world-space shaders, for BHSpells (and deizyn's other mods) to import.
 
-> Status: **0.1, 0.2 and 0.3 are implemented** (see "Where the code differs from the plan" in `README.md`, and [`roadmap.md`](roadmap.md) for what is left). All class and method names can change until 1.0.
+> Status: **0.1, 0.2 and 0.3 are implemented** (see "Where the code differs from the plan" in `README.md`, and [`roadmap.md`](roadmap.md) for what is left). The API was reviewed for 1.0 on 2026-10-17: see **section 0.1, "API lock"**, which wins over anything below it.
 > The ideas came from analysing the mod The Shooting Star (documents `01`–`07` in the docs folder of the unpacked jar), but **all code and shaders were written from scratch** (the original is All Rights Reserved).
 
 ---
@@ -15,11 +15,35 @@ A library mod for Forge 1.20.1 that provides post-processing effects and depth-a
 | Minecraft / Forge | 1.20.1 / 47.4.0 (same as BHSpells) |
 | Mappings | Parchment `2023.09.03-1.20.1` (same as BHSpells) |
 | OpenGL | 3.3 core (GLSL `#version 150`) |
-| Distribution | maven local during development (`net.deizyn:bhfx:0.3.1`), **shipped as a separate jar** (not `jarJar`ed into BHSpells, because it must stay removable) |
+| Distribution | maven local during development (`net.deizyn:bhfx:0.3.2`), **shipped as a separate jar** (not `jarJar`ed into BHSpells, because it must stay removable) |
 | Relationship to BHSpells | **Soft dependency**: BHSpells works with Effekseer alone when bhfx is absent (section 6.0) |
 | Client/Server | **bhfx must be on both sides or on neither** (strict network channel, section 3) |
 | World data | **Nothing is saved, and no blocks/items/entities are registered**, so it can be removed at any time without harming worlds |
 | Versioning | `0.x` = the API can still change, `1.0` = the API is stable (SemVer) |
+
+### 0.1 API lock (reviewed 2026-10-17, applied in 0.3.2)
+
+**Stable** — will not change in a breaking way during 1.x:
+
+| Side | Types |
+| :--- | :--- |
+| server | `BHFx` (start, stop, handle, update, isAlive, pulse, available), `FxSpawn`, `FxKey` (server-wide), `FxHandle`, `StopMode`, `Follow`, `Audience` (tracking, exceptCaster, only, players), `ScreenPulse` (builder and getters) |
+| params | `FxParam` (factories, `RADIUS`, `COLOR`, `SPELL_LEVEL`), `FxParams` (get, has, merge, builder, of; an int fills a float key and a whole float an int key) |
+| client | `Fx` (constructor, lifecycle and drawing hooks, helpers), `FxInit`, `FxContext`, `FrameContext`, `FxFactory`, `RegisterFxEvent`, `LocalFxHandle`, `FxSettings`, `BHFxClient` (play, stop, update, fx, isAlive, shake, settings, postAvailable) |
+| drawing | `PassList`, `PassOptions`, `Uniforms` (f1–f4, vec3, color, floats), `ScreenParams` (shake, flash, vignette, desaturate, aberration, zoomBlur, bloom, impact, ripple), `ImpactStyle`, `ImpactSequence`, `CameraParams` (allowed, fov; levels NONE / SUBTLE) |
+| timing | `Timeline`, `Ease` |
+
+**Internal** (`@ApiStatus.Internal`, public only because bhfx calls them): `Fx.bhfx*` hooks, `FxParams.write/read`, `ScreenPulse.write/read`, `Audience.kind/playerIds`.
+
+**Removed in 0.3.2** (unused, no plan for them yet; bring back only with a real effect that needs them):
+`ScreenParams` speedLines, contrast, grain, freeze, afterimage, stepFps, synthetic (and their shader code and render targets); `CameraParams` hideHand, roll, hideHud, override, level FULL, and `CameraPose`; `Uniforms` points and texture; `FxParam.EMPOWERED`; `BHFxClient.register` (use `RegisterFxEvent`) and `BHFxClient.reloadShaders` (use `/bhfx reload`).
+
+**Not in 1.0**: Timeline loaded from JSON, `ctx.effek(...)` (AAAParticles). Add them in a 1.x minor if a real use appears.
+
+**Version policy**:
+- 1.x never breaks Stable types. Additions come in minor versions (1.1, 1.2 ...); fixes in patch versions.
+- Anything new may first ship as `@ApiStatus.Experimental`, which may change in a minor version.
+- The network protocol changes only in a minor version, and both sides must then run the same minor; mods depending on bhfx should accept `[1.N,2.0)` for the lowest minor they need.
 
 ### Library rules
 1. **Other mods may import only `net.deizyn.bhfx.api.*`.** `impl.*` can change at any time.
@@ -138,7 +162,6 @@ public final class FxParam<T> {
     public static final FxParam<Integer> SPELL_LEVEL = i("spell_level");
     public static final FxParam<Float>   RADIUS      = f("radius");
     public static final FxParam<Integer> COLOR       = color("color");
-    public static final FxParam<Boolean> EMPOWERED   = b("empowered");
 }
 
 FxParams p = FxParams.builder().put(FxParam.RADIUS, 12f).put(FxParam.COLOR, 0xFF7A20).build();
@@ -304,12 +327,10 @@ public interface Uniforms {
     Uniforms vec3(String name, Vec3 v);                 // converts double → float
     Uniforms color(String name, int rgb, float alpha);  // 0xRRGGBB → linear vec4
     Uniforms floats(String name, float[] values);       // uniform array (vec4[N])
-    Uniforms points(String name, List<Vec3> worldPoints, FrameContext f);   // converted to camera-relative coordinates
-    Uniforms texture(String sampler, ResourceLocation texture);              // loads async; black until loaded
 }
 ```
 
-Uniforms the shader doesn't declare are skipped silently (locations are cached). Texture units 6–15 are available for `texture()` (10 slots).
+Uniforms the shader doesn't declare are skipped silently (locations are cached).
 
 ### 4.5 `ScreenParams` — screen effects (merged by strongest value)
 
@@ -325,13 +346,6 @@ public interface ScreenParams {
     ScreenParams vignette(int rgb, float strength);           // strongest wins
     ScreenParams bloom(float strength, float radius);         // max of both values
     ScreenParams impact(ImpactStyle style, float strength, Vec3 focus);   // strongest wins
-    ScreenParams speedLines(float amount);                    // max
-    ScreenParams contrast(float amount);                      // max
-    ScreenParams grain(float amount);                         // max
-    ScreenParams freeze();                                    // OR
-    ScreenParams afterimage(float amount);                    // max
-    ScreenParams stepFps(float fps);                          // min (the choppiest wins)
-    ScreenParams synthetic(float coverage);                   // max: a pass drawing over the whole screen, no detail transfer
     ScreenParams ripple(Vec3 center, float radius, float width, float strength);   // (v0.2) the image bends in rings, up to 8
 }
 ```
@@ -366,23 +380,17 @@ An Fx overrides `camera(FrameContext, CameraParams)`. It is called every frame a
 
 ```java
 public interface CameraParams {
-    enum Level { NONE, SUBTLE, FULL }
+    enum Level { NONE, SUBTLE }
     Level allowed();                                        // what this Fx may change on this machine right now
     CameraParams fov(float multiplier);                     // SUBTLE, clamped 0.7..1.3, multiplied by camera.fovScale
-    CameraParams hideHand();                                // SUBTLE
-    CameraParams roll(float degrees);                       // FULL, summed then clamped to ±30
-    CameraParams hideHud();                                 // FULL (chat still shows)
-    CameraParams override(CameraPose pose, float weight);   // FULL, highest weight wins, for short cutscenes
 }
-record CameraPose(Vec3 position, float yaw, float pitch, float roll) { of(...), lookAt(from, at), withRoll(...) }
 ```
 
 **Server safety rules** (everything is implemented, but locked by player-side config):
-- `camera.control` = NONE / **SUBTLE** (default) / FULL: the player chooses how much **their own** spells may move their camera.
+- `camera.control` = NONE / **SUBTLE** (default): the player chooses whether **their own** spells may punch their FOV.
 - `camera.fromOthers` = **false**: spells from other players and mobs never touch your camera (prevents PvP control fights), unless the player turns it on.
 - Requests above the allowed level are ignored silently. An Fx must look fine even with no camera effect (shake, flash and impact still work for everyone, per their comfort settings).
 - `Fx.isLocalCaster()` says whether this machine belongs to the caster, for example to use a different flash strength.
-- Moving the camera position uses reflection (`Camera#setPosition`, SRG `m_90584_`), with no mixin or AT. If it can't be found, only rotation is applied.
 
 ### 4.8 `BHFxClient` — client-side facade
 
@@ -398,7 +406,6 @@ public final class BHFxClient {
     public static void shake(Vec3 source, float amount, double range);
     public static FxSettings settings();
     public static boolean postAvailable();
-    public static void reloadShaders();            // also called by /bhfx reload
 }
 ```
 
@@ -465,7 +472,7 @@ BHSpells must not reference bhfx classes directly in code that is always loaded,
 
 ```
 BHSpells
- ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.1")   + runtimeOnly during dev
+ ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.2")   + runtimeOnly during dev
  │                       (not implementation, and no jarJar)
  ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3,0.4)"
  └─ compat/bhfx/

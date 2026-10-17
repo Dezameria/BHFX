@@ -80,8 +80,7 @@ public final class BHFxConfig {
         c.pop();
         c.push("camera");
         CAMERA_CONTROL = c.comment("How much your own spells' effects may move your camera.",
-                        "NONE = nothing (shake still follows comfort.shakeScale). SUBTLE = brief FOV punches and hiding the hand.",
-                        "FULL = also camera roll, hiding the HUD and short camera cut-ins.")
+                        "NONE = nothing (shake still follows comfort.shakeScale). SUBTLE = brief FOV punches.")
                 .defineEnum("control", CameraParams.Level.SUBTLE);
         CAMERA_FROM_OTHERS = c.comment("Let effects cast by other players (and by mobs) use the same camera control on your screen.",
                         "Off by default so nobody else's spell can turn your camera in a fight.")

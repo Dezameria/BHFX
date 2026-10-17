@@ -18,7 +18,6 @@ public final class FxParam<T> {
     public static final FxParam<Integer> SPELL_LEVEL = i("spell_level");
     public static final FxParam<Float> RADIUS = f("radius");
     public static final FxParam<Integer> COLOR = color("color");
-    public static final FxParam<Boolean> EMPOWERED = b("empowered");
 
     private final String name;
     private final Type<T> type;

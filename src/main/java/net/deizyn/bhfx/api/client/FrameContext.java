@@ -7,8 +7,10 @@ import java.util.Optional;
 
 /** Per-frame data for {@code passes()} and {@code screen()}. Valid only during the call. */
 public interface FrameContext {
+    /** Fraction of the current tick, 0..1, for smooth motion between ticks. */
     float partialTick();
 
+    /** Camera position in world space. */
     Vec3 cameraPos();
 
     /** world - camera, the space every bhfx shader works in. */
@@ -20,7 +22,9 @@ public interface FrameContext {
     /** Screen uv (0..1, origin bottom-left) of a world point; empty when behind the camera. */
     Optional<Vector2f> screenUv(Vec3 world);
 
+    /** Size in pixels of the target passes draw into (may be below the window size). */
     int width();
 
+    /** See {@link #width()}. */
     int height();
 }

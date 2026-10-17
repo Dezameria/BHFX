@@ -21,6 +21,11 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 - **Client selectors**: vanilla selectors need the server (Forge's `ClientCommandSourceStack.getServer()` throws), and tags/teams/scores exist only on the server, so `/bhfx test` evaluates a subset itself (`impl/client/ClientSelector`). `/bhfx_play ... to @s` covers the rest.
 - **Not done on purpose** (keep it simple): per-effect param declarations, `/bhfx info`, misspelled-name warnings, short effect ids (they would work in `test` but not in `_play`), list values in `{...}`. Revisit at the 1.0 API lock.
 
+## 2026-10-17 — API lock for 1.0 (applied in 0.3.2)
+- **Decision** (the user's choices): `FxKey` becomes server-wide (simplest for servers: no new method, stop works from any level); remove every API that no effect uses (instead of marking it Experimental); remove `FxParam.EMPOWERED`, `BHFxClient.register`, `BHFxClient.reloadShaders`; no JSON timelines and no `ctx.effek` in 1.0; version policy as in [`API_PLAN.md`](API_PLAN.md) section 0.1.
+- **Reason**: a smaller API is easier to keep stable; the removed parts can return in a 1.x minor once a real effect needs them. `ScreenParams.desaturate` stayed because Heavenly Combo uses it (spell effects are not changed for the API).
+- **How usage was checked**: grep of BHSpells and the bhfx test effects. A first count missed a chained `.desaturate(` call; BHSpells' compile caught it. Always compile BHSpells after removing API.
+
 ## 2026-10-17 — Spell effects and command effects are separate
 - **Decision**: spell effects (`bhspells:...` started by a spell) follow the spell's own process: the spell starts, updates, cues and stops them, and their params serve the spell. They are not changed to suit commands. Effects meant for commands play on their own and use the common param names (`radius`, `color`, ...). To preview a spell effect by command, add a separate preview effect (it may reuse the spell effect's code) in the mod that owns it.
 - **Reason**: spell effects depend on gameplay (how long the player holds, where each blow lands); forcing them into a command-friendly shape risks the spells and limits how they are written.

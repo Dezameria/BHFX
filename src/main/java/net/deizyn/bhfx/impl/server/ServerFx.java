@@ -81,9 +81,6 @@ public final class ServerFx {
         }
     }
 
-    private record KeyInLevel(ResourceKey<Level> dimension, FxKey key) {
-    }
-
     private static final class Outbox {
         final ServerPlayer player;
         final List<S2CFxStart> starts = new ArrayList<>(4);
@@ -94,7 +91,8 @@ public final class ServerFx {
     }
 
     private static final Map<Integer, Active> ACTIVE = new HashMap<>();
-    private static final Map<KeyInLevel, Integer> KEYS = new HashMap<>();
+    /** Keys are server-wide: an owner is in one dimension at a time, so stopping by key never depends on where it went. */
+    private static final Map<FxKey, Integer> KEYS = new HashMap<>();
     private static final Map<ResourceKey<Level>, long[]> STARTS_THIS_TICK = new HashMap<>();
     private static final Map<UUID, Outbox> OUTBOX = new LinkedHashMap<>();
     private static int nextId = 1;
@@ -114,7 +112,7 @@ public final class ServerFx {
             return FxHandle.NONE;
         }
         if (key != null) {
-            stop(level, key, StopMode.IMMEDIATE);
+            stop(key, StopMode.IMMEDIATE);
         }
         if (!withinLimits(level, spawn, fxId)) {
             return FxHandle.NONE;
@@ -127,7 +125,7 @@ public final class ServerFx {
         Active a = new Active(id, level, fxId, spawn, seed, key);
         ACTIVE.put(id, a);
         if (key != null) {
-            KEYS.put(new KeyInLevel(level.dimension(), key), id);
+            KEYS.put(key, id);
         }
         if (a.persistent) {
             sendToNewPlayers(level, a, 0);
@@ -206,8 +204,10 @@ public final class ServerFx {
         S2CFxStart packet = a.packet(0);
         Audience audience = a.spawn.audience();
         if (audience.kind() == Audience.Kind.PLAYERS) {
-            for (ServerPlayer player : audience.players()) {
-                queue(player, packet);
+            for (ServerPlayer player : level.players()) {
+                if (audience.playerIds().contains(player.getUUID())) {
+                    queue(player, packet);
+                }
             }
             return;
         }
@@ -255,25 +255,27 @@ public final class ServerFx {
         if (a == null) {
             return;
         }
-        if (a.key != null) {
-            KEYS.remove(new KeyInLevel(a.dimension, a.key));
-        }
+        forgetKey(a);
         // Stop packets are tiny and unknown ids are ignored client-side, so send to the whole dimension:
         // the effect may follow an entity far from where it started.
         flush();
         BHFxNetwork.send(PacketDistributor.DIMENSION.with(handle::dimension), new S2CFxStop(handle.id(), mode));
     }
 
-    public static void stop(ServerLevel level, FxKey key, StopMode mode) {
-        Integer id = KEYS.get(new KeyInLevel(level.dimension(), key));
-        if (id != null) {
-            stop(new FxHandle(level.dimension(), id), mode);
-        }
+    public static void stop(FxKey key, StopMode mode) {
+        handle(key).ifPresent(h -> stop(h, mode));
     }
 
-    public static Optional<FxHandle> handle(ServerLevel level, FxKey key) {
-        Integer id = KEYS.get(new KeyInLevel(level.dimension(), key));
-        return id != null && ACTIVE.containsKey(id) ? Optional.of(new FxHandle(level.dimension(), id)) : Optional.empty();
+    public static Optional<FxHandle> handle(FxKey key) {
+        Integer id = KEYS.get(key);
+        Active a = id != null ? ACTIVE.get(id) : null;
+        return a != null ? Optional.of(new FxHandle(a.dimension, a.id)) : Optional.empty();
+    }
+
+    private static void forgetKey(Active a) {
+        if (a.key != null) {
+            KEYS.remove(a.key, a.id);
+        }
     }
 
     public static void update(FxHandle handle, FxParams changed) {
@@ -308,9 +310,7 @@ public final class ServerFx {
             }
             if (now > a.expiresAt || followLost(level, a)) {
                 it.remove();
-                if (a.key != null) {
-                    KEYS.remove(new KeyInLevel(a.dimension, a.key));
-                }
+                forgetKey(a);
                 continue;
             }
             if (a.persistent) {
@@ -355,14 +355,7 @@ public final class ServerFx {
         return switch (audience.kind()) {
             case TRACKING -> true;
             case EXCEPT_CASTER -> player.getId() != a.spawn.casterId();
-            case PLAYERS -> {
-                for (ServerPlayer p : audience.players()) {
-                    if (p.getUUID().equals(player.getUUID())) {
-                        yield true;
-                    }
-                }
-                yield false;
-            }
+            case PLAYERS -> audience.playerIds().contains(player.getUUID());
         };
     }
 
@@ -376,7 +369,7 @@ public final class ServerFx {
 
     static void unload(ResourceKey<Level> dimension) {
         ACTIVE.values().removeIf(a -> a.dimension.equals(dimension));
-        KEYS.keySet().removeIf(k -> k.dimension().equals(dimension));
+        KEYS.values().removeIf(id -> !ACTIVE.containsKey(id));
         STARTS_THIS_TICK.remove(dimension);
     }
 
