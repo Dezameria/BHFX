@@ -11,7 +11,8 @@ Library mod สำหรับ Forge 1.20.1: เอฟเฟค post-processing 
 ```bash
 ./gradlew.bat build                 # jar อยู่ที่ build/libs/bhfx-0.3.0.jar
 ./gradlew.bat publishToMavenLocal   # ให้ BHSpells อ่านได้จาก mavenLocal()
-./gradlew.bat runClient             # ทดสอบ
+./gradlew.bat runClient             # ทดสอบ (/bhfx_test มีเฉพาะตอนรันแบบนี้)
+./gradlew.bat checkShaders          # ตรวจ shader ด้วย glslang (อยู่ใน build ด้วย) ดู docs/shaders.md
 ```
 
 ฝั่ง BHSpells (soft dependency, ดู `docs/API_PLAN.md` หัวข้อ 6.0):
@@ -27,9 +28,9 @@ dependencies {
 
 | คำสั่ง | ฝั่ง | ทำอะไร |
 | :--- | :--- | :--- |
-| `/bhfx_test [radius]` | server (op 2) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
-| `/bhfx_test pulse` | server (op 2) | ScreenPulse ที่ตัวเอง: สั่น + แสงวาบ + ขอบจอแดง + สีเหลื่อม (ผู้เล่นในระยะ 32 บล็อกเห็นด้วย เบาลงตามระยะ) |
-| `/bhfx_test tracker [range]` | server (op 2) | วงบนพื้นค้าง 60 วินาที ตรงที่มอง ส่งเฉพาะคนในระยะ (ค่าเริ่มต้น 16) มุมซ้ายบนบอกอายุเอฟเฟคและระยะห่าง — ยืนนอกระยะตอนสั่งแล้วเดินเข้าไป ต้องเห็นอายุนับต่อ (ไม่เริ่มจาก 0) |
+| `/bhfx_test [radius]` | server (op 2, เฉพาะ dev) | เล่นเอฟเฟคทดสอบตรงที่มอง: วงเตือนบนพื้น → ลำแสงที่ภูเขาบังถูกต้อง + bloom + impact frame + คลื่นภาพ (ripple) + zoom blur + แสงวาบ + สั่นจอ + พื้นร้อนแล้วเย็นลง |
+| `/bhfx_test pulse` | server (op 2, เฉพาะ dev) | ScreenPulse ที่ตัวเอง: สั่น + แสงวาบ + ขอบจอแดง + สีเหลื่อม (ผู้เล่นในระยะ 32 บล็อกเห็นด้วย เบาลงตามระยะ) |
+| `/bhfx_test tracker [range]` | server (op 2, เฉพาะ dev) | วงบนพื้นค้าง 60 วินาที ตรงที่มอง ส่งเฉพาะคนในระยะ (ค่าเริ่มต้น 16) มุมซ้ายบนบอกอายุเอฟเฟคและระยะห่าง — ยืนนอกระยะตอนสั่งแล้วเดินเข้าไป ต้องเห็นอายุนับต่อ (ไม่เริ่มจาก 0) |
 | `/bhfx stats` | client | ต้นทุนย้อนหลัง 10 วินาที: เวลา CPU ตอนวาด/ตอน tick และเวลา GPU (เฉลี่ย/สูงสุด), จำนวน fx/pass สูงสุด, VRAM ที่ถืออยู่ (นับเฉพาะเฟรมที่มีเอฟเฟค) |
 | `/bhfx bench [fx] [วินาที]` | client | เล่น fx ซ้ำตรงที่มอง (เฉพาะเครื่องตัวเอง) แล้วสลับปิด/เปิดการวาดของ bhfx ทุก 1 วินาที รายงาน frame time เฉลี่ย, 1% ที่แย่สุด และส่วนต่าง (ค่าเริ่มต้น `bhfx:test` 10 วินาที) |
 | `/bhfx status` | client | สถานะ: เปิด/ปิด, quality ที่ใช้จริง, จำนวน fx/pass, ความละเอียด FX, % งบ, เวลา GPU, VRAM โดยประมาณ |
@@ -110,32 +111,7 @@ BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));           
 ```
 มี `shake`, `flash`, `vignette`, `aberration`, `zoomBlur`, `desaturate` แต่ละอย่างจางหายตามจำนวน tick ของมันเอง; นับรวมใน `maxStartsPerTick` และเคารพ `flashScale` / `shakeScale` ของผู้เล่น
 
-## ยังไม่ได้ทำ
+## เอกสารการพัฒนา
 
-- `AaaParticlesBridge` (`ctx.effek(...)`) — **เลื่อนไปทำเมื่อมีเคสจริง** ตอนนี้ BHSpells จัดการ Effekseer เองอยู่แล้ว
-
-## ใช้งานจริงใน BHSpells
-
-เชื่อมผ่าน bridge แบบ soft dependency ตามแผนหัวข้อ 6.0 (`compat/bhfx/BhfxCompat` → `BhfxLoadedBridge`, client: `BhfxClientCompat` → `BhfxClientBridge`)
-
-| เวท | ใช้ส่วนไหนของ bhfx |
-| :--- | :--- |
-| Heavenly Combo | `BHFxClient.play` (Fx ฝั่ง client จาก cue ของ Epic Fight ไม่มี packet เพิ่ม), shader `bhspells:heavenly_combo`, impact frame, ripple, bloom |
-| Annihilation Arrow | ตัวแรกที่ใช้ `BHFx.start` + `FxKey` + `update` + `stop` จากเซิร์ฟเวอร์ (ชาร์จแบบ LONG, follow ผู้ร่าย, tracker ส่งให้คนที่เข้ามาทีหลัง) — ทดสอบในเกมแล้ว ยกเว้น multiplayer |
-| Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) |
-
-ข้อสังเกตจากการใช้จริง: Iron's ยกเลิก cast ตอนเปลี่ยนมิติจาก level **ใหม่** แต่ `FxKey` แยกตามมิติ BHSpells จึง stop ทุก level; `BHFxClient.play` ไม่คืน instance ของ Fx (Heavenly Combo ต้องจับผ่าน factory)
-
-## สถานะการทดสอบ
-
-- ✅ 0.1: ทดสอบในเกมแล้ว (โลก flat) เอฟเฟคแสดงผล ไม่มี shader/GL error ใน log
-- ✅ 0.2: `gradlew build` ผ่าน; `composite`, `test`, `bloom_down`, `bloom_up` (รวม include แล้ว) คอมไพล์ผ่านใน WebGL2 / GLSL ES 3.00
-- ✅ 0.3 (ส่วนที่ทำแล้ว): `gradlew build` ผ่าน; shader ทั้งหมดรวม `ground.glsl` / `sdf2d.glsl` คอมไพล์ผ่านใน WebGL2
-- ✅ 0.3 ทดสอบในเกมรอบแรก (dev client, โลก flat + ภูเขา): warmup 4 shader (278 ms ตอนโหลดโลก), `/bhfx_test`, `/bhfx_test pulse`, `/bhfx bench` ทำงาน, GPU ของ bhfx 0.3–0.5 ms ต่อเฟรม, ไม่มี exception
-  - 🐞 แก้แล้ว: ตัวจับเวลา GPU ชนกับ query ของ F3 (GL_INVALID_OPERATION ทุกเฟรมตอนเปิด F3) → เปลี่ยนเป็น GL_TIMESTAMP
-  - 🐞 แก้แล้ว: bench แบบครึ่งแรก/ครึ่งหลังให้ค่าติดลบเพราะ FPS แกว่งตามเวลา → สลับปิด/เปิดทุก 1 วินาที
-  - bench 30 วินาที: ส่วนต่าง +2.0 ms เมื่อมีสั่นจอ/FOV punch แต่ **+0.09 ms** เมื่อปิด (`shakeScale=0`, `control=NONE`) — การวาดของ bhfx เองถูกมาก ส่วนใหญ่เป็นค่าที่ Minecraft คำนวณ chunk ที่มองเห็นใหม่ทุกเฟรมเมื่อกล้องขยับ
-- ✅ dedicated server (dev): server เปิดได้, client ต่อได้, tracker ส่งเอฟเฟคต่อหลัง login ใหม่ และหลังตายแล้วเกิดใหม่
-- 🐞 แก้แล้ว (0.3): Fx ที่ follow entity แล้ว entity หาย/เปลี่ยนมิติภายใน 10 tick แรก จะไม่ถูกลบจากเซิร์ฟเวอร์เลย (`followSeen` ยังไม่ถูกตั้ง) — Fx แบบ `UNTIL_STOPPED` ค้างถาวร ส่งซ้ำให้คนที่เดินผ่าน และกินโควตา `maxActivePerCaster` → ตั้ง `followSeen` ตั้งแต่ตอน start ถ้า entity มีอยู่
-- ⏳ 0.3 ยังไม่ได้ทดสอบ: tracker กรณีเดินเข้าระยะทีหลัง (`/bhfx_test tracker`), ผู้เล่น 2 คน, CameraParams แบบ FULL, การตรวจ shader pack (ต้องมี Oculus)
-- ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server
+ความรู้ระหว่างพัฒนาเก็บเป็น markdown แยกหมวดใน [`docs/`](docs/README.md):
+งานที่เหลือ/แผน 1.0 ([`roadmap.md`](docs/roadmap.md)), สถานะการทดสอบ ([`testing.md`](docs/testing.md)), บั๊ก ([`bugs.md`](docs/bugs.md)), การตัดสินใจ ([`decisions.md`](docs/decisions.md)), การตรวจ shader ([`shaders.md`](docs/shaders.md)), การใช้งานใน BHSpells ([`integrations/bhspells.md`](docs/integrations/bhspells.md)) และบันทึกงานรายวัน ([`worklog.md`](docs/worklog.md))

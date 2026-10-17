@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Owns every running effect on this client. Render thread only. */
@@ -258,7 +259,7 @@ public final class ClientFxManager {
         }
     }
 
-    static boolean isLocalAlive(LocalFxHandle handle) {
+    public static boolean isLocalAlive(LocalFxHandle handle) {
         if (handle == null || handle.isNone()) {
             return false;
         }
@@ -274,6 +275,24 @@ public final class ClientFxManager {
         if (handle != null && !handle.isNone()) {
             stop(handle.id(), mode);
         }
+    }
+
+    public static void updateLocal(LocalFxHandle handle, FxParams changed) {
+        if (handle != null && !handle.isNone() && changed != null && !changed.isEmpty()) {
+            update(handle.id(), changed);
+        }
+    }
+
+    public static <T extends Fx> Optional<T> localFx(LocalFxHandle handle, Class<T> type) {
+        if (handle == null || handle.isNone()) {
+            return Optional.empty();
+        }
+        for (Entry e : ACTIVE) {
+            if (e.handleId == handle.id()) {
+                return type.isInstance(e.fx) ? Optional.of(type.cast(e.fx)) : Optional.empty();
+            }
+        }
+        return Optional.empty();
     }
 
     /** A screen pulse from the server; {@code at == null} = full strength. */

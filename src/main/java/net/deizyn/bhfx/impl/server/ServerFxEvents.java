@@ -17,6 +17,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.BHFx;
 import net.deizyn.bhfx.api.FxParam;
@@ -76,9 +77,13 @@ public final class ServerFxEvents {
      * /bhfx_test pulse — a screen pulse at the player (shake, flash, red edges, colour fringes).
      * /bhfx_test tracker [range] — a 60 s ring where the player looks, sent only within range (default 16): stand
      * outside it, walk in, and it must appear with its age already counted. Permission level 2.
+     * Development runs only (runClient / runServer); released jars do not register it.
      */
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
+        if (FMLEnvironment.production) {
+            return;
+        }
         event.getDispatcher().register(Commands.literal("bhfx_test")
                 .requires(source -> source.hasPermission(2))
                 .executes(ctx -> test(ctx, 8f))

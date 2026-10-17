@@ -2,9 +2,12 @@ package net.deizyn.bhfx.api.client;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
+import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.client.ClientFxManager;
+
+import java.util.Optional;
 
 /** Client-side entry point. Render thread only. */
 public final class BHFxClient {
@@ -26,6 +29,24 @@ public final class BHFxClient {
 
     public static void stop(LocalFxHandle handle, StopMode mode) {
         ClientFxManager.stopLocal(handle, mode);
+    }
+
+    /** Merge new values into a local effect's params; its {@code onParamsChanged} runs. Ignored once it has ended. */
+    public static void update(LocalFxHandle handle, FxParams changed) {
+        ClientFxManager.updateLocal(handle, changed);
+    }
+
+    /**
+     * The running instance behind a local handle, when it is still playing and of {@code type} — for effects driven by
+     * client-side cues (e.g. "a blow landed here") that do not fit in params. Do not keep it past the effect's end.
+     */
+    public static <T extends Fx> Optional<T> fx(LocalFxHandle handle, Class<T> type) {
+        return ClientFxManager.localFx(handle, type);
+    }
+
+    /** Whether a local effect is still playing (including its ending). */
+    public static boolean isAlive(LocalFxHandle handle) {
+        return ClientFxManager.isLocalAlive(handle);
     }
 
     public static void shake(Vec3 source, float amount, double range) {

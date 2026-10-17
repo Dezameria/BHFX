@@ -391,6 +391,9 @@ public final class BHFxClient {
     /** เล่น Fx เฉพาะเครื่องนี้ (ไม่มี packet) เช่น onClientPreCast หรือ Epic Fight event ฝั่ง CLIENT */
     public static LocalFxHandle play(ResourceLocation fxId, FxSpawn spawn);
     public static void stop(LocalFxHandle handle, StopMode mode);
+    public static void update(LocalFxHandle handle, FxParams changed);              // (0.3.x) onParamsChanged ทำงาน
+    public static <T extends Fx> Optional<T> fx(LocalFxHandle handle, Class<T> type); // (0.3.x) ตัว Fx ที่กำลังเล่น สำหรับ cue ฝั่ง client
+    public static boolean isAlive(LocalFxHandle handle);                            // (0.3.x)
 
     public static void shake(Vec3 source, float amount, double range);
     public static FxSettings settings();

@@ -1,0 +1,152 @@
+// Compile-checks every bhfx pass shader (assets/<ns>/shaders/bhfx/<name>.fsh) with glslangValidator, the way bhfx
+// builds them in game: the bhfx header first, then the file with each #include "ns:name.glsl" inlined. `check` (and so
+// `build`) depends on it.
+//
+// glslangValidator: put it on PATH, or set -PglslangValidator=<path> / the GLSLANG_VALIDATOR environment variable
+// (Vulkan SDK, or a release from github.com/KhronosGroup/glslang). Without it the check is skipped with a warning;
+// pass -PrequireGlslCheck to fail instead.
+//
+// The applying build sets, before `apply from`:
+//   ext.glslShaderRoots  = { -> [file('src/main/resources')] }               resource roots whose passes are checked
+//   ext.glslIncludeRoots = { -> [file('src/main/resources'), ...] }          roots searched for includes (dirs or jars)
+// Keep this file identical in bhfx and BHSpells.
+
+def glslHeader = '''#version 150
+uniform sampler2D DiffuseSampler;
+uniform sampler2D SceneSampler;
+uniform sampler2D DepthSampler;
+uniform mat4 InvProj;
+uniform mat4 InvView;
+uniform mat4 ViewProj;
+uniform vec3 Eye;
+uniform vec2 OutSize;
+uniform vec2 ScreenSize;
+uniform float GameTime;
+in vec2 texCoord;
+out vec4 fragColor;
+'''
+
+def findGlslang = { ->
+    def configured = project.findProperty('glslangValidator') ?: System.getenv('GLSLANG_VALIDATOR')
+    if (configured) {
+        return new File(configured.toString())
+    }
+    def names = System.getProperty('os.name').toLowerCase().contains('win') ? ['glslangValidator.exe', 'glslang.exe'] : ['glslangValidator', 'glslang']
+    def dirs = (System.getenv('PATH') ?: '').split(File.pathSeparator).toList()
+    def sdk = System.getenv('VULKAN_SDK')
+    if (sdk) {
+        dirs.add(0, new File(sdk, 'Bin').path)
+        dirs.add(0, new File(sdk, 'bin').path)
+    }
+    for (String dir : dirs) {
+        for (String name : names) {
+            def candidate = new File(dir, name)
+            if (candidate.isFile()) {
+                return candidate
+            }
+        }
+    }
+    return null
+}
+
+tasks.register('checkShaders') {
+    group = 'verification'
+    description = 'Compile-checks bhfx pass shaders with glslangValidator.'
+    def outDir = layout.buildDirectory.dir('glsl-check').get().asFile
+    inputs.files({ glslShaderRoots().collect { fileTree(it) { include 'assets/*/shaders/bhfx/**' } } })
+    outputs.dir(outDir)
+
+    doLast {
+        def glslang = findGlslang()
+        if (glslang == null) {
+            def message = 'checkShaders: glslangValidator not found (PATH, VULKAN_SDK, -PglslangValidator or GLSLANG_VALIDATOR); shaders were NOT checked'
+            if (project.hasProperty('requireGlslCheck')) {
+                throw new GradleException(message)
+            }
+            logger.warn(message)
+            return
+        }
+
+        // include lookup: "ns:path" -> assets/ns/shaders/bhfx/include/path, searched in every root (dirs and jars)
+        def includeTrees = glslIncludeRoots().collect { root -> root.isDirectory() ? fileTree(root) : zipTree(root) }
+        def includeCache = [:]
+        def readInclude = { String ns, String path ->
+            def key = "${ns}:${path}".toString()
+            if (!includeCache.containsKey(key)) {
+                def rel = "assets/${ns}/shaders/bhfx/include/${path}".toString()
+                def found = null
+                for (def tree : includeTrees) {
+                    def match = tree.matching { include rel }.files
+                    if (!match.isEmpty()) {
+                        found = match.iterator().next().getText('UTF-8')
+                        break
+                    }
+                }
+                includeCache[key] = found
+            }
+            return includeCache[key]
+        }
+        def includePattern = ~/^\s*#include\s+"([^"]+)"\s*$/
+
+        def expand
+        expand = { String text, String ns, String label, StringBuilder out, Set<String> seen ->
+            def lines = text.split(/\r?\n/, -1)
+            out.append("#line 1\n")
+            for (int i = 0; i < lines.length; i++) {
+                def m = includePattern.matcher(lines[i])
+                if (!m.matches()) {
+                    out.append(lines[i]).append('\n')
+                    continue
+                }
+                def spec = m.group(1)
+                def incNs = spec.contains(':') ? spec.substring(0, spec.indexOf(':')) : ns
+                def incPath = spec.contains(':') ? spec.substring(spec.indexOf(':') + 1) : spec
+                def key = "${incNs}:${incPath}".toString()
+                if (seen.add(key)) {
+                    def inc = readInclude(incNs, incPath)
+                    if (inc == null) {
+                        throw new GradleException("checkShaders: ${label}:${i + 1} includes missing ${key}")
+                    }
+                    expand(inc, incNs, key, out, seen)
+                }
+                out.append("#line ${i + 2}\n")
+            }
+        }
+
+        project.delete(outDir)
+        outDir.mkdirs()
+        def failures = []
+        int checked = 0
+        glslShaderRoots().each { root ->
+            fileTree(root) { include 'assets/*/shaders/bhfx/*.fsh' }.each { File fsh ->
+                def ns = fsh.parentFile.parentFile.parentFile.name
+                def name = fsh.name.replaceAll(/\.fsh$/, '')
+                def label = "${ns}:${name}".toString()
+                def source = new StringBuilder(glslHeader)
+                expand(fsh.getText('UTF-8'), ns, label, source, new HashSet<String>())
+                def frag = new File(outDir, "${ns}_${name}.frag")
+                frag.setText(source.toString(), 'UTF-8')
+                def log = new ByteArrayOutputStream()
+                def result = project.exec {
+                    commandLine glslang.absolutePath, frag.absolutePath
+                    standardOutput = log
+                    errorOutput = log
+                    ignoreExitValue = true
+                }
+                checked++
+                if (result.exitValue != 0) {
+                    failures << "${label} (${fsh})\n${log.toString('UTF-8').trim()}".toString()
+                }
+            }
+        }
+        if (!failures.isEmpty()) {
+            throw new GradleException("checkShaders: ${failures.size()} of ${checked} shader(s) failed " +
+                    "(line numbers restart at 1 in each included file; expanded sources in ${outDir}):\n\n" + failures.join('\n\n'))
+        }
+        logger.lifecycle("checkShaders: ${checked} shader(s) OK with ${glslang.name}")
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'checkShaders'
+}
