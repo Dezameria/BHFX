@@ -21,3 +21,12 @@ build
 eclipse
 run
 run-data
+
+# agent workflows (docs/ and README.md stay in git)
+.agents/
+AGENTS.md
+
+# claude & mcp
+.claude/
+CLAUDE.md
+.mcp.json

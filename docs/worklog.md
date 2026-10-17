@@ -11,6 +11,12 @@
 
 ---
 
+## 2026-10-17 — gitignore ไฟล์ Claude, เก็บ docs ใน git
+- bhfx `.gitignore`: `.claude/`, `CLAUDE.md`, `.mcp.json`, `.agents/`, `AGENTS.md` — **`docs/` และ `README.md` ยังอยู่ใน git** (ผู้ใช้ขอให้เก็บไว้ใน Dezameria/BHFX)
+- BHSpells `.gitignore`: เพิ่ม `*.md` และ `run-data` (BHSpells ไม่เก็บ markdown ใน git เลย)
+- ลบบรรทัด `Co-Authored-By: Claude` ออกจากทุก commit: bhfx `main` (force push ไป Dezameria/BHFX), BHSpells รวมเป็น commit เดียว `b18767c` ที่ Yumeko-1234 `feature/deizy-integrate-bhfx`; `feature/deizy-integrate-1.6.2` ไม่ได้แตะ
+- branch สำรองในเครื่อง: bhfx `backup/main-before-strip`, BHSpells `backup/feature-fx-before-squash`, `backup/feature-fx-before-resquash`
+
 ## 2026-10-17 — bhfx jar ใน `BHSpells/libs`
 - bhfx `build.gradle`: task `copyToBHSpells` (หลัง `reobfJar`, ผูกท้าย `build`) copy jar ไป `../BHSpells/libs` แทนตัวเก่า
 - BHSpells: commit `libs/bhfx-0.3.0.jar` เพื่อให้เพื่อน clone แล้ว build ได้ (ยังไม่ push)
