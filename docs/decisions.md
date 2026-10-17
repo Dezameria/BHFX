@@ -15,6 +15,17 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 - **Decision**: mods imported outside `compat/` (15 of them) are declared `mandatory=true`, with the lower bound set to the version BHSpells is built against. `bhfx` and `epic_fight_avalon` stay optional.
 - **Reason**: before, only Forge and Minecraft were declared, so a missing mod crashed mid-game with a hard-to-read error. Declaring them makes Forge say what is missing at the loading screen. Behavior is unchanged when all mods are present.
 
+## 2026-10-17 — `/bhfx test` + `/bhfx_play` replace `/bhfx_test`
+- **Decision**: one grammar for both, built once in `impl/FxCommands`: `<fx> [at <pos> | attach <who>] [to <players>] [{...}]` and `stop [<who>] [finish]`. Client `/bhfx test` plays locally (`ClientFxManager.startLocal`); server `/bhfx_play fx` uses `BHFx.start` (op 2, registered in release jars too). The `fx` keyword keeps effects apart from `stop` and `pulse` in tab completion (the user's choice); ids are suggested only where the client shares the game (single player, LAN host). Params are SNBT (`impl/FxCommandArgs`); `hold`, `seconds` and `range` are command options and are **not** passed to the effect, so they can never clash with an effect's own param names. Stop fades out (`CANCEL`) unless `finish`. `FxParams.get` accepts an int for a float key and a whole float for an int key.
+- **Reason**: one generic command plays any effect, instead of one subcommand per test effect. No new packet or protocol bump. Op 2 is enough protection for release jars. SNBT is the syntax players already know from `/summon`.
+- **Client selectors**: vanilla selectors need the server (Forge's `ClientCommandSourceStack.getServer()` throws), and tags/teams/scores exist only on the server, so `/bhfx test` evaluates a subset itself (`impl/client/ClientSelector`). `/bhfx_play ... to @s` covers the rest.
+- **Not done on purpose** (keep it simple): per-effect param declarations, `/bhfx info`, misspelled-name warnings, short effect ids (they would work in `test` but not in `_play`), list values in `{...}`. Revisit at the 1.0 API lock.
+
+## 2026-10-17 — Spell effects and command effects are separate
+- **Decision**: spell effects (`bhspells:...` started by a spell) follow the spell's own process: the spell starts, updates, cues and stops them, and their params serve the spell. They are not changed to suit commands. Effects meant for commands play on their own and use the common param names (`radius`, `color`, ...). To preview a spell effect by command, add a separate preview effect (it may reuse the spell effect's code) in the mod that owns it.
+- **Reason**: spell effects depend on gameplay (how long the player holds, where each blow lands); forcing them into a command-friendly shape risks the spells and limits how they are written.
+- **Where an effect lives**: in bhfx if it still makes sense without BHSpells (generic, parameterised: shockwave, ring, flash); in BHSpells if it is a spell's own look or needs Iron's/BHSpells classes. When unsure, start in BHSpells and move it to bhfx once it is reused; moving out of a library that others call is the hard direction.
+
 ## 2026-10-17 — Access to the Fx behind a local handle
 - **Decision**: add `BHFxClient.fx(handle, Class)`, `BHFxClient.update(handle, params)` and `BHFxClient.isAlive(handle)` instead of changing `LocalFxHandle` (it stays a record holding only an id).
 - **Reason**: effects driven by client-side cues (for example "a blow landed here") are awkward to feed through params. Heavenly Combo used to grab the instance from its factory into a static field, which was fragile. Adding methods doesn't break existing code, so it can go into 0.3.x.
@@ -22,6 +33,7 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 ## 2026-10-17 — `/bhfx_test` in dev only
 - **Decision**: register it only when `!FMLEnvironment.production` (not as a config option).
 - **Reason**: it's a developer test tool with no use on a real server, and it doesn't need another config value.
+- Replaced by "`/bhfx test` + `/bhfx_play`" (2026-10-17).
 
 ## 2026-10-17 — BHSpells accepts bhfx `[0.3,0.4)` only
 - **Decision**: lock the version range to a single minor version until 1.0 (then change it to `[1.0,2.0)`).

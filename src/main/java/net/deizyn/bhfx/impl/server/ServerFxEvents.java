@@ -1,6 +1,5 @@
 package net.deizyn.bhfx.impl.server;
 
-import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -17,10 +16,26 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.BHFx;
-import net.deizyn.bhfx.api.FxParam;
+import net.deizyn.bhfx.api.FxHandle;
+import net.deizyn.bhfx.api.StopMode;
+import net.deizyn.bhfx.impl.FxCommandArgs;
+import net.deizyn.bhfx.impl.FxCommands;
+import net.deizyn.bhfx.api.Audience;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.deizyn.bhfx.impl.client.ClientFxManager;
 import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.ScreenPulse;
 
@@ -70,63 +85,118 @@ public final class ServerFxEvents {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         ServerFx.clearAll();
+        PLAYED.clear();
     }
 
+    /** Effects started by /bhfx_play, so /bhfx_play stop can end them. */
+    private static final FxCommands.Started<FxHandle> PLAYED = new FxCommands.Started<>(BHFx::isAlive, BHFx::stop);
+
     /**
-     * /bhfx_test [radius] — plays the built-in test effect where the player looks.
-     * /bhfx_test pulse — a screen pulse at the player (shake, flash, red edges, colour fringes).
-     * /bhfx_test tracker [range] — a 60 s ring where the player looks, sent only within range (default 16): stand
-     * outside it, walk in, and it must appear with its age already counted. Permission level 2.
-     * Development runs only (runClient / runServer); released jars do not register it.
+     * /bhfx_play fx &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [to &lt;players&gt;] [{params}] — like the client's /bhfx test,
+     * but sent to every player in range, or only to {@code to} (full vanilla selectors, including tag=).
+     * /bhfx_play stop [&lt;entities&gt;] [finish] — fades out (or plays the full ending of) what this command started.
+     * /bhfx_play pulse — a screen pulse at the player. Permission level 2. Effects are registered on clients, so a
+     * dedicated server can neither check nor suggest ids (try them with /bhfx test first); single player and LAN hosts
+     * suggest them, because the client is in the same game.
      */
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
-        if (FMLEnvironment.production) {
-            return;
-        }
-        event.getDispatcher().register(Commands.literal("bhfx_test")
+        event.getDispatcher().register(Commands.literal("bhfx_play")
                 .requires(source -> source.hasPermission(2))
-                .executes(ctx -> test(ctx, 8f))
-                .then(Commands.literal("pulse").executes(ServerFxEvents::testPulse))
-                .then(Commands.literal("tracker")
-                        .executes(ctx -> testTracker(ctx, 16f))
-                        .then(Commands.argument("range", FloatArgumentType.floatArg(4f, 128f))
-                                .executes(ctx -> testTracker(ctx, FloatArgumentType.getFloat(ctx, "range")))))
-                .then(Commands.argument("radius", FloatArgumentType.floatArg(2f, 64f))
-                        .executes(ctx -> test(ctx, FloatArgumentType.getFloat(ctx, "radius")))));
+                .then(FxCommands.stop(ServerFxEvents::stopPlayed))
+                .then(Commands.literal("pulse").executes(ServerFxEvents::pulse))
+                .then(Commands.literal("fx").then(FxCommands.play(ServerFxEvents::suggestFx, true, ServerFxEvents::play))));
     }
 
-    /** Same key as TrackerTestFx.RANGE; declared here so the server never loads that client class. */
-    private static final FxParam<Float> TRACKER_RANGE = FxParam.f("range");
+    private static CompletableFuture<Suggestions> suggestFx(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
+        // only an integrated server shares the game with a client; a dedicated server never loads the client class
+        if (FMLEnvironment.dist.isClient()) {
+            return SharedSuggestionProvider.suggestResource(ClientFxManager.registeredIds(), builder);
+        }
+        return builder.buildFuture();
+    }
 
-    private static int testTracker(CommandContext<CommandSourceStack> ctx, float range) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        ServerLevel level = player.serverLevel();
-        if (!BHFx.available(level)) {
-            ctx.getSource().sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
+    private static int play(CommandContext<CommandSourceStack> ctx, FxCommands.Shape shape) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        if (!BHFx.available(source.getLevel())) {
+            source.sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
             return 0;
         }
-        Vec3 target = lookTarget(player, level);
-        BHFx.start(level, BHFxMod.id("test_tracker"), FxSpawn.at(target).target(target).caster(player)
-                .param(TRACKER_RANGE, range)
-                .range(range).duration(60 * 20).persistent(true));
-        double distance = player.position().distanceTo(target);
-        ctx.getSource().sendSuccess(() -> Component.literal(String.format(
-                "bhfx tracker test at %d %d %d, %.0f blocks from you, range %.0f — %s",
-                (int) target.x, (int) target.y, (int) target.z, distance, range,
-                distance > range ? "walk in: the ring must appear with its age already counted"
-                        : "you are inside; walk out past " + (int) (range + 16) + " blocks, then back in")), false);
+        ResourceLocation fx = ResourceLocationArgument.getId(ctx, "fx");
+        FxCommandArgs args = FxCommands.args(ctx, shape);
+        Collection<ServerPlayer> viewers = shape.to() ? EntityArgument.getPlayers(ctx, "viewers") : null;
+        String who = viewers == null ? "players in range" : viewers.size() == 1
+                ? viewers.iterator().next().getName().getString() : viewers.size() + " players";
+
+        if (shape.attach()) {
+            Collection<? extends Entity> targets = EntityArgument.getEntities(ctx, "who");
+            if (targets.size() > FxCommands.MAX_TARGETS) {
+                source.sendFailure(Component.literal("bhfx: " + targets.size() + " entities matched; at most "
+                        + FxCommands.MAX_TARGETS + " (add limit=...)"));
+                return 0;
+            }
+            int started = 0;
+            for (Entity target : targets) {
+                if (target.level() instanceof ServerLevel level
+                        && start(level, fx, audience(FxCommands.spawnOn(target, args), viewers), target)) {
+                    started++;
+                }
+            }
+            if (started == 0) {
+                return limited(source, fx);
+            }
+            int n = started;
+            Entity first = targets.iterator().next();
+            source.sendSuccess(() -> Component.literal("bhfx play: " + fx + " on "
+                    + (n == 1 ? first.getName().getString() : n + " entities") + ", seen by " + who), true);
+            return n;
+        }
+
+        Entity runner = source.getEntity();
+        Vec3 at = shape.at() ? Vec3Argument.getVec3(ctx, "pos")
+                : runner != null ? lookTarget(runner, source.getLevel()) : source.getPosition();
+        if (!start(source.getLevel(), fx, audience(FxCommands.spawnAt(at, runner, args), viewers), null)) {
+            return limited(source, fx);
+        }
+        source.sendSuccess(() -> Component.literal(String.format("bhfx play: %s at %d %d %d, seen by %s",
+                fx, (int) Math.floor(at.x), (int) Math.floor(at.y), (int) Math.floor(at.z), who)), true);
         return 1;
     }
 
-    private static Vec3 lookTarget(ServerPlayer player, ServerLevel level) {
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getLookAngle().scale(160.0));
-        HitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.MISS ? eye.add(player.getLookAngle().scale(32.0)) : hit.getLocation();
+    private static boolean start(ServerLevel level, ResourceLocation fx, FxSpawn spawn, @Nullable Entity attached) {
+        FxHandle handle = BHFx.start(level, fx, spawn);
+        if (handle.isNone()) {
+            return false;
+        }
+        PLAYED.add(handle, fx, attached);
+        return true;
     }
 
-    private static int testPulse(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private static FxSpawn audience(FxSpawn spawn, @Nullable Collection<ServerPlayer> viewers) {
+        return viewers == null ? spawn : spawn.audience(Audience.players(viewers));
+    }
+
+    private static int limited(CommandSourceStack source, ResourceLocation fx) {
+        source.sendFailure(Component.literal("bhfx: " + fx + " was not started (rate limit)"));
+        return 0;
+    }
+
+    private static int stopPlayed(CommandContext<CommandSourceStack> ctx, boolean who, StopMode mode) throws CommandSyntaxException {
+        Collection<? extends Entity> on = who ? EntityArgument.getEntities(ctx, "who") : null;
+        int n = PLAYED.stop(on, mode);
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx: stopped " + n + " effect(s) started by /bhfx_play"
+                + (mode == StopMode.FINISH ? " (full ending)" : "")), true);
+        return Math.max(1, n);
+    }
+
+    private static Vec3 lookTarget(Entity entity, ServerLevel level) {
+        Vec3 eye = entity.getEyePosition();
+        Vec3 end = eye.add(entity.getLookAngle().scale(160.0));
+        HitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
+        return hit.getType() == HitResult.Type.MISS ? eye.add(entity.getLookAngle().scale(32.0)) : hit.getLocation();
+    }
+
+    private static int pulse(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         if (!BHFx.available(player.serverLevel())) {
             ctx.getSource().sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
@@ -138,23 +208,6 @@ public final class ServerFxEvents {
                 .vignette(0x500808, 0.6f, 24)
                 .aberration(0.8f, 12));
         ctx.getSource().sendSuccess(() -> Component.literal("bhfx pulse (players within 32 blocks)"), false);
-        return 1;
-    }
-
-    private static int test(CommandContext<CommandSourceStack> ctx, float radius) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        ServerLevel level = player.serverLevel();
-        if (!BHFx.available(level)) {
-            ctx.getSource().sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
-            return 0;
-        }
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getLookAngle().scale(160.0));
-        HitResult hit = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-        Vec3 target = hit.getType() == HitResult.Type.MISS ? eye.add(player.getLookAngle().scale(32.0)) : hit.getLocation();
-        BHFx.start(level, BHFxMod.id("test"), FxSpawn.at(player.position()).target(target).caster(player)
-                .param(FxParam.RADIUS, radius).duration(160));
-        ctx.getSource().sendSuccess(() -> Component.literal("bhfx test at " + (int) target.x + " " + (int) target.y + " " + (int) target.z), false);
         return 1;
     }
 }

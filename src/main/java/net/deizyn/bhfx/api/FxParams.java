@@ -2,6 +2,7 @@ package net.deizyn.bhfx.api;
 
 import net.minecraft.network.FriendlyByteBuf;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,18 +27,36 @@ public final class FxParams {
         return builder().put(key, value).build();
     }
 
-    /** The value for {@code key}, or {@code fallback} when absent or stored with another type. */
+    /**
+     * The value for {@code key}, or {@code fallback} when absent or stored with another type. An int also fills a
+     * float key, and a whole float an int key (values typed in commands rarely match the effect's key exactly).
+     */
     public <T> T get(FxParam<T> key, T fallback) {
-        Entry<?> entry = entries.get(key.name());
-        if (entry == null || entry.type != key.type()) {
-            return fallback;
-        }
-        return key.type().javaType.cast(entry.value);
+        Object value = value(key);
+        return value == null ? fallback : key.type().javaType.cast(value);
     }
 
     public boolean has(FxParam<?> key) {
+        return value(key) != null;
+    }
+
+    @Nullable
+    private Object value(FxParam<?> key) {
         Entry<?> entry = entries.get(key.name());
-        return entry != null && entry.type == key.type();
+        if (entry == null) {
+            return null;
+        }
+        if (entry.type == key.type()) {
+            return entry.value;
+        }
+        if (entry.type == FxParam.Type.INT && key.type() == FxParam.Type.FLOAT) {
+            return ((Integer) entry.value).floatValue();
+        }
+        if (entry.type == FxParam.Type.FLOAT && key.type() == FxParam.Type.INT) {
+            float f = (Float) entry.value;
+            return f == Math.rint(f) ? (Object) (int) f : null;
+        }
+        return null;
     }
 
     public boolean isEmpty() {

@@ -113,6 +113,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientFxManager.clear();
+        ClientFxCommands.clear();
     }
 
     @SubscribeEvent
@@ -136,6 +137,8 @@ public final class ClientEvents {
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(4, 60))
                                         .executes(ctx -> bench(ctx, ResourceLocationArgument.getId(ctx, "fx"),
                                                 IntegerArgumentType.getInteger(ctx, "seconds"))))))
+                .then(ClientFxCommands.test())
+                .then(ClientFxCommands.stop())
                 .then(Commands.literal("reload").executes(ctx -> {
                     ClientFxManager.reloadShaders();
                     ctx.getSource().sendSuccess(() -> Component.literal("bhfx: shaders will recompile on next use"), false);

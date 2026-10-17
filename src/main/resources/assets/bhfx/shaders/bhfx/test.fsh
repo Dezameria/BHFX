@@ -1,4 +1,4 @@
-// bhfx built-in test (/bhfx_test): a warning ring on the ground, then a column of light hidden correctly by terrain,
+// bhfx built-in test (bhfx:test): a warning ring on the ground, then a column of light hidden correctly by terrain,
 // lighting the land, a shock ring and cooling heat at its foot.
 
 #include "bhfx:scene.glsl"

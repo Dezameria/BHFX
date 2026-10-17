@@ -628,7 +628,8 @@ public final class ClientFxManager {
         return null;
     }
 
-    static Set<ResourceLocation> registeredIds() {
+    /** Ids of every registered effect. Also read by the integrated server for /bhfx_play suggestions. */
+    public static Set<ResourceLocation> registeredIds() {
         return FACTORIES.keySet();
     }
 }

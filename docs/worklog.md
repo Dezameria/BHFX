@@ -11,6 +11,18 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — Effect commands (0.3.1)
+- bhfx `impl/FxCommands` (new): one grammar for `/bhfx test` and `/bhfx_play`: `<fx> [at <pos> | attach <who>] [to <players>] [{...}]`, `stop [<who>] [finish]`; `Started` tracks what a command started (same effect on the same entity replaces).
+- bhfx `impl/FxCommandArgs`: rewritten for SNBT `{...}`; `hold`/`seconds`/`range` are command options and are not passed to the effect.
+- bhfx `impl/client/ClientSelector` (new): `@s @p @a @r @e`, names, UUIDs with `type name distance limit sort` for client commands (vanilla selectors need the server).
+- bhfx `impl/client/ClientFxCommands` (new, from `ClientEvents`); `ServerFxEvents`: `/bhfx_test` removed, `/bhfx_play fx <fx> ...` with `to`, plus `stop` and `pulse` (op 2, release jars too). Ids are suggested on an integrated server (it reads `ClientFxManager.registeredIds()`, guarded by `FMLEnvironment.dist`).
+- bhfx `FxParams.get/has`: an int fills a float key, a whole float an int key.
+- bhfx `TestFx`, `TrackerTestFx`: draw at `position()` so `attach` makes them follow; the tracker no longer reads a `range` param.
+- bhfx: JUnit set up (`src/test`, `FxCommandArgsTest`, `FxParamsTest`); version 0.3.1.
+- BHSpells: only `build.gradle` (bhfx 0.3.1) and `libs/` (jar swapped by `copyToBHSpells`); no spell code touched (see [`decisions.md`](decisions.md), "Spell effects and command effects are separate").
+- result: bhfx `gradlew build` passed with 10/10 tests; BHSpells `compileJava` passed. Jar 0.3.1 in the Mingyue Eclipse `mods/` (0.3.0 removed). Not tested in game.
+- next: in-game checklist in [`testing.md`](testing.md).
+
 ## 2026-10-17 — Modpack test passed
 - After restarting with the fixed jar and setting `offWithShaderpack = false`, the user confirmed effects work in Mingyue Eclipse, with and without Complementary. Log numbers are in [`testing.md`](testing.md); the earlier "not visible" report is closed in [`bugs.md`](bugs.md).
 - Next: check that world-space parts line up with a shader pack on. If they don't, add a mode that keeps screen-only effects and skips depth-based passes while a pack is on (see [`roadmap.md`](roadmap.md)).

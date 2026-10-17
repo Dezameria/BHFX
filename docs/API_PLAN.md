@@ -15,7 +15,7 @@ A library mod for Forge 1.20.1 that provides post-processing effects and depth-a
 | Minecraft / Forge | 1.20.1 / 47.4.0 (same as BHSpells) |
 | Mappings | Parchment `2023.09.03-1.20.1` (same as BHSpells) |
 | OpenGL | 3.3 core (GLSL `#version 150`) |
-| Distribution | maven local during development (`net.deizyn:bhfx:0.3.0`), **shipped as a separate jar** (not `jarJar`ed into BHSpells, because it must stay removable) |
+| Distribution | maven local during development (`net.deizyn:bhfx:0.3.1`), **shipped as a separate jar** (not `jarJar`ed into BHSpells, because it must stay removable) |
 | Relationship to BHSpells | **Soft dependency**: BHSpells works with Effekseer alone when bhfx is absent (section 6.0) |
 | Client/Server | **bhfx must be on both sides or on neither** (strict network channel, section 3) |
 | World data | **Nothing is saved, and no blocks/items/entities are registered**, so it can be removed at any time without harming worlds |
@@ -465,7 +465,7 @@ BHSpells must not reference bhfx classes directly in code that is always loaded,
 
 ```
 BHSpells
- ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")   + runtimeOnly during dev
+ ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.1")   + runtimeOnly during dev
  │                       (not implementation, and no jarJar)
  ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3,0.4)"
  └─ compat/bhfx/

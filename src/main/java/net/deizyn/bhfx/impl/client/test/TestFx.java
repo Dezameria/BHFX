@@ -17,7 +17,7 @@ import net.deizyn.bhfx.api.client.ScreenParams;
 import net.deizyn.bhfx.api.timeline.Timeline;
 
 /**
- * Built-in effect for /bhfx_test: a warning ring, then a column of light that terrain hides correctly, a shock ring and
+ * Built-in effect for /bhfx test and /bhfx_play (bhfx:test): a warning ring, then a column of light that terrain hides correctly, a shock ring and
  * cooling ground. Exercises the whole 0.1 pipeline (network, timeline, depth reconstruction, composite, shake).
  */
 public final class TestFx extends Fx {
@@ -42,7 +42,7 @@ public final class TestFx extends Fx {
 
     @Override
     protected void tick(FxContext ctx, int age) {
-        Vec3 at = init().target();
+        Vec3 at = ctx.position();
         if (T.in("warn", age) && age % 4 == 0) {
             double a = random().nextDouble() * Math.PI * 2.0;
             ctx.particle(ParticleTypes.FLAME, at.add(Math.cos(a) * radius, 0.1, Math.sin(a) * radius), new Vec3(0, 0.05, 0));
@@ -66,7 +66,7 @@ public final class TestFx extends Fx {
         float since = T.since("impact", t);
         float heat = since < 0f ? 0f : T.decay("heat", t, 30);
         float fade = 1f - stopProgress(frame);
-        Vec3 target = frame.rel(init().target());
+        Vec3 target = frame.rel(frame.position());
         out.add(BHFxMod.id("test"), u -> u
                 .vec3("Target", target)
                 .f4("P0", radius, warn, beam, since)
@@ -84,9 +84,9 @@ public final class TestFx extends Fx {
                 .zoomBlur(0.5f * T.pulse("impact", t, 0, 10))
                 .bloom(1.3f * beam, 1.4f)
                 .shake(0.25f * beam);
-        HIT.apply(screen, since, 1f, init().target());
+        HIT.apply(screen, since, 1f, frame.position());
         if (since >= 0f && since < 1.5f) {
-            screen.ripple(init().target(), radius * 0.3f + since * 45f, 3f + since * 4f, 1f - since / 1.5f);
+            screen.ripple(frame.position(), radius * 0.3f + since * 45f, 3f + since * 4f, 1f - since / 1.5f);
         }
     }
 

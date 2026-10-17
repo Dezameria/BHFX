@@ -12,7 +12,11 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [ ] Confirm a dedicated server can open a world with the real mod set (2026-10-17: mods loaded, but the world was locked by another server).
 - [x] 2026-10-17 Fix the `followSeen` leak in `ServerFx`.
 - [x] 2026-10-17 Lock the bhfx version range in BHSpells `mods.toml` to `[0.3,0.4)`.
-- [x] 2026-10-17 `/bhfx_test` in dev only.
+- [x] 2026-10-17 `/bhfx_test` in dev only (replaced by `/bhfx_play` the same day).
+- [x] 2026-10-17 `/bhfx test` / `/bhfx stop` / `/bhfx_play` effect commands with `at`/`attach`/`to`, SNBT params and fade-out stop, 0.3.1 (see [`decisions.md`](decisions.md)).
+- [x] 2026-10-17 Test the effect commands in game, single player (the second-player items go with the multiplayer test).
+- [ ] Optional: preview effects for spells (e.g. `bhspells:preview/heavenly_combo` playing a scripted combo), as separate classes that leave the spell effects alone.
+- [ ] Optional: packet that sends the client's registered effect ids to the server, so `/bhfx_play` can suggest and check ids (needs protocol 3).
 - [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` for local handles.
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.

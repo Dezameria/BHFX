@@ -41,10 +41,19 @@ minecraft {
 }
 
 repositories {
+    mavenCentral()
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// plain JUnit on pure logic (params, command parsing); nothing here boots Minecraft
+tasks.named('test', Test) {
+    useJUnitPlatform()
 }
 
 tasks.named('processResources', ProcessResources).configure {
