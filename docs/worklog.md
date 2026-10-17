@@ -11,6 +11,15 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — Modpack test passed
+- After restarting with the fixed jar and setting `offWithShaderpack = false`, the user confirmed effects work in Mingyue Eclipse, with and without Complementary. Log numbers are in [`testing.md`](testing.md); the earlier "not visible" report is closed in [`bugs.md`](bugs.md).
+- Next: check that world-space parts line up with a shader pack on. If they don't, add a mode that keeps screen-only effects and skips depth-based passes while a pack is on (see [`roadmap.md`](roadmap.md)).
+
+## 2026-10-17 — Modpack test: effects not visible
+- Read the Mingyue Eclipse Production Client 0.1.3 log: bhfx loads, warms up 6 shaders, BHSpells detects it. `/bhfx bench` ran while an Oculus pack was on, so post was off. After the pack was turned off, the auto-downgrade fired. Cause of the invisible effects still unknown (see [`bugs.md`](bugs.md)).
+- bhfx `ClientFxManager.checkBudget`: fixed the "-1.0 ms" downgrade message. Rebuilt; the jar was copied to `BHSpells/libs` and into the modpack's `mods/`.
+- Next: the user tests in the modpack with the shader pack off, running `/bhfx status` while charging Annihilation Arrow.
+
 ## 2026-10-17 — Docs translated to English
 - bhfx: `README.md` and every file in `docs/` translated from Thai to English. Recording rule 3 in [`README.md`](README.md) and the `bhfx-notes` skill now say the notes are written in English.
 

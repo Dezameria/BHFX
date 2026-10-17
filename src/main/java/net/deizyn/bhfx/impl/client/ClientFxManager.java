@@ -524,11 +524,13 @@ public final class ClientFxManager {
         if (now - overBudgetSince < DOWNGRADE_AFTER_NANOS || current == BHFxConfig.Quality.LOW) {
             return;
         }
+        // read the average before resetBudget() clears it
+        double usedMs = r.averageGpuMs();
         qualityCeiling = current.lower();
         overBudgetSince = 0L;
         r.resetBudget();
         String msg = String.format("[bhfx] effects used %.1f ms of GPU per frame (budget %.1f ms); quality lowered to %s for this session.",
-                r.averageGpuMs(), budget, qualityCeiling);
+                usedMs, budget, qualityCeiling);
         BHFxMod.LOGGER.warn(msg);
         Minecraft.getInstance().gui.getChat().addMessage(Component.literal(msg).withStyle(ChatFormatting.GOLD));
     }

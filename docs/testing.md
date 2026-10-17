@@ -14,6 +14,11 @@
   - 30-second bench: +2.0 ms with screen shake / FOV punch, but **+0.09 ms** with them off (`shakeScale=0`, `control=NONE`). bhfx's own drawing is very cheap. Most of the cost is Minecraft recomputing visible chunks every frame while the camera moves.
 - ✅ Dedicated server (dev): the server starts, a client connects, and the tracker re-sends effects after logging in again and after dying and respawning.
 - ✅ 2026-10-17 glslang 16.6.0: all 4 bhfx shaders pass (`checkShaders`).
+- ✅ 2026-10-17 Mingyue Eclipse Production Client 0.1.3 (real modpack: Oculus 1.8.0, Embeddium, Distant Horizons 3.2, ImmediatelyFast, Create, ~156 mods, 2560x1369):
+  - The user saw effects (Annihilation Arrow, Heavenly Combo, `bhfx:test`) with the shader pack off, and with Complementary on plus `offWithShaderpack = false` ("post forced on").
+  - `/bhfx status`: quality HIGH, post 2073x1109 (2.3 MP cap), 0.3–0.7 ms GPU, ~68 MB, 6 shaders, 4 Fx registered. Warmup 51 ms (923 ms on the cold first start).
+  - Clean `/bhfx bench` runs of `bhspells:heavenly_combo`: −0.33 / −0.08 / +0.53 ms per frame (noise level), bhfx GPU ~0.57 ms. Two `bhfx:test` benches were spoiled because the shader pack was toggled mid-bench (the +12.82 ms is the pack reloading).
+  - ⏳ Not yet checked: whether world-space parts (light on blocks, terrain occlusion) line up with a shader pack on, and a `/bhfx status` taken *during* a charge (all status lines were after the release, so they show 0 fx).
 - ⏳ 0.3: tracker when walking into range later (`/bhfx_test tracker`), 2 players, `CameraParams` FULL, shader pack detection (needs Oculus).
 - ⏳ 0.2 in game: bloom, impact frames, ripple, resolution scaling by GPU time, automatic quality downgrade, tracker (walking into range later / logging in mid-effect / dying and respawning).
 - ⏳ 2026-10-17: `followSeen` fix. Change dimension within 0.5 seconds of the start, then check the effect doesn't stay stuck on the server.

@@ -37,5 +37,7 @@ Suggested order: 1 → 2 → 3 can be done locally right away. 4–5 need time i
 
 ## Backlog (not scheduled)
 
+- Shader pack mode: while a pack is on, keep screen-only effects (flash, vignette, ripple, impact, bloom, pulses) and skip only depth-based world passes, instead of the all-or-nothing `offWithShaderpack`. Only needed if world-space parts look wrong with a pack (2026-10-17: the user reports effects visible with Complementary forced on).
+
 - `AaaParticlesBridge` (`ctx.effek(...)`): when there is a real use case.
 - BHSpells spells that would suit bhfx next: Indigo Lightning, Fiery Dance, Venomous Blossomfall (LONG/CONTINUOUS with all the hooks), and long-lasting zone spells (to test the tracker with long effects).
