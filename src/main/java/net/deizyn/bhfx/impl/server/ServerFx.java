@@ -131,6 +131,8 @@ public final class ServerFx {
         }
         long seed = spawn.seed() != null ? spawn.seed() : level.random.nextLong();
         Active a = new Active(id, level, fxId, spawn, seed, key);
+        // seen now, so losing it before the first tracker pass still ends the effect (otherwise it could never expire)
+        a.followSeen = spawn.followId() >= 0 && level.getEntity(spawn.followId()) != null;
         ACTIVE.put(id, a);
         if (key != null) {
             KEYS.put(new KeyInLevel(level.dimension(), key), id);

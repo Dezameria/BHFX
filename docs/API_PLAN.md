@@ -2,7 +2,7 @@
 
 Library mod สำหรับเอฟเฟค post-processing และ world-space shader ที่รู้ depth สำหรับ Forge 1.20.1 ให้ BHSpells (และ mod อื่นของ deizyn) import ไปใช้
 
-> สถานะ: **0.1 และ 0.2 เขียนโค้ดแล้ว** (ดู "ส่วนที่ทำต่างจากแผน" และ "ยังไม่ได้ทำ" ใน `README.md`) ชื่อคลาสและ method ทั้งหมดเปลี่ยนได้จนกว่าจะออก 1.0
+> สถานะ: **0.1, 0.2 และ 0.3 เขียนโค้ดแล้ว** (ดู "ส่วนที่ทำต่างจากแผน" และ "ยังไม่ได้ทำ" ใน `README.md`) ชื่อคลาสและ method ทั้งหมดเปลี่ยนได้จนกว่าจะออก 1.0
 > แนวคิดได้จากการวิเคราะห์ mod The Shooting Star (เอกสาร `01`–`07` ในโฟลเดอร์ docs ของ jar ที่แตกไฟล์ไว้) แต่ **โค้ดและ shader ทั้งหมดเขียนใหม่** (ต้นฉบับเป็น All Rights Reserved)
 
 ---
@@ -15,7 +15,7 @@ Library mod สำหรับเอฟเฟค post-processing และ world
 | Minecraft / Forge | 1.20.1 / 47.4.0 (ตรงกับ BHSpells) |
 | Mappings | Parchment `2023.09.03-1.20.1` (ตรงกับ BHSpells) |
 | OpenGL | 3.3 core (GLSL `#version 150`) |
-| การแจก | maven local ตอนพัฒนา (`net.deizyn:bhfx:0.1.0`), **แจกเป็น jar แยก** (ไม่ `jarJar` ใน BHSpells เพราะต้องถอดออกได้) |
+| การแจก | maven local ตอนพัฒนา (`net.deizyn:bhfx:0.3.0`), **แจกเป็น jar แยก** (ไม่ `jarJar` ใน BHSpells เพราะต้องถอดออกได้) |
 | ความสัมพันธ์กับ BHSpells | **soft dependency**: BHSpells ทำงานได้ด้วย Effekseer อย่างเดียวถ้าไม่มี bhfx (หัวข้อ 6.0) |
 | Client/Server | **ต้องมี bhfx ทั้งสองฝั่งหรือไม่มีทั้งคู่** (network channel แบบ strict, หัวข้อ 3) |
 | ข้อมูลในโลก | **ไม่เก็บอะไรลง save และไม่ลงทะเบียน block/item/entity** → ถอดออกได้ทุกเมื่อโดยโลกไม่เสีย |
@@ -183,7 +183,7 @@ public enum StopMode {
 | `S2CFxStop` | S → C | handle id, StopMode |
 | `S2CScreenPulse` | S → C | ตำแหน่ง, ระยะ, ชนิด (shake/flash/vignette), ค่า, สี, ระยะเวลา |
 
-Channel `bhfx:main`, protocol `"1"` แบบ **strict** (`"1"::equals` ทั้งสองฝั่ง): client กับ server ต้องมี bhfx เวอร์ชัน protocol เดียวกัน ถ้าฝั่งใดฝั่งหนึ่งไม่มี Forge จะแจ้ง "mismatched mod channel" ตั้งแต่ตอนเชื่อมต่อ ซึ่งดีกว่าให้เข้าไปแล้วเห็นเอฟเฟคไม่ครบ
+Channel `bhfx:main`, protocol `"2"` (ตั้งแต่ 0.3; 0.1–0.2 ใช้ `"1"`) แบบ **strict** (`"2"::equals` ทั้งสองฝั่ง): client กับ server ต้องมี bhfx เวอร์ชัน protocol เดียวกัน ถ้าฝั่งใดฝั่งหนึ่งไม่มี Forge จะแจ้ง "mismatched mod channel" ตั้งแต่ตอนเชื่อมต่อ ซึ่งดีกว่าให้เข้าไปแล้วเห็นเอฟเฟคไม่ครบ
 
 **การรวม packet**: start/stop ที่เกิดใน tick เดียวกันถึงผู้เล่นคนเดียวกันจะถูกรวมเป็น packet เดียว (`S2CFxBatch`) และจำกัดจำนวนต่อ tick (หัวข้อ 11.3)
 
@@ -462,9 +462,9 @@ BHSpells ห้ามอ้างถึง class ของ bhfx ตรงๆ ใ
 
 ```
 BHSpells
- ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.1.0")   + runtimeOnly ตอน dev
+ ├─ build.gradle         compileOnly fg.deobf("net.deizyn:bhfx:0.3.0")   + runtimeOnly ตอน dev
  │                       (ไม่ใช่ implementation และไม่ jarJar)
- ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.1,0.2)"
+ ├─ mods.toml            [[dependencies.bhspells]] modId="bhfx" mandatory=false versionRange="[0.3,0.4)"
  └─ compat/bhfx/
      ├─ BhfxCompat.java          ← โหลดได้เสมอ: ตรวจ ModList.isLoaded("bhfx") แล้วส่งต่อ ห้าม import bhfx
      ├─ BhfxLoadedBridge.java    ← import bhfx ได้ ถูกโหลดเฉพาะเมื่อมี bhfx

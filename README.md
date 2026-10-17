@@ -113,7 +113,18 @@ BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));           
 ## ยังไม่ได้ทำ
 
 - `AaaParticlesBridge` (`ctx.effek(...)`) — **เลื่อนไปทำเมื่อมีเคสจริง** ตอนนี้ BHSpells จัดการ Effekseer เองอยู่แล้ว
-- เชื่อมกับ BHSpells (bridge แบบ soft dependency ตามแผนหัวข้อ 6.0)
+
+## ใช้งานจริงใน BHSpells
+
+เชื่อมผ่าน bridge แบบ soft dependency ตามแผนหัวข้อ 6.0 (`compat/bhfx/BhfxCompat` → `BhfxLoadedBridge`, client: `BhfxClientCompat` → `BhfxClientBridge`)
+
+| เวท | ใช้ส่วนไหนของ bhfx |
+| :--- | :--- |
+| Heavenly Combo | `BHFxClient.play` (Fx ฝั่ง client จาก cue ของ Epic Fight ไม่มี packet เพิ่ม), shader `bhspells:heavenly_combo`, impact frame, ripple, bloom |
+| Annihilation Arrow | ตัวแรกที่ใช้ `BHFx.start` + `FxKey` + `update` + `stop` จากเซิร์ฟเวอร์ (ชาร์จแบบ LONG, follow ผู้ร่าย, tracker ส่งให้คนที่เข้ามาทีหลัง) — ทดสอบในเกมแล้ว ยกเว้น multiplayer |
+| Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) |
+
+ข้อสังเกตจากการใช้จริง: Iron's ยกเลิก cast ตอนเปลี่ยนมิติจาก level **ใหม่** แต่ `FxKey` แยกตามมิติ BHSpells จึง stop ทุก level; `BHFxClient.play` ไม่คืน instance ของ Fx (Heavenly Combo ต้องจับผ่าน factory)
 
 ## สถานะการทดสอบ
 
@@ -125,5 +136,6 @@ BHFx.pulse(hitPlayer, ScreenPulse.of().vignette(0x600000, 0.5f, 20));           
   - 🐞 แก้แล้ว: bench แบบครึ่งแรก/ครึ่งหลังให้ค่าติดลบเพราะ FPS แกว่งตามเวลา → สลับปิด/เปิดทุก 1 วินาที
   - bench 30 วินาที: ส่วนต่าง +2.0 ms เมื่อมีสั่นจอ/FOV punch แต่ **+0.09 ms** เมื่อปิด (`shakeScale=0`, `control=NONE`) — การวาดของ bhfx เองถูกมาก ส่วนใหญ่เป็นค่าที่ Minecraft คำนวณ chunk ที่มองเห็นใหม่ทุกเฟรมเมื่อกล้องขยับ
 - ✅ dedicated server (dev): server เปิดได้, client ต่อได้, tracker ส่งเอฟเฟคต่อหลัง login ใหม่ และหลังตายแล้วเกิดใหม่
+- 🐞 แก้แล้ว (0.3): Fx ที่ follow entity แล้ว entity หาย/เปลี่ยนมิติภายใน 10 tick แรก จะไม่ถูกลบจากเซิร์ฟเวอร์เลย (`followSeen` ยังไม่ถูกตั้ง) — Fx แบบ `UNTIL_STOPPED` ค้างถาวร ส่งซ้ำให้คนที่เดินผ่าน และกินโควตา `maxActivePerCaster` → ตั้ง `followSeen` ตั้งแต่ตอน start ถ้า entity มีอยู่
 - ⏳ 0.3 ยังไม่ได้ทดสอบ: tracker กรณีเดินเข้าระยะทีหลัง (`/bhfx_test tracker`), ผู้เล่น 2 คน, CameraParams แบบ FULL, การตรวจ shader pack (ต้องมี Oculus)
 - ⏳ 0.2 **ยังไม่ได้ทดสอบในเกม**: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่), dedicated server
