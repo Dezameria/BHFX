@@ -6,7 +6,7 @@ Order matters: build bhfx first. The bhfx `build` copies its jar into `BHSpells/
 
 ```bash
 cd bhfx
-./gradlew.bat build publishToMavenLocal -PrequireGlslCheck
+./gradlew.bat build publishToMavenLocal   # bhfx always requires the shader check (gradle.properties)
 cd ../BHSpells
 ./gradlew.bat build -PrequireGlslCheck
 ```

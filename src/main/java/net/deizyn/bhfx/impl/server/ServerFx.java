@@ -29,11 +29,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -43,12 +41,6 @@ import java.util.UUID;
  * only.
  */
 public final class ServerFx {
-    /** Expiry used for effects that rely on the client-side default duration. */
-    private static final int ASSUMED_DEFAULT_TICKS = 200;
-    private static final int GRACE_TICKS = 40;
-    /** Players must move this far past the range before they count as having left (avoids resend flapping). */
-    private static final double LEAVE_MARGIN = 16.0;
-
     private static final class Active {
         final int id;
         final ResourceKey<Level> dimension;
@@ -61,9 +53,9 @@ public final class ServerFx {
         final double range;
         @Nullable
         final FxKey key;
-        final Set<UUID> sentTo = new HashSet<>();
+        final Tracking.Reach reach;
+        final Tracking.Follow follow;
         FxParams params;
-        boolean followSeen;
 
         Active(int id, ServerLevel level, ResourceLocation fxId, FxSpawn spawn, long seed, @Nullable FxKey key) {
             this.id = id;
@@ -72,13 +64,15 @@ public final class ServerFx {
             this.spawn = spawn;
             this.seed = seed;
             this.startTick = level.getGameTime();
-            int d = spawn.duration();
-            this.expiresAt = d == FxSpawn.UNTIL_STOPPED ? Long.MAX_VALUE
-                    : startTick + (d == FxSpawn.DEFAULT_DURATION ? ASSUMED_DEFAULT_TICKS : d) + GRACE_TICKS;
+            this.expiresAt = Tracking.expiresAt(startTick, spawn.duration());
             this.persistent = spawn.isPersistent();
             this.range = Math.min(spawn.range(), BHFxConfig.SERVER_MAX_RANGE.get());
             this.key = key;
             this.params = spawn.builtParams();
+            this.reach = new Tracking.Reach(range);
+            // seen now, so losing it before the first tracker pass still ends the effect (otherwise it could never expire)
+            this.follow = new Tracking.Follow(spawn.followId() >= 0,
+                    spawn.followId() >= 0 && level.getEntity(spawn.followId()) != null);
         }
 
         S2CFxStart packet(int startAge) {
@@ -131,8 +125,6 @@ public final class ServerFx {
         }
         long seed = spawn.seed() != null ? spawn.seed() : level.random.nextLong();
         Active a = new Active(id, level, fxId, spawn, seed, key);
-        // seen now, so losing it before the first tracker pass still ends the effect (otherwise it could never expire)
-        a.followSeen = spawn.followId() >= 0 && level.getEntity(spawn.followId()) != null;
         ACTIVE.put(id, a);
         if (key != null) {
             KEYS.put(new KeyInLevel(level.dimension(), key), id);
@@ -332,11 +324,7 @@ public final class ServerFx {
             return false;
         }
         Entity e = level.getEntity(a.spawn.followId());
-        if (e != null && !e.isRemoved()) {
-            a.followSeen = true;
-            return false;
-        }
-        return a.followSeen;
+        return a.follow.lost(e != null && !e.isRemoved());
     }
 
     private static Vec3 position(ServerLevel level, Active a) {
@@ -351,25 +339,13 @@ public final class ServerFx {
 
     private static void sendToNewPlayers(ServerLevel level, Active a, int startAge) {
         Vec3 at = position(level, a);
-        double enter = a.range * a.range;
-        double leave = (a.range + LEAVE_MARGIN) * (a.range + LEAVE_MARGIN);
         S2CFxStart packet = null;
         for (ServerPlayer player : level.players()) {
-            if (!audienceAllows(a, player)) {
-                continue;
-            }
-            double d2 = player.position().distanceToSqr(at);
-            UUID uuid = player.getUUID();
-            if (a.sentTo.contains(uuid)) {
-                if (d2 > leave) {
-                    a.sentTo.remove(uuid);
-                }
-            } else if (d2 <= enter) {
+            if (audienceAllows(a, player) && a.reach.shouldSend(player.getUUID(), player.position().distanceToSqr(at))) {
                 if (packet == null) {
                     packet = a.packet(startAge);
                 }
                 queue(player, packet);
-                a.sentTo.add(uuid);
             }
         }
     }
@@ -393,7 +369,7 @@ public final class ServerFx {
     /** The player's client lost its effects (logout, respawn, dimension change): send them again when in range. */
     static void forget(UUID player) {
         for (Active a : ACTIVE.values()) {
-            a.sentTo.remove(player);
+            a.reach.forget(player);
         }
         OUTBOX.remove(player);
     }

@@ -26,13 +26,13 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 | Step | Work | Done when |
 | :--- | :--- | :--- |
 | 1. Lock the API | Go through every class in `api.*` and mark it stable, `@ApiStatus.Experimental`, or removed. Decide on `stopEverywhere(server, key)`, `ctx.effek(...)` and Timeline loaded from JSON. Complete the javadoc. | There is a list of APIs promised not to change throughout 1.x |
-| 2. Automated tests (JUnit) | `FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`. Pull the `ServerFx` tracker logic away from `ServerLevel` and test an entity vanishing in the first 10 ticks. Pull out the merge rules of `ScreenParamsImpl`. Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
-| 3. Real shader checks | Permanent glslang, and the build uses `-PrequireGlslCheck` | Every shader in both mods passes |
+| 2. Automated tests (JUnit) | ~~`FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`, the `ServerFx` tracker rules (`impl/server/Tracking`) incl. an entity vanishing in the first 10 ticks~~ done 2026-10-17 (31 tests). Left: the merge rules of `ScreenParamsImpl`, `ClientSelector` (needs a client level; maybe pull its parsing out). Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
+| 3. Real shader checks | ~~Permanent glslang, and the build uses `-PrequireGlslCheck`~~ done 2026-10-17: bhfx requires it in `gradle.properties`; BHSpells stays optional for friends (see [`shaders.md`](shaders.md)) | Every shader in both mods passes (bhfx 4, BHSpells 2 on 2026-10-17) |
 | 4. Test with other mods and several players | Embeddium, Oculus (pack on/off), Epic Fight in 1st/3rd person, a dedicated server with 2 players, `CameraParams` FULL | No ⏳ left in [`testing.md`](testing.md) |
 | 5. Measure performance | With no Fx, under 0.1 ms difference from not having bhfx; bhfx GPU time ≤ 6 ms; first cast hitches < 50 ms; VRAM ≤ 80 MB and freed after 30 seconds (`/bhfx bench`, `/bhfx stats`) | Every criterion passes on a mid-range machine at 1080p |
 | 6. Release 1.0 | Version 1.0.0, changelog, BHSpells accepts `[1.0,2.0)` | — |
 
-Suggested order: 1 → 2 → 3 can be done locally right away. 4–5 need time in game and a friend; do them together with the multiplayer test.
+Suggested order: 1 → 2 → 3 can be done locally right away (3 done, 2 mostly done on 2026-10-17). 4–5 need time in game and a friend; do them together with the multiplayer test.
 
 ## Waiting on the user
 

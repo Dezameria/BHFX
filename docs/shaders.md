@@ -28,6 +28,8 @@ Steps:
 5. `PATH` (`glslangValidator.exe` or `glslang.exe`)
 
 If none is found, it warns "shaders were NOT checked" and passes. Add `-PrequireGlslCheck` to make it fail instead.
+- bhfx sets `requireGlslCheck=true` in `gradle.properties` (since 2026-10-17), so every bhfx build fails without glslang. `-PrequireGlslCheck=false` turns it off for one build.
+- BHSpells keeps it optional, because friends who clone it may not have glslang. Use `-PrequireGlslCheck` there for releases.
 Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`glslang-16.6.0-windows-x86_64-release.zip`). Only `bin/glslang.exe` and `VERSION.txt` are kept in `ironspell_more/tools/glslang`. `tools/` is not in any repo's git, so on a new machine copy it over or download it again.
 
 ### What it catches, and what it doesn't

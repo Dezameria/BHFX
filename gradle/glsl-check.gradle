@@ -4,7 +4,8 @@
 //
 // glslangValidator is looked up in this order: -PglslangValidator=<path>, the GLSLANG_VALIDATOR environment variable,
 // the shared copy at <repo>/../tools/glslang/bin (ironspell_more/tools, next to bhfx and BHSpells), VULKAN_SDK, PATH.
-// Without it the check is skipped with a warning; pass -PrequireGlslCheck to fail instead.
+// Without it the check is skipped with a warning; pass -PrequireGlslCheck (or set requireGlslCheck=true in
+// gradle.properties) to fail instead. -PrequireGlslCheck=false turns that off again.
 //
 // The applying build sets, before `apply from`:
 //   ext.glslShaderRoots  = { -> [file('src/main/resources')] }               resource roots whose passes are checked
@@ -62,7 +63,7 @@ tasks.register('checkShaders') {
         def glslang = findGlslang()
         if (glslang == null) {
             def message = 'checkShaders: glslangValidator not found (-PglslangValidator, GLSLANG_VALIDATOR, ../tools/glslang/bin, VULKAN_SDK or PATH); shaders were NOT checked'
-            if (project.hasProperty('requireGlslCheck')) {
+            if (project.hasProperty('requireGlslCheck') && project.property('requireGlslCheck').toString() != 'false') {
                 throw new GradleException(message)
             }
             logger.warn(message)

@@ -21,6 +21,7 @@ build
 eclipse
 run
 run-data
+logs
 
 # agent workflows (docs/ and README.md stay in git)
 .agents/

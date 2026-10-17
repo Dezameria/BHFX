@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — 1.0 steps 2 and 3: tests and required shader check
+- bhfx `gradle.properties`: `requireGlslCheck=true`; `gradle/glsl-check.gradle` (both repos, identical) honours `-PrequireGlslCheck=false`. `checkShaders`: bhfx 4 OK, BHSpells 2 OK (with the flag).
+- bhfx `impl/server/Tracking` (new): expiry, follow-lost and enter/leave rules pulled out of `ServerFx` (behaviour unchanged).
+- bhfx tests: `WireTest`, `TimelineTest`, `impl/server/TrackingTest` added; 31 tests in all.
+- result: `gradlew build` passed (tests + required shader check); jar copied to `BHSpells/libs` and the Mingyue Eclipse `mods/`. Not re-tested in game (only `ServerFx` internals moved).
+- next: `ScreenParamsImpl` merge tests; 1.0 step 1 (API lock).
+
 ## 2026-10-17 — Effect commands (0.3.1)
 - bhfx `impl/FxCommands` (new): one grammar for `/bhfx test` and `/bhfx_play`: `<fx> [at <pos> | attach <who>] [to <players>] [{...}]`, `stop [<who>] [finish]`; `Started` tracks what a command started (same effect on the same entity replaces).
 - bhfx `impl/FxCommandArgs`: rewritten for SNBT `{...}`; `hold`/`seconds`/`range` are command options and are not passed to the effect.
