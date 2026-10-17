@@ -6,8 +6,10 @@
 
 - [ ] ทดสอบ Annihilation Arrow แบบ multiplayer กับเพื่อน (checklist ใน [`testing.md`](testing.md))
 - [ ] ทดสอบ Heavenly Combo หลังเปลี่ยน bridge มาใช้ `BHFxClient.fx(...)` (2026-10-17)
-- [ ] ติดตั้ง glslang ถาวร: Vulkan SDK หรือตั้ง env `GLSLANG_VALIDATOR` (ดู [`shaders.md`](shaders.md))
-- [ ] commit งานค้าง: bhfx 1 commit, BHSpells 2 commit (Heavenly Combo / Annihilation bhfx layer)
+- [x] 2026-10-17 glslang ถาวรที่ `ironspell_more/tools/glslang` build หาเจอเอง (ดู [`shaders.md`](shaders.md))
+- [x] 2026-10-17 commit งานค้าง (ผู้ใช้ commit เอง)
+- [x] 2026-10-17 ประกาศ mod ที่ BHSpells บังคับใน `mods.toml` (ดู [`release.md`](release.md))
+- [ ] ยืนยัน dedicated server เข้าโลกได้กับชุด mod จริง (2026-10-17 โหลด mod ผ่าน แต่โลกถูกล็อกโดย server อีกตัว)
 - [x] 2026-10-17 แก้ `followSeen` leak ใน `ServerFx`
 - [x] 2026-10-17 ล็อกเวอร์ชันใน BHSpells `mods.toml` เป็น `[0.3,0.4)`
 - [x] 2026-10-17 `/bhfx_test` เฉพาะ dev

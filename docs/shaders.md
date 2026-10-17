@@ -20,11 +20,12 @@
 ### หา glslang จากไหน (ตามลำดับ)
 1. `-PglslangValidator=<path>`
 2. env `GLSLANG_VALIDATOR`
-3. `%VULKAN_SDK%\Bin`
-4. `PATH` (`glslangValidator.exe` หรือ `glslang.exe`)
+3. **`D:\Minecraft\Dev\ironspell_more\tools\glslang\bin\glslang.exe`**: สำเนาที่ใช้ร่วมกันข้าง bhfx/BHSpells (หาจาก `<repo>/../tools/glslang/bin`) ปกติใช้ตัวนี้ ไม่ต้องตั้งอะไร
+4. `%VULKAN_SDK%\Bin`
+5. `PATH` (`glslangValidator.exe` หรือ `glslang.exe`)
 
 หาไม่เจอ: เตือน "shaders were NOT checked" แล้วผ่าน; ใส่ `-PrequireGlslCheck` ให้ fail แทน
-ตัวที่ใช้ทดสอบ: glslang 16.6.0 (`glslang-16.6.0-windows-x86_64-release.zip` จาก GitHub release ของ KhronosGroup/glslang) — ไฟล์ข้างในชื่อ `bin/glslang.exe`
+ตัวที่ใช้: glslang 16.6.0 จาก GitHub release ของ KhronosGroup/glslang (`glslang-16.6.0-windows-x86_64-release.zip`) เก็บเฉพาะ `bin/glslang.exe` + `VERSION.txt` ไว้ใน `ironspell_more/tools/glslang`; `tools/` ไม่อยู่ใน git ของ repo ไหน ถ้าย้ายเครื่องต้อง copy ไปเองหรือดาวน์โหลดใหม่
 
 ### จับอะไรได้ / ไม่ได้
 - **ได้**: syntax, type ไม่ตรง, ฟังก์ชัน/ตัวแปรไม่มีหรือพารามิเตอร์ผิด, ชื่อซ้ำกับ include, include หาไม่เจอ, ฟีเจอร์ที่ GLSL 1.50 ไม่มี

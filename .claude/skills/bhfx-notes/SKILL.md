@@ -18,6 +18,7 @@ All bhfx development knowledge lives as markdown in `docs/` of the bhfx repo (`D
 | `docs/bugs.md` | Known limitations, plus fixed bugs (symptom → cause → fix) | Touching `ServerFx`, tracker, render, or seeing odd behaviour |
 | `docs/decisions.md` | Design decisions with reasons | Before changing API or behaviour |
 | `docs/shaders.md` | `checkShaders`/glslang pipeline, shader pitfalls | Writing or editing any `.fsh`/`.glsl` |
+| `docs/release.md` | Release build, install matrix, BHSpells required mods, pre-release checklist | Shipping jars, or changing dependencies |
 | `docs/integrations/bhspells.md` | How BHSpells uses bhfx, and lessons from real use | Any BHSpells ↔ bhfx work |
 | `docs/API_PLAN.md` | Full API spec | Adding or changing public API |
 

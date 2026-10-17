@@ -2,9 +2,9 @@
 // builds them in game: the bhfx header first, then the file with each #include "ns:name.glsl" inlined. `check` (and so
 // `build`) depends on it.
 //
-// glslangValidator: put it on PATH, or set -PglslangValidator=<path> / the GLSLANG_VALIDATOR environment variable
-// (Vulkan SDK, or a release from github.com/KhronosGroup/glslang). Without it the check is skipped with a warning;
-// pass -PrequireGlslCheck to fail instead.
+// glslangValidator is looked up in this order: -PglslangValidator=<path>, the GLSLANG_VALIDATOR environment variable,
+// the shared copy at <repo>/../tools/glslang/bin (ironspell_more/tools, next to bhfx and BHSpells), VULKAN_SDK, PATH.
+// Without it the check is skipped with a warning; pass -PrequireGlslCheck to fail instead.
 //
 // The applying build sets, before `apply from`:
 //   ext.glslShaderRoots  = { -> [file('src/main/resources')] }               resource roots whose passes are checked
@@ -38,6 +38,8 @@ def findGlslang = { ->
         dirs.add(0, new File(sdk, 'Bin').path)
         dirs.add(0, new File(sdk, 'bin').path)
     }
+    // shared copy next to the repos: ironspell_more/tools/glslang/bin
+    dirs.add(0, new File(project.rootDir.parentFile, 'tools/glslang/bin').path)
     for (String dir : dirs) {
         for (String name : names) {
             def candidate = new File(dir, name)
@@ -59,7 +61,7 @@ tasks.register('checkShaders') {
     doLast {
         def glslang = findGlslang()
         if (glslang == null) {
-            def message = 'checkShaders: glslangValidator not found (PATH, VULKAN_SDK, -PglslangValidator or GLSLANG_VALIDATOR); shaders were NOT checked'
+            def message = 'checkShaders: glslangValidator not found (-PglslangValidator, GLSLANG_VALIDATOR, ../tools/glslang/bin, VULKAN_SDK or PATH); shaders were NOT checked'
             if (project.hasProperty('requireGlslCheck')) {
                 throw new GradleException(message)
             }

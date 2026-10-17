@@ -15,6 +15,7 @@
 - ⏳ 0.2 ในเกม: bloom, impact frame, ripple, การลดความละเอียดตามเวลา GPU, การลดคุณภาพอัตโนมัติ, tracker (เดินเข้าระยะทีหลัง / login ระหว่างเอฟเฟค / ตายแล้วเกิดใหม่)
 - ⏳ 2026-10-17: `followSeen` fix — เปลี่ยนมิติภายใน 0.5 วินาทีหลังเริ่ม แล้วดูว่าเอฟเฟคไม่ค้างบนเซิร์ฟ
 - ⏳ 2026-10-17: `/bhfx_test` ไม่มีใน jar ที่ build จริง (production)
+- ✅ 2026-10-17 BHSpells `runServer` (dedicated, dev): mod ทั้งหมดโหลดผ่านรวม dependency ที่ประกาศใหม่, ไม่มี client class crash, เจอ bhfx — ⏳ ยังไม่ได้เข้าโลก (โลกถูกล็อกโดย dev server อีกตัว)
 
 ## BHSpells ที่ใช้ bhfx
 

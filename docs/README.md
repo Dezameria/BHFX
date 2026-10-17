@@ -13,6 +13,7 @@
 | [`bugs.md`](bugs.md) | บั๊กที่รู้และยังไม่แก้ + บั๊กที่แก้แล้ว (อาการ → สาเหตุ → วิธีแก้) | เจอหรือแก้บั๊ก |
 | [`decisions.md`](decisions.md) | การตัดสินใจด้านออกแบบ พร้อมเหตุผล (ทำไมเลือกแบบนี้) | ตัดสินใจเรื่องที่มีผลระยะยาว |
 | [`shaders.md`](shaders.md) | การตรวจ shader (`checkShaders` + glslang), ข้อตกลงการเขียน shader, กับดักที่เจอ | เปลี่ยนวิธีตรวจ หรือเจอกับดักใหม่ |
+| [`release.md`](release.md) | build jar จริง, ติดตั้งเซิร์ฟ/client, mod ที่ BHSpells บังคับ, checklist ก่อนปล่อย | เปลี่ยน dependency หรือวิธีปล่อย |
 | [`integrations/bhspells.md`](integrations/bhspells.md) | BHSpells ใช้ bhfx ยังไง: bridge, เวทที่ใช้, ข้อควรระวังจากการใช้จริง | เพิ่มเวทที่ใช้ bhfx หรือเจอเรื่องใหม่ฝั่ง BHSpells |
 | [`API_PLAN.md`](API_PLAN.md) | สเปก API ฉบับเต็ม (สาธารณะ) และหลักการออกแบบ | เพิ่ม/เปลี่ยน API |
 

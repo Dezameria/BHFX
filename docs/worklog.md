@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-10-17 — glslang ถาวร
+- `D:\Minecraft\Dev\ironspell_more\tools\glslang\bin\glslang.exe` (16.6.0, 4.9 MB) + `VERSION.txt`
+- bhfx + BHSpells `gradle/glsl-check.gradle`: หา `<repo>/../tools/glslang/bin` อัตโนมัติ (ไฟล์ยังเหมือนกันทั้งสอง repo)
+- ผล: `checkShaders -PrequireGlslCheck` โดยไม่ระบุ path ผ่านทั้งสอง repo (bhfx 4, BHSpells 2)
+
+## 2026-10-17 — เตรียมใช้งานจริง
+- BHSpells `mods.toml`: ประกาศ mod ที่ BHSpells เรียกตรงๆ 15 ตัวเป็น `mandatory=true` (รายการใน [`release.md`](release.md))
+- bhfx: [`release.md`](release.md) (build, ติดตั้ง, checklist)
+- ผล: build ทั้งสอง repo ผ่านพร้อม `-PrequireGlslCheck`; ตรวจ jar แล้ว (bhfx มี shader 10 ไฟล์, BHSpells มี shader 2 ตัว + dependency 17 รายการ); `runServer` ของ BHSpells โหลด mod ทั้งหมดผ่าน (dependency check ผ่าน, เจอ bhfx, registry freeze) แต่เปิดโลกไม่ได้เพราะมี dev server อีกตัวรันอยู่ใน `run/` และล็อกโลกไว้ — เข้าโลกบน dedicated server ยังไม่ได้ยืนยันรอบนี้
+- ต่อ: เปิด dedicated server อีกครั้งตอนไม่มีตัวอื่นรัน; multiplayer กับเพื่อน
+
 ## 2026-10-17 — ระบบบันทึก markdown + skill `bhfx-notes`
 - bhfx: สร้าง `docs/README.md` (สารบัญ), `worklog.md`, `roadmap.md`, `testing.md`, `bugs.md`, `decisions.md`, `shaders.md`, `integrations/bhspells.md`; ย้าย "สถานะการทดสอบ" และ "ใช้งานจริงใน BHSpells" ออกจาก `README.md` มาไว้ในหมวด
 - bhfx: `.claude/skills/bhfx-notes/SKILL.md` + `CLAUDE.md` ชี้ไปที่ `docs/README.md`
@@ -18,7 +29,7 @@
 ## 2026-10-17 — ตรวจ shader ด้วย glslang
 - bhfx + BHSpells: `gradle/glsl-check.gradle` (ไฟล์เดียวกัน) + task `checkShaders` ผูกกับ `check`/`build` — รายละเอียดใน [`shaders.md`](shaders.md)
 - ผล: glslang 16.6.0 ตรวจผ่านทั้ง 6 ตัว (bhfx 4: `test`, `composite`, `bloom_down`, `bloom_up`; BHSpells 2: `heavenly_combo`, `annihilation_charge`); ลองทำให้ผิดโดยตั้งใจแล้ว glslang จับได้ บอกบรรทัดถูก
-- ต่อ: ติดตั้ง glslang ถาวร (ตอนนี้อยู่ใน scratchpad ของ session ซึ่งเป็นที่ชั่วคราว)
+- ต่อ: ~~ติดตั้ง glslang ถาวร~~ ทำแล้ว (ดูรายการ "glslang ถาวร")
 
 ## 2026-10-17 — housekeeping 1–3
 - BHSpells `mods.toml`: เวอร์ชัน bhfx ที่รับ `[0.3,)` → `[0.3,0.4)`
