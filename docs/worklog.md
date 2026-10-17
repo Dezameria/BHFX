@@ -11,6 +11,12 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-17 — 1.0 step 5: first performance numbers
+- The user ran `/bhfx off|on`, `/bhfx stats`, `/bhfx status` and `/bhfx bench` in the BHSpells dev client (bhfx 0.3.2). Results in [`testing.md`](testing.md): idle = no work, `bhfx:test` 0.33-0.37 ms GPU, VRAM ~11 MB and released after 30 s.
+- The user reports no stutter on the first cast.
+- BHSpells: the bhfx 0.3.2 work was squashed into one commit (`f0be802`) on Yumeko-1234/BHSpells `feature/deizy-integrate-bhfx`, so friends can build it and review it as one change.
+- next: `/bhfx stats` while actually casting Heavenly Combo; repeat at 1080p.
+
 ## 2026-10-17 — Work that needed no game: tests, changelog, bridge
 - bhfx: `impl/client/SelectorSpec` (new, parsing pulled out of `ClientSelector`); `ScreenParamsImplTest`, `SelectorSpecTest`; 41 tests in all. `CHANGELOG.md` (0.1.0 to 0.3.2).
 - BHSpells: `BhfxLoadedBridge.annihilationChargeEnd` makes one `BHFx.stop` instead of looping over every level; `mods.toml` bhfx range `[0.3.2,0.4)`. No spell code changed.
