@@ -4,12 +4,12 @@ A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
 - Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md); changes per version: [`CHANGELOG.md`](CHANGELOG.md)
-- Version: **0.3.2** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
+- Version: **0.3.3** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
 
 ```bash
-./gradlew.bat build                 # jar at build/libs/bhfx-0.3.2.jar, also copied to ../BHSpells/libs
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.3.jar, also copied to ../BHSpells/libs
 ./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
 ./gradlew.bat runClient             # testing
 ./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
@@ -18,8 +18,8 @@ It is an **extra layer**: mods that use it keep their main visuals from Effeksee
 On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.3.2")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")   // dev only, to run them together
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.3")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.3")   // dev only, to run them together
 }
 ```
 

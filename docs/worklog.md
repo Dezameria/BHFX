@@ -11,6 +11,11 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-22 — Release 0.3.3
+- bhfx: `mod_version` 0.3.2 → 0.3.3 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.3 (settings screen, Medium defaults, resize fix, `seconds` → `duration`); README version and dependency lines.
+- BHSpells (working tree only, not committed): `build.gradle` depends on `net.deizyn:bhfx:0.3.3`; the build's copy task replaced `libs/bhfx-0.3.2.jar` with `libs/bhfx-0.3.3.jar`. `mods.toml` range `[0.3.2,0.4)` already accepts it.
+- result: bhfx `gradlew build` passed; BHSpells `compileJava` passed. Jar not copied to the Mingyue Eclipse modpack (it still has the 2026-10-22 00:23 build named 0.3.2).
+
 ## 2026-10-22 — Default settings = Medium preset
 - bhfx: `BHFxConfig` defaults `quality` HIGH → MEDIUM, `gpuBudgetMs` 6 → 4, `maxFxMegapixels` 2.3 → 1.6; `BHFxSettingsScreen` comment, README, CHANGELOG, `API_PLAN.md` config table, `decisions.md`.
 - result: `gradlew build` passed. Existing toml files (e.g. the Mingyue Eclipse one) keep their values, so in-game behaviour only changes on a fresh config. Not tested with a fresh config.

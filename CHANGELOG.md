@@ -4,7 +4,7 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## Unreleased
+## 0.3.3 — 2026-10-22 (protocol 2)
 - **Added**: in-game settings screen (Mods → bhfx → Config): Low / Medium / High / Max presets, quality, GPU budget,
   resolution cap, bloom, auto-lower, shader-pack switch, shake, flashes, camera, impact frames. Changes apply live
   and are saved to `bhfx-client.toml` when the screen closes.
