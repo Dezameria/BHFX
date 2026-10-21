@@ -11,10 +11,16 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-22 — Release 0.3.4
+- bhfx: `mod_version` 0.3.3 → 0.3.4 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.4 (config migration to Medium, slider rounding fix); README version lines.
+- BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.4`; `libs/` now holds `bhfx-0.3.4.jar` (copy task).
+- Mingyue Eclipse `mods/`: `bhfx-0.3.3.jar` → `bhfx-0.3.4.jar` (old jars backed up in the session scratchpad). Its toml is already Medium, so on the next launch only `settingsVersion = 1` is added.
+- result: bhfx `gradlew build` passed (43 tests); BHSpells `compileJava` passed; the same jar hash in all three places. Not launched in the modpack with 0.3.4.
+
 ## 2026-10-22 — One-time migration of old-default configs to Medium
 - bhfx: new `impl/ClientConfigMigration` (run from `BHFxMod.configLoaded` on `ModConfigEvent.Loading` of `CLIENT_SPEC`); new top-level key `BHFxConfig.SETTINGS_VERSION` (`settingsVersion`, default 0). New `ClientConfigMigrationTest` (2 tests; 43 in all).
 - result: `gradlew build` passed. Dev check: `bhfx/run/config/bhfx-client.toml` (HIGH/2.3/6, backup in the session scratchpad) became MEDIUM/1.6/4 with `settingsVersion = 1` on `runClient`, and the log printed the migration line; client closed right after loading. Not committed; not in the modpack (its toml is already Medium, so only `settingsVersion` would be added).
-- next: decide 0.3.4 vs. folding into 0.3.3 (the modpack already has a 0.3.3 jar without this).
+- next: released as 0.3.4 the same day.
 
 ## 2026-10-22 — Why the Medium default did not show up; slider rounding
 - The user saw HIGH after the default change. Every existing `bhfx-client.toml` keeps its values: `BHSpells/run`, `BHSpells/run-client2` and `bhfx/run` still say HIGH / 2.3 MP / 6 ms; only the Mingyue Eclipse one is Medium (set by hand in the screen at 00:36).

@@ -4,7 +4,7 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## Unreleased
+## 0.3.4 — 2026-10-22 (protocol 2)
 - **Changed**: an existing `bhfx-client.toml` that still has the old defaults (HIGH, 2.3 MP, 6 ms) moves to the Medium
   preset once, on first launch (`ClientConfigMigration`, new key `settingsVersion`). Files the player changed are left
   alone. The log says when it happens.
