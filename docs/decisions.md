@@ -3,6 +3,10 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-10-22 — Migrate old-default config files to Medium once
+- **Decision**: `ClientConfigMigration` runs on `ModConfigEvent.Loading` of the client config. If `settingsVersion` < 1 and the file still has exactly the pre-0.3.3 defaults (HIGH, 2.3 MP, 6 ms), it sets the Medium preset; then it sets `settingsVersion = 1` and saves. Later default changes add a step and raise `ClientConfigMigration.CURRENT`.
+- **Reason**: Forge never rewrites values already in a file, so without this the Medium default only reached new installs. Matching the exact old defaults leaves every hand-made choice alone, and the version key makes it run once, so a player who picks High again keeps it.
+
 ## 2026-10-22 — Default preset is Medium
 - **Decision**: the config defaults are the Medium preset: `quality = MEDIUM`, `gpuBudgetMs = 4.0`, `maxFxMegapixels = 1.6`. High (6 ms, 2.3 MP) is one click away in the settings screen.
 - **Reason**: on the user's machine two effects at once cost 5.6–5.9 ms GPU on HIGH (fps 117 → 106) and under 1.4 ms on LOW; a mid-range GPU should not start at the 6 ms ceiling. Existing `bhfx-client.toml` files keep their values; only new installs get the new defaults.

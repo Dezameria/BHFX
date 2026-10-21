@@ -32,6 +32,7 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.IntValue MAX_ACTIVE_PER_CASTER;
 
     public static final ForgeConfigSpec CLIENT_SPEC;
+    public static final ForgeConfigSpec.IntValue SETTINGS_VERSION;
     public static final ForgeConfigSpec.EnumValue<Quality> QUALITY;
     public static final ForgeConfigSpec.DoubleValue MAX_FX_MEGAPIXELS;
     public static final ForgeConfigSpec.DoubleValue GPU_BUDGET_MS;
@@ -64,6 +65,9 @@ public final class BHFxConfig {
         SERVER_SPEC = s.build();
 
         ForgeConfigSpec.Builder c = new ForgeConfigSpec.Builder();
+        // default 0 so a file written before this key existed reads as 0 too; ClientConfigMigration raises it
+        SETTINGS_VERSION = c.comment("Used by bhfx to update old files once. Don't edit.")
+                .defineInRange("settingsVersion", 0, 0, Integer.MAX_VALUE);
         c.push("quality");
         QUALITY = c.comment("OFF = no effects and no GPU work at all (packets are dropped). LOW (no bloom) / MEDIUM / HIGH scale the effect resolution.")
                 .defineEnum("quality", Quality.MEDIUM);

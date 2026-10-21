@@ -11,10 +11,20 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-22 — One-time migration of old-default configs to Medium
+- bhfx: new `impl/ClientConfigMigration` (run from `BHFxMod.configLoaded` on `ModConfigEvent.Loading` of `CLIENT_SPEC`); new top-level key `BHFxConfig.SETTINGS_VERSION` (`settingsVersion`, default 0). New `ClientConfigMigrationTest` (2 tests; 43 in all).
+- result: `gradlew build` passed. Dev check: `bhfx/run/config/bhfx-client.toml` (HIGH/2.3/6, backup in the session scratchpad) became MEDIUM/1.6/4 with `settingsVersion = 1` on `runClient`, and the log printed the migration line; client closed right after loading. Not committed; not in the modpack (its toml is already Medium, so only `settingsVersion` would be added).
+- next: decide 0.3.4 vs. folding into 0.3.3 (the modpack already has a 0.3.3 jar without this).
+
+## 2026-10-22 — Why the Medium default did not show up; slider rounding
+- The user saw HIGH after the default change. Every existing `bhfx-client.toml` keeps its values: `BHSpells/run`, `BHSpells/run-client2` and `bhfx/run` still say HIGH / 2.3 MP / 6 ms; only the Mingyue Eclipse one is Medium (set by hand in the screen at 00:36).
+- bhfx: `BHFxSettingsScreen.Slider.current()` rounds away float noise (see `bugs.md`).
+- result: `gradlew build` passed (jar `bhfx-0.3.3.jar` rebuilt and copied to `BHSpells/libs`; the modpack still has the 00:40 build). Not committed.
+
 ## 2026-10-22 — Release 0.3.3
 - bhfx: `mod_version` 0.3.2 → 0.3.3 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.3 (settings screen, Medium defaults, resize fix, `seconds` → `duration`); README version and dependency lines.
 - BHSpells (working tree only, not committed): `build.gradle` depends on `net.deizyn:bhfx:0.3.3`; the build's copy task replaced `libs/bhfx-0.3.2.jar` with `libs/bhfx-0.3.3.jar`. `mods.toml` range `[0.3.2,0.4)` already accepts it.
-- result: bhfx `gradlew build` passed; BHSpells `compileJava` passed. Jar not copied to the Mingyue Eclipse modpack (it still has the 2026-10-22 00:23 build named 0.3.2).
+- result: bhfx `gradlew build` passed; BHSpells `compileJava` passed. Mingyue Eclipse `mods/`: `bhfx-0.3.2.jar` removed, `bhfx-0.3.3.jar` copied (2026-10-22 00:40). Not yet launched with 0.3.3.
 
 ## 2026-10-22 — Default settings = Medium preset
 - bhfx: `BHFxConfig` defaults `quality` HIGH → MEDIUM, `gpuBudgetMs` 6 → 4, `maxFxMegapixels` 2.3 → 1.6; `BHFxSettingsScreen` comment, README, CHANGELOG, `API_PLAN.md` config table, `decisions.md`.

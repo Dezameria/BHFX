@@ -58,6 +58,10 @@
   - ⚠ One render-CPU spike of 18.95 ms right after switching to HIGH (likely targets and bloom being rebuilt); not seen again.
 - ⏳ Still to check: the screen fits at GUI scale 4 on 1080p; a dedicated server still starts with this jar (the screen class is client-only).
 
+### Config migration (2026-10-22)
+- ✅ 2026-10-22 bhfx `runClient`: an old-default `bhfx-client.toml` moved to Medium once (`settingsVersion = 1`, log line printed).
+- ⏳ Second launch keeps the values (no second migration); a file with hand-made values (e.g. HIGH + 8 ms) is left alone in game; `BHSpells/run` and `run-client2` move on their next launch.
+
 ## BHSpells spells that use bhfx
 
 ### Annihilation Arrow (`bhspells:annihilation_charge`)

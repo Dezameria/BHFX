@@ -4,6 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## Unreleased
+- **Changed**: an existing `bhfx-client.toml` that still has the old defaults (HIGH, 2.3 MP, 6 ms) moves to the Medium
+  preset once, on first launch (`ClientConfigMigration`, new key `settingsVersion`). Files the player changed are left
+  alone. The log says when it happens.
+- **Fixed**: settings sliders wrote float noise to the toml (`shakeScale = 0.30000000000000004`).
+
 ## 0.3.3 — 2026-10-22 (protocol 2)
 - **Added**: in-game settings screen (Mods → bhfx → Config): Low / Medium / High / Max presets, quality, GPU budget,
   resolution cap, bloom, auto-lower, shader-pack switch, shake, flashes, camera, impact frames. Changes apply live
