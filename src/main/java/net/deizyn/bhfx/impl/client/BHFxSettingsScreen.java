@@ -195,7 +195,9 @@ public final class BHFxSettingsScreen extends Screen {
 
         private double current() {
             double v = min + value * (max - min);
-            return Math.max(min, Math.min(max, Math.round(v / step) * step));
+            // second round drops float noise (0.30000000000000004) before it reaches the toml
+            double snapped = Math.round(Math.round(v / step) * step * 1e6) / 1e6;
+            return Math.max(min, Math.min(max, snapped));
         }
 
         @Override

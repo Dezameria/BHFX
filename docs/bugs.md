@@ -8,6 +8,11 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Fixed
 
+### 2026-10-22 — Settings sliders wrote float noise to the toml (fixed in code, not tested in game)
+- **Symptom**: after moving the Shake slider, `bhfx-client.toml` held `shakeScale = 0.30000000000000004`.
+- **Cause**: `BHFxSettingsScreen.Slider.current()` snapped with `Math.round(v / step) * step`, which is not exact in binary floating point.
+- **Fix**: round the snapped value again to 6 decimals before `set()`.
+
 ### 2026-10-20 — Effects disappear after resizing / minimizing the window (fixed in code, not tested in game)
 - **Symptom**: after the window is resized (maximize/restore, drag, fullscreen) post effects stop rendering entirely.
 - **Cause**: `RenderTarget.resize` deletes and recreates the main target's FBO and colour/depth textures, and the driver often hands back the same ids. `PostRenderer.attachOutput` only re-attached when the colour *id* changed, so `outFbo` kept the deleted (orphaned) texture. Every stage runs through `outFbo`: the snapshot blit read the frozen pre-resize image, the passes and bloom sampled that, and the composite wrote back into the orphan. The whole chain, not just the final write, was disconnected from the screen. It recovered only after `release()` (30 s idle) cleared `outAttached`.
