@@ -5,6 +5,7 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 server must use the same one.
 
 ## Unreleased
+- **Fixed**: effects vanished after the window was resized, maximized/restored, minimized or switched to fullscreen.
 - **Changed**: the command option `seconds` is now `duration` (`{duration:10}`); the old name is refused with a hint.
 - Tests for the `ScreenParams` merge rules and the `/bhfx test` selector parsing (`SelectorSpec`, pulled out of
   `ClientSelector`); 41 JUnit tests in all.

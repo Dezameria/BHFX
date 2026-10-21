@@ -83,7 +83,12 @@ public final class PostRenderer {
     private int bloomForW;
     private int bloomForH;
 
-
+    // the main target as last seen; a resize recreates its objects (often under the same names)
+    private int mainFbo = -1;
+    private int mainColor = -1;
+    private int mainDepth = -1;
+    private int mainW = -1;
+    private int mainH = -1;
 
     private int warmVao;
     private int warmFbo;
@@ -181,6 +186,18 @@ public final class PostRenderer {
             return;
         }
         RenderSystem.assertOnRenderThread();
+        if (main.frameBufferId != mainFbo || color != mainColor || depth != mainDepth
+                || main.width != mainW || main.height != mainH) {
+            // Minecraft deleted and recreated its target (window resize): outFbo may still hold the deleted colour
+            // texture even when the new one got the same id, so rebuild every target from scratch
+            release();
+            resolution.reset();
+            mainFbo = main.frameBufferId;
+            mainColor = color;
+            mainDepth = depth;
+            mainW = main.width;
+            mainH = main.height;
+        }
         long now = System.nanoTime();
         guard.capture();
         try {
