@@ -20,6 +20,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` for local handles.
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
+- [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## 1.0 plan
 
@@ -28,8 +29,8 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 | 1. Lock the API | ~~Go through every class in `api.*` and mark it stable, `@ApiStatus.Experimental`, or removed. Decide on `stopEverywhere(server, key)`, `ctx.effek(...)` and Timeline loaded from JSON. Complete the javadoc.~~ done 2026-10-17 in 0.3.2 (see [`API_PLAN.md`](API_PLAN.md) section 0.1). Checked in game the same day. | There is a list of APIs promised not to change throughout 1.x |
 | 2. Automated tests (JUnit) | ~~`FxParams` (encode/decode, merge, size), `Timeline`/`Ease`, `ScreenPulse`, the `ServerFx` tracker rules (`impl/server/Tracking`) incl. an entity vanishing in the first 10 ticks~~ done 2026-10-17 (31 tests); ~~the merge rules of `ScreenParamsImpl`, `ClientSelector` parsing (`SelectorSpec`)~~ done the same day (41 tests). Optional: Forge GameTest. | `gradlew test` passes, and past bugs are covered by tests |
 | 3. Real shader checks | ~~Permanent glslang, and the build uses `-PrequireGlslCheck`~~ done 2026-10-17: bhfx requires it in `gradle.properties`; BHSpells stays optional for friends (see [`shaders.md`](shaders.md)) | Every shader in both mods passes (bhfx 4, BHSpells 2 on 2026-10-17) |
-| 4. Test with other mods and several players | Embeddium, Oculus (pack on/off), Epic Fight in 1st/3rd person, a dedicated server with 2 players | No ⏳ left in [`testing.md`](testing.md) |
-| 5. Measure performance (2026-10-17: idle cost, GPU time, VRAM and first cast pass at 854x480; a 1080p mid-range run and a Heavenly Combo number while casting are left, see [`testing.md`](testing.md)) | With no Fx, under 0.1 ms difference from not having bhfx; bhfx GPU time ≤ 6 ms; first cast hitches < 50 ms; VRAM ≤ 80 MB and freed after 30 seconds (`/bhfx bench`, `/bhfx stats`) | Every criterion passes on a mid-range machine at 1080p |
+| 4. Test with other mods and several players | ~~Embeddium, Oculus (pack on/off)~~ user reports OK 2026-10-21; Epic Fight in 1st/3rd person, a dedicated server with 2 players | No ⏳ left in [`testing.md`](testing.md) |
+| 5. Measure performance (2026-10-17: idle cost, GPU time, VRAM and first cast pass at 854x480; 2026-10-22: pass again in the modpack at 2560x1369 with a shader pack, `shadow_domain` up to 4.82 ms GPU, with `flame_field` together 5.93 ms; a 1080p mid-range run and a Heavenly Combo number while casting are left, see [`testing.md`](testing.md)) | With no Fx, under 0.1 ms difference from not having bhfx; bhfx GPU time ≤ 6 ms; first cast hitches < 50 ms; VRAM ≤ 80 MB and freed after 30 seconds (`/bhfx bench`, `/bhfx stats`) | Every criterion passes on a mid-range machine at 1080p |
 | 6. Release 1.0 | Version 1.0.0, changelog, BHSpells accepts `[1.0,2.0)` | — |
 
 Suggested order: 1 → 2 → 3 can be done locally right away (3 done, 2 mostly done on 2026-10-17). 4–5 need time in game and a friend; do them together with the multiplayer test.

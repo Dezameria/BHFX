@@ -4,9 +4,14 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Open / known limitations
 
-- (none)
+- 2026-10-22 (minor, display only): `/bhfx status` keeps showing the last measured GPU time after every effect has stopped (e.g. "0 fx, 0 pass(es) … 4.38 ms GPU" for ~40 s until the post idles). Seen in the Mingyue Eclipse log 2026-10-22 00:02:48–00:04:09. Not fixed.
 
 ## Fixed
+
+### 2026-10-20 — Effects disappear after resizing / minimizing the window (fixed in code, not tested in game)
+- **Symptom**: after the window is resized (maximize/restore, drag, fullscreen) post effects stop rendering entirely.
+- **Cause**: `RenderTarget.resize` deletes and recreates the main target's FBO and colour/depth textures, and the driver often hands back the same ids. `PostRenderer.attachOutput` only re-attached when the colour *id* changed, so `outFbo` kept the deleted (orphaned) texture. Every stage runs through `outFbo`: the snapshot blit read the frozen pre-resize image, the passes and bloom sampled that, and the composite wrote back into the orphan. The whole chain, not just the final write, was disconnected from the screen. It recovered only after `release()` (30 s idle) cleared `outAttached`.
+- **Fix**: `PostRenderer.render` compares `frameBufferId`, colour id, depth id and size with the last frame; on any change it calls `release()` + `resolution.reset()` and rebuilds everything.
 
 ### 2026-10-17 — `FxKey` was per dimension (0.3.2)
 - **Symptom**: stopping by key from a level other than the one the effect started in did nothing (Iron's cancels a cast from the new level after a dimension change).

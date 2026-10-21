@@ -41,4 +41,5 @@ Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`gl
 - **`smoothstep(a, b, x)` with `a > b`**: GLSL leaves the result undefined. Most drivers compute it anyway, but it isn't guaranteed. Use `1.0 - smoothstep(b, a, x)` instead (found in `annihilation_charge.fsh`, 2026-10-17).
 - **`texture()` inside a per-pixel branch**: implicit derivatives are undefined there. Use `textureLod(..., 0.0)` (2026-10-17).
 - **`dFdx`/`dFdy` inside a branch**: the values are undefined. Compute them outside the `if` and use them inside, and flip the normal to face the camera (`dot(nrm, s.dir) > 0.0 ? -nrm : nrm`).
+- **`Uniforms.color` is linear, the frame is not**: `UniformBinder.color` applies `pow(c, 2.2)`, but passes add straight onto the display-encoded frame and nothing converts back. A tint used as an emitted colour comes out darker and more saturated than asked (`#FFB424` gold looks orange-red). Convert back with `pow(Tint.rgb, vec3(1.0 / 2.2))` (found in BHSpells `flame_field.fsh`, then `inferno.fsh`, 2026-10-20).
 - **Rays must start at `Eye`, not `vec3(0.0)`**: view bobbing moves the eye (see `API_PLAN.md` 5.2).
