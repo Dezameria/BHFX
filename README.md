@@ -43,7 +43,7 @@ dependencies {
 
 - **Where**: nothing = where you look; `at <pos>` = a fixed point (`~ ~ ~`, `^ ^ ^5`, `100 64 -20`); `attach <who>` = rides on each matched entity (follows its position and look; that entity is also the caster). At most 32 entities per command. Starting the same effect on the same entity again replaces it.
 - **Who** (`attach`, `stop`, `to`): `/bhfx_play` takes every vanilla selector (`@e[tag=boss]`, `@a[team=red]`, ...). `/bhfx test` runs on the client, which cannot see tags, teams or scores, so it takes `@s @p @a @r @e`, player names and UUIDs, with `type= name= distance= limit= sort=`.
-- **`{...}`**: SNBT, as in `/summon`. `hold:true` (play until `stop`), `seconds:N` and `range:N` (broadcast radius, `/bhfx_play` only, default 128) are options of the command and never reach the effect. Every other entry is an effect param: `true`/`false` → bool, `12` → int (also fills a float param), `12.5` → float, `"#FF40C0"` → colour. Effects read params by name and fall back to their own default, so a misspelled name is silently ignored.
+- **`{...}`**: SNBT, as in `/summon`. `hold:true` (play until `stop`), `duration:N` (seconds; called `seconds` before 2026-10-20, which is now refused with a hint) and `range:N` (broadcast radius, `/bhfx_play` only, default 128) are options of the command and never reach the effect. Every other entry is an effect param: `true`/`false` → bool, `12` → int (also fills a float param), `12.5` → float, `"#FF40C0"` → colour. Effects read params by name and fall back to their own default, so a misspelled name is silently ignored.
 - **Stop**: fades out (`StopMode.CANCEL`); `finish` plays the effect's full ending (`StopMode.FINISH`, e.g. a release flash).
 
 Command-friendly effects (they play on their own and use the common param names `radius`, `color`, ...):
@@ -55,7 +55,7 @@ Command-friendly effects (they play on their own and use the common param names 
 
 More examples:
 ```
-/bhfx test bhfx:test at ^ ^ ^10 {radius:16, seconds:3}
+/bhfx test bhfx:test at ^ ^ ^10 {radius:16, duration:3}
 /bhfx test bhfx:test attach @e[type=zombie,limit=3,sort=nearest]
 /bhfx_play fx bhfx:test attach @e[tag=boss] to @s {radius:6}
 /bhfx_play stop @e[tag=boss] finish

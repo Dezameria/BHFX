@@ -36,9 +36,10 @@ class FxCommandArgsTest {
     }
 
     @Test
-    void secondsBecomeTicks() throws CommandSyntaxException {
-        assertEquals(60, args("{seconds:3}").durationTicks());
-        assertEquals(50, args("{seconds:2.5}").durationTicks());
+    void durationSecondsBecomeTicks() throws CommandSyntaxException {
+        assertEquals(60, args("{duration:3}").durationTicks());
+        assertEquals(50, args("{duration:2.5}").durationTicks());
+        assertFalse(args("{duration:3}").params().has(FxParam.i("duration")));
     }
 
     @Test
@@ -62,8 +63,10 @@ class FxCommandArgsTest {
 
     @Test
     void badInputIsReported() {
-        assertThrows(CommandSyntaxException.class, () -> args("{hold:true, seconds:3}"));
-        assertThrows(CommandSyntaxException.class, () -> args("{seconds:0}"));
+        assertThrows(CommandSyntaxException.class, () -> args("{hold:true, duration:3}"));
+        assertThrows(CommandSyntaxException.class, () -> args("{duration:0}"));
+        // the old name is refused, not passed to the effect
+        assertThrows(CommandSyntaxException.class, () -> args("{seconds:3}"));
         assertThrows(CommandSyntaxException.class, () -> args("{hold:2}"));
         assertThrows(CommandSyntaxException.class, () -> args("{tint:\"red\"}"));
         assertThrows(CommandSyntaxException.class, () -> args("{pos:[1,2,3]}"));

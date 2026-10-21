@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Three names are options of the command itself and never
- * reach the effect: {@code hold:true} (play until stopped), {@code seconds:N} and {@code range:N} (broadcast radius,
+ * reach the effect: {@code hold:true} (play until stopped), {@code duration:N} (seconds) and {@code range:N} (broadcast radius,
  * /bhfx_play only). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
  * decimals → float (an int also fills a float key), {@code "#RRGGBB"} → colour.
  */
@@ -37,20 +37,22 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         }
         FxParams.Builder params = FxParams.builder();
         boolean hold = false;
-        Float seconds = null;
+        Float duration = null;
         Double range = null;
         int count = 0;
         for (String name : tag.getAllKeys()) {
             Tag value = tag.get(name);
             switch (name) {
                 case "hold" -> hold = bool(name, value);
-                case "seconds" -> {
+                case "duration" -> {
                     float s = number(name, value);
                     if (s <= 0f || s > 3600f) {
-                        throw BAD.create("seconds must be above 0 and at most 3600 (use hold:true to play until stopped)");
+                        throw BAD.create("duration must be above 0 and at most 3600 seconds (use hold:true to play until stopped)");
                     }
-                    seconds = s;
+                    duration = s;
                 }
+                // renamed to duration on 2026-10-20; refused rather than silently passed to the effect as a param
+                case "seconds" -> throw BAD.create("seconds was renamed to duration (in seconds), e.g. {duration:10}");
                 case "range" -> {
                     float r = number(name, value);
                     if (r < 1f || r > 512f) {
@@ -69,12 +71,12 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
                 }
             }
         }
-        if (hold && seconds != null) {
-            throw BAD.create("use hold or seconds, not both");
+        if (hold && duration != null) {
+            throw BAD.create("use hold or duration, not both");
         }
-        int duration = hold ? FxSpawn.UNTIL_STOPPED
-                : seconds != null ? Math.max(1, Math.round(seconds * 20f)) : FxSpawn.DEFAULT_DURATION;
-        return new FxCommandArgs(params.build(), duration, range);
+        int ticks = hold ? FxSpawn.UNTIL_STOPPED
+                : duration != null ? Math.max(1, Math.round(duration * 20f)) : FxSpawn.DEFAULT_DURATION;
+        return new FxCommandArgs(params.build(), ticks, range);
     }
 
     public FxSpawn apply(FxSpawn spawn) {
