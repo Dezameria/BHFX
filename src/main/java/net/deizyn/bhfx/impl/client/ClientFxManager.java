@@ -172,6 +172,35 @@ public final class ClientFxManager {
         }
     }
 
+    /** The settings screen changed a value: drop an automatic downgrade and resolution history so it applies now. */
+    static void settingsChanged() {
+        qualityCeiling = BHFxConfig.Quality.HIGH;
+        overBudgetSince = 0L;
+        if (renderer != null) {
+            renderer.resetBudget();
+        }
+    }
+
+    /** One short status line for the settings screen. */
+    static String liveLine() {
+        if (!enabled()) {
+            return "Effects off";
+        }
+        StringBuilder sb = new StringBuilder("Now: ").append(ACTIVE.size()).append(" fx, quality ").append(effectiveQuality());
+        if (renderer != null && renderer.allocated()) {
+            double ms = renderer.averageGpuMs();
+            sb.append(", effects at ").append(renderer.effectSize())
+                    .append(" (").append(Math.round(renderer.resolutionShare() * 100)).append("%)");
+            if (ms >= 0 && !ACTIVE.isEmpty()) {
+                sb.append(String.format(", %.2f ms GPU", ms));
+            }
+        }
+        if (ShaderpackDetector.blocksPost()) {
+            sb.append(", post off (shader pack)");
+        }
+        return sb.toString();
+    }
+
     private static void scheduleWarmup() {
         if (BHFxConfig.WARMUP.get()) {
             WARMUP.schedule();

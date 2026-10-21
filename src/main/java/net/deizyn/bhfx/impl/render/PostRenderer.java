@@ -146,6 +146,11 @@ public final class PostRenderer {
         return resolution.share();
     }
 
+    /** Size of the effect targets, e.g. "2073x1109". */
+    public String effectSize() {
+        return fxW + "x" + fxH;
+    }
+
     public void resetBudget() {
         resolution.reset();
     }
