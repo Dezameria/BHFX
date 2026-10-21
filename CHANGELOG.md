@@ -8,6 +8,8 @@ server must use the same one.
 - **Added**: in-game settings screen (Mods → bhfx → Config): Low / Medium / High / Max presets, quality, GPU budget,
   resolution cap, bloom, auto-lower, shader-pack switch, shake, flashes, camera, impact frames. Changes apply live
   and are saved to `bhfx-client.toml` when the screen closes.
+- **Changed**: default settings are the Medium preset (`quality = MEDIUM`, `gpuBudgetMs = 4`, `maxFxMegapixels = 1.6`).
+  Existing `bhfx-client.toml` files keep their values.
 - **Fixed**: effects vanished after the window was resized, maximized/restored, minimized or switched to fullscreen.
 - **Changed**: the command option `seconds` is now `duration` (`{duration:10}`); the old name is refused with a hint.
 - Tests for the `ScreenParams` merge rules and the `/bhfx test` selector parsing (`SelectorSpec`, pulled out of

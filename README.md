@@ -66,7 +66,7 @@ Spell effects (`bhspells:annihilation_charge`, `bhspells:heavenly_combo`, ...) b
 ## Config
 
 - `config/bhfx-client.toml`
-  - quality: `quality` (OFF/LOW/MEDIUM/HIGH; LOW has no bloom), `maxFxMegapixels`, `gpuBudgetMs` (default 6), `autoDowngrade`, `bloom`, `warmup`
+  - quality: `quality` (OFF/LOW/MEDIUM/HIGH; LOW has no bloom; default MEDIUM), `maxFxMegapixels` (default 1.6), `gpuBudgetMs` (default 4), `autoDowngrade`, `bloom`, `warmup`
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
   - camera: `control` (NONE / **SUBTLE**: whether your own spells may punch your FOV), `fromOthers` (**false**: other players' spells never touch your camera), `fovScale`

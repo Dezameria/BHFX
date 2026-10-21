@@ -416,8 +416,8 @@ public final class BHFxClient {
 | `quality` | `HIGH` | `OFF` / `LOW` / `MEDIUM` / `HIGH` → controls the resolution budget and bloom. `OFF` = no Fx created and GL never touched (cost ≈ 0, you can still join servers) |
 | `autoDowngrade` | `true` | Lower quality automatically when the GPU budget is exceeded for a while (section 11.3) |
 | `maxActiveFx` / `maxPassesPerFrame` | `32` / `8` | Client-side limits |
-| `gpuBudgetMs` | `6.0` | Target GPU time for FX per frame (the original used 16, which is too high) |
-| `maxFxMegapixels` | `2.3` | Pass resolution cap |
+| `gpuBudgetMs` | `4.0` (was `6.0` until 2026-10-22) | Target GPU time for FX per frame (the original used 16, which is too high) |
+| `maxFxMegapixels` | `1.6` (was `2.3` until 2026-10-22) | Pass resolution cap |
 | `bloom` | `true` | |
 | `flashScale` | `1.0` | 0 = no flashes (for players sensitive to flashing light) |
 | `impactFrames` | `true` | |

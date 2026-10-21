@@ -11,6 +11,10 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-22 — Default settings = Medium preset
+- bhfx: `BHFxConfig` defaults `quality` HIGH → MEDIUM, `gpuBudgetMs` 6 → 4, `maxFxMegapixels` 2.3 → 1.6; `BHFxSettingsScreen` comment, README, CHANGELOG, `API_PLAN.md` config table, `decisions.md`.
+- result: `gradlew build` passed. Existing toml files (e.g. the Mingyue Eclipse one) keep their values, so in-game behaviour only changes on a fresh config. Not tested with a fresh config.
+
 ## 2026-10-22 — In-game settings screen
 - bhfx: new `impl/client/BHFxSettingsScreen` registered as the Forge config screen in `ClientBootstrap` (Mods → bhfx → Config). Presets Low/Medium/High/Max set quality + `gpuBudgetMs` + `maxFxMegapixels`; also quality, bloom, budget slider (1–16 ms), resolution cap slider (0.3–8.3 MP, shows the effect size for the current window), auto-lower, offWithShaderpack, shake, flashes, camera control, impact frames. Live line at the bottom (fx count, effect size, GPU ms).
 - `ClientFxManager.settingsChanged()` drops a session auto-downgrade and the resolution history on every change; `liveLine()` for the screen. `PostRenderer.effectSize()`.

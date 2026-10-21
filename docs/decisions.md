@@ -3,8 +3,12 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-10-22 — Default preset is Medium
+- **Decision**: the config defaults are the Medium preset: `quality = MEDIUM`, `gpuBudgetMs = 4.0`, `maxFxMegapixels = 1.6`. High (6 ms, 2.3 MP) is one click away in the settings screen.
+- **Reason**: on the user's machine two effects at once cost 5.6–5.9 ms GPU on HIGH (fps 117 → 106) and under 1.4 ms on LOW; a mid-range GPU should not start at the 6 ms ceiling. Existing `bhfx-client.toml` files keep their values; only new installs get the new defaults.
+
 ## 2026-10-22 — Own settings screen, presets
-- **Decision**: bhfx ships its own small config screen instead of depending on Cloth Config / Configured. Presets: Low = LOW, 2 ms, 1.0 MP; Medium = MEDIUM, 4 ms, 1.6 MP; High = HIGH, 6 ms, 2.3 MP (the defaults); Max = HIGH, 10 ms, 8.3 MP. Any change clears the session auto-downgrade.
+- **Decision**: bhfx ships its own small config screen instead of depending on Cloth Config / Configured. Presets: Low = LOW, 2 ms, 1.0 MP; Medium = MEDIUM, 4 ms, 1.6 MP; High = HIGH, 6 ms, 2.3 MP (the defaults until replaced the same day, see "Default preset is Medium"); Max = HIGH, 10 ms, 8.3 MP. Any change clears the session auto-downgrade.
 - **Reason**: no extra required mod for players; the 2026-10-22 modpack run showed 2 effects at 5.9 ms GPU, so players on weaker GPUs need an easy way to lower the budget without editing the toml.
 
 ## 2026-10-17 — Notes are written in English

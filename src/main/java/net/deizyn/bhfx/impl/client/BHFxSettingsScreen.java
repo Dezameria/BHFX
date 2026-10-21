@@ -19,7 +19,7 @@ import java.util.function.DoubleFunction;
  * cast with the screen closed and come back. Saved to disk when the screen closes.
  */
 public final class BHFxSettingsScreen extends Screen {
-    /** One click sets quality, GPU budget and resolution cap together. HIGH matches the config defaults. */
+    /** One click sets quality, GPU budget and resolution cap together. MEDIUM matches the config defaults. */
     private enum Preset {
         LOW("Low", Quality.LOW, 2.0, 1.0),
         MEDIUM("Medium", Quality.MEDIUM, 4.0, 1.6),

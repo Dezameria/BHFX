@@ -66,11 +66,11 @@ public final class BHFxConfig {
         ForgeConfigSpec.Builder c = new ForgeConfigSpec.Builder();
         c.push("quality");
         QUALITY = c.comment("OFF = no effects and no GPU work at all (packets are dropped). LOW (no bloom) / MEDIUM / HIGH scale the effect resolution.")
-                .defineEnum("quality", Quality.HIGH);
+                .defineEnum("quality", Quality.MEDIUM);
         MAX_FX_MEGAPIXELS = c.comment("Resolution cap for effect passes, in megapixels. Larger screens render effects below native resolution.")
-                .defineInRange("maxFxMegapixels", 2.3, 0.3, 16.0);
+                .defineInRange("maxFxMegapixels", 1.6, 0.3, 16.0);
         GPU_BUDGET_MS = c.comment("GPU time effects may use per frame. Effect resolution drops (down to a quarter of the pixels) to stay under it.")
-                .defineInRange("gpuBudgetMs", 6.0, 1.0, 33.0);
+                .defineInRange("gpuBudgetMs", 4.0, 1.0, 33.0);
         AUTO_DOWNGRADE = c.comment("If effects stay over budget for 5 s even at the lowest resolution, lower the quality for this session.")
                 .define("autoDowngrade", true);
         BLOOM = c.comment("Glow around bright spell light.")
