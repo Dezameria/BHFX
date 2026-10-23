@@ -4,12 +4,12 @@ A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
 - Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md); changes per version: [`CHANGELOG.md`](CHANGELOG.md)
-- Version: **0.3.4** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
+- Version: **0.3.5** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
 
 ```bash
-./gradlew.bat build                 # jar at build/libs/bhfx-0.3.4.jar, also copied to ../BHSpells/libs
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.5.jar, also copied to ../BHSpells/libs
 ./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
 ./gradlew.bat runClient             # testing
 ./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
@@ -18,8 +18,8 @@ It is an **extra layer**: mods that use it keep their main visuals from Effeksee
 On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.3.4")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.4")   // dev only, to run them together
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.5")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.5")   // dev only, to run them together
 }
 ```
 
@@ -70,7 +70,8 @@ Spell effects (`bhspells:annihilation_charge`, `bhspells:heavenly_combo`, ...) b
   - limits: `maxActiveFx`, `maxPassesPerFrame`, `cullDistance`
   - comfort: `flashScale`, `shakeScale`, `impactFrames`
   - camera: `control` (NONE / **SUBTLE**: whether your own spells may punch your FOV), `fromOthers` (**false**: other players' spells never touch your camera), `fovScale`
-  - compat: `offWithShaderpack` (default true: turn post-processing off while an Iris/Oculus shader pack is on)
+  - mirror: `distance` (16 blocks), `maxPlanes` (6 flat mirror surfaces per frame; 0 = no reflections), `playerRange` (16 blocks), `maxReflections` (6 player drawings per frame over all mirrors); also in Mods > bhfx > Config > Mirror...
+  - compat: `offWithShaderpack` (default false since 0.3.5; true = turn post-processing off while an Iris/Oculus shader pack is on)
 - `config/bhfx-server.toml`: `enabled` (false = send no effects; mods that use bhfx fall back to their own visuals), `maxRange`, `maxStartsPerTick` (64), `maxActivePerCaster` (16)
 
 ## Lag protection in place

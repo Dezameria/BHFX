@@ -3,6 +3,41 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-10-24 — Mirror defaults: distance 16, maxPlanes 6; own settings page
+- **Decision** (the user's request): `mirror.distance` 32 → 16 and `mirror.maxPlanes` 4 → 6; the four mirror values get their own page, `MirrorSettingsScreen`, opened by "Mirror..." on the bhfx settings screen. `ClientConfigMigration` step 3 moves each value once if it is still the old default.
+- **Reason**: a closed mirror room shows up to five surfaces facing the camera; with 4 the farthest one (the far wall) was dropped. The planes are ordered nearest first, so the cut fell on the wall straight ahead.
+
+## 2026-10-24 — Mirror reflects on all six faces; built for large mazes
+- **Decision** (the user's request): no facing; every face reflects except one touching another mirror. Tracking is per face in section-indexed clusters with merged rectangles; reflections are capped per frame by surfaces (`maxPlanes`) and by player drawings (`maxReflections`).
+- **Reason**: a mirror maze needs both sides of every wall. The per-frame cost must not grow with the number of mirrors in the world: only sections near the camera are visited, and drawing cost follows rectangles, not blocks. The draw budget bounds the expensive part (each player drawing, worse with Figura).
+- Replaces the "full block facing the placer" part of the entries below.
+
+## 2026-10-23 — `offWithShaderpack` defaults to false
+- **Decision** (the user's request): the default is false, and `ClientConfigMigration` step 2 (`CURRENT = 2`) sets an existing `true` to false once.
+- **Reason**: the user runs packs and has had post forced on since 2026-10-17 with effects visible (see [`testing.md`](testing.md)). Unlike step 1 there is no way to tell the old default from a hand-picked `true`, so step 2 moves every `true` once; a player who wants it back turns it on again and it stays.
+
+## 2026-10-23 — Mirrors under a shader pack: reflect before the level, show as an entity surface
+- **Decision**: while an Iris/Oculus pack is active the reflection is drawn from the camera-angles event (before the level render) and put on the mirrors with a vanilla entity render type textured with it, instead of switching mirrors off.
+- **Reason**: during the level render the pack swaps every vanilla program for its own and binds its own buffers, so neither an offscreen draw nor our composite shader works there. Before the level render vanilla programs still apply, and an entity render type is something every pack already handles. Costs: the reflection is unlit by the pack's own light model (it carries vanilla lighting, then the pack shades the mirror surface); a strip crossing the camera plane is skipped.
+- Replaces "Off while an Iris/Oculus shader pack is active" in the entries below.
+
+## 2026-10-23 — Mirror pass runs before the entity pass and reuses Figura's render scripts
+- **Decision**: reflections are drawn offscreen at `AFTER_SOLID_BLOCKS` and put on the mirrors at `AFTER_BLOCK_ENTITIES`. For Figura avatars the mirror pass uses Figura's own throttle switch (`renderScriptsSkipped`) so it reuses the last part state instead of running scripts, and overrides view culling (`culled`). Both by reflection; missing fields are skipped.
+- **Reason**: the same idea the BeeHouse Figura build uses to share scripts between passes; scripts run once per frame (cheaper, physics stay stable) and the reflection lags one frame at most. Drawing before the entity pass keeps the real render as the last writer of the part matrices that scripts read.
+
+## 2026-10-23 — Mirror reflection drawn offscreen, not with the stencil buffer
+- **Decision**: the reflected players go into a bhfx-owned screen-sized `TextureTarget`, then a core shader copies it onto the mirror faces under the main depth test. Replaces the stencil + `glDepthRange` approach in the two entries below.
+- **Reason**: the stencil buffer is not reliably there (other mods, drivers), and without it the old approach leaked through the world (see [`bugs.md`](bugs.md)). The offscreen way never writes the world's depth, so the worst failure is a wrong reflection, not a hole in the world. Cost: one RGBA+depth target at screen size while mirrors are loaded.
+
+## 2026-10-23 — Mirror: full block, players only, line-of-sight per player
+- **Decision** (the user's request): the mirror is a full solid block facing its placer; it reflects players only (mobs and things like spell cloud entities were noise); a player shows only if the path from the mirror point to them is clear of blocks (visual shapes, so glass does not block). Checked per player with 3 sample points, not per pixel. Mirrors are tracked in 16x16-tile clusters per plane for many-mirror builds; reach and plane count are client config.
+- **Reason**: per-pixel occlusion would need the world rendered from the mirrored view, which the entity-only design avoids on purpose. Per-player rays cost at most planes × nearby players × 3 clips per tick.
+- Refines the entry below (block shape and "entities" → "players").
+
+## 2026-10-23 — bhfx ships a Mirror block; it reflects entities only
+- **Decision** (the user's choices): the mirror block, item and block entity live in bhfx itself (`impl/block/`), not in BHSpells. The reflection draws only entities, mirrored across the plate's plane and clipped with the stencil buffer; the block texture is the backdrop. The stencil buffer is enabled on the main target only once a mirror loads. Off while an Iris/Oculus pack is active.
+- **Reason**: entity-only is cheap (no second world render) and does not fight Embeddium's terrain renderer; a full world reflection was judged too heavy. Consequence: bhfx is no longer content-free — removing bhfx from a world that has mirrors deletes them (Forge missing-registry warning), which weakens "bhfx must stay removable" (API_PLAN section 0) for worlds that use mirrors. bhfx was already required on both sides (network protocol), so joining servers is unchanged.
+
 ## 2026-10-22 — Migrate old-default config files to Medium once
 - **Decision**: `ClientConfigMigration` runs on `ModConfigEvent.Loading` of the client config. If `settingsVersion` < 1 and the file still has exactly the pre-0.3.3 defaults (HIGH, 2.3 MP, 6 ms), it sets the Medium preset; then it sets `settingsVersion = 1` and saves. Later default changes add a step and raise `ClientConfigMigration.CURRENT`.
 - **Reason**: Forge never rewrites values already in a file, so without this the Medium default only reached new installs. Matching the exact old defaults leaves every hand-made choice alone, and the version key makes it run once, so a player who picks High again keeps it.

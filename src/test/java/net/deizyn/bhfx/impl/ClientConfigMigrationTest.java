@@ -25,5 +25,9 @@ class ClientConfigMigrationTest {
         assertEquals(1.6, BHFxConfig.MAX_FX_MEGAPIXELS.getDefault());
         assertEquals(4.0, BHFxConfig.GPU_BUDGET_MS.getDefault());
         assertEquals(0, BHFxConfig.SETTINGS_VERSION.getDefault());
+        assertFalse(BHFxConfig.OFF_WITH_SHADERPACK.getDefault());
+        assertEquals(16, BHFxConfig.MIRROR_DISTANCE.getDefault());
+        assertEquals(6, BHFxConfig.MIRROR_MAX_PLANES.getDefault());
+        assertEquals(3, ClientConfigMigration.CURRENT);
     }
 }

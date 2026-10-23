@@ -5,7 +5,7 @@ Effect design techniques and the in-browser preview tools are in `../BHSpells/do
 
 ## `checkShaders` (checked at build time)
 
-File: `gradle/glsl-check.gradle`. **It is identical in bhfx and BHSpells**, so a change in one must be copied to the other.
+File: `gradle/glsl-check.gradle`. **It is identical in bhfx and BHSpells**, so a change in one must be copied to the other. (2026-10-24: BHSpells at `3770530` has neither the file nor the `checkShaders` task; until it is restored, check a BHSpells shader by copying it into bhfx's `shaders/bhfx/` and running bhfx's `checkShaders`, then removing the copy.)
 It is wired into `check` → `build`, so it runs on every `gradlew build`. Run it alone with `gradlew checkShaders`.
 
 Steps:

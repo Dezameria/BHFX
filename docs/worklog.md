@@ -11,6 +11,71 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-24 — Version 0.3.5
+- bhfx: `mod_version` 0.3.4 → 0.3.5 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.5 (mirror block, `offWithShaderpack` default, mirror settings); README version lines.
+- BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.5`; `libs/` now holds `bhfx-0.3.5.jar` (copy task). Its accepted range `[0.3.2,0.4)` already covers it.
+- Mingyue Eclipse Production Client 0.1.3 `mods/`: `bhfx-0.3.4.jar` → `bhfx-0.3.5.jar` (old jar backed up in the session scratchpad).
+- result: bhfx `gradlew build` passed (tests + `checkShaders`); BHSpells `compileJava` passed; not launched in the modpack with 0.3.5. Nothing committed.
+
+## 2026-10-24 — Mirror settings page; defaults distance 16, maxPlanes 6
+- bhfx: `MirrorSettingsScreen` (new), "Mirror..." button in `BHFxSettingsScreen`, `BHFxConfig` defaults, `ClientConfigMigration` step 3 (`CURRENT = 3`), `ClientConfigMigrationTest`, `README.md`, `CHANGELOG.md`.
+- why: in a mirror room (floor, ceiling, both walls, far wall) the far wall showed nothing; 5 surfaces in view, `maxPlanes` was 4.
+- result: `build` (with tests) passed; jar copied to the Mingyue Eclipse Production Client 0.1.3 instance; not tested in game.
+- next: the cap still counts surfaces with nobody reflected in them; counting only surfaces that draw a player would waste fewer slots.
+
+## 2026-10-24 — Mirror: hidden surfaces no longer wipe the reflection in front
+- bhfx: `shaders/core/mirror_area.{fsh,json}` (new), `MirrorRenderer.setArea`/`drawReflections`/`drawFaceDepth` (new), `ClientBootstrap.registerShaders` — surface areas in the reflection target are opened/closed only where no nearer mirror face hides them (see `bugs.md` 2026-10-24). First version used the main depth; the user's in-game screenshot with a shader pack still showed the cut, so it now uses its own depth pass of the faces.
+- result: `build` passed; `mirror_area.fsh` passed glslang by hand (core shaders are not in `checkShaders`); jar copied to the Mingyue Eclipse Production Client 0.1.3 instance; not yet re-tested in game.
+- next: in-game check with and without a shader pack (mirror floor + mirror wall, stacked walls, stepping back).
+
+## 2026-10-24 — BHSpells: `bhspells:purple_flame` effect
+- BHSpells: new `PurpleFlameFx` + `shaders/bhfx/purple_flame.fsh` (one flame from `flame_field`'s `flameShape` on a single camera-facing sheet; cyan tips → violet body → magenta-pink root by heat; halo, floor pool, 18 embers; bloom only), `BhfxIds.PURPLE_FLAME` / `COLOR3`, registered in `BhfxClientBridge`; `docs/bhfx/reusable_effects.md`.
+- result: `compileJava` passed. Shader checked with glslang 16.6 through bhfx's `checkShaders` (file copied in temporarily, removed after). Not seen in game.
+- Same day: ember count is a param, `density` 0..1 → 0..64 embers (`MAX_EMBERS` in the shader, passed as `FlameB.z`), default 0.3 ≈ 19. `compileJava` + glslang passed again.
+- Found: BHSpells no longer has `gradle/glsl-check.gradle` / `checkShaders` (gone since at least `3770530`), see [`shaders.md`](shaders.md).
+
+## 2026-10-24 — Mirror: six faces, built for 20k-block mazes
+- Reported (user): many mirrors (aiming at a ~20,000-block mirror maze) drop the frame rate a lot; asked for all six faces to reflect.
+- bhfx: `MirrorBlock` is a plain full block now (no `FACING`; `cube_all` with `mirror_front`; `mirror_side.png` removed). `MirrorTracker` rewritten: set of mirror positions; a face exists unless the neighbour that way is a mirror (add/remove hide and restore touching faces); clusters indexed by chunk section (`forEachNear`); each cluster greedily merges its faces into rectangles (`rects()`), bounds and rects rebuilt lazily. `MirrorRenderer`: `collect` only visits sections around the camera; quads drawn per rectangle (one quad for a whole wall tile instead of one per block); pack composite reuses `Vector4f`s and splits rectangles into 0.5-block cells; per-frame player-draw budget `mirror.maxReflections` (default 6, `BHFxConfig`); fallback visibility ray only within 1 block of the mirror. `MirrorTrackerTest` rewritten (8 tests).
+- Measured (JUnit, throwaway bench, removed): 20,001-block maze, 1,563 clusters; adding all = 538 ms cold / 17 ms warm; finding the clusters within 32 blocks of the camera (608) = 0.006–0.03 ms per frame. Not measured in game (GPU side, Figura avatars).
+- result: `gradlew build` passed. Not tested in game.
+- Old worlds: mirror states placed before this lose their `facing` property (dev-only so far).
+
+## 2026-10-23 — `offWithShaderpack` default false
+- bhfx: `BHFxConfig` default false; `ClientConfigMigration` step 2 (`CURRENT` 1 → 2) moves an existing `true`; `ClientConfigMigrationTest` checks the default and `CURRENT`; README, CHANGELOG.
+- result: `gradlew build` passed (`ClientConfigMigrationTest` 2/2). Migration not tested in game.
+
+## 2026-10-23 — Mirror works with shader packs
+- Reported (user): with a shader pack on, mirrors showed nothing (they were switched off on purpose while a pack is active).
+- bhfx: with a pack active, `MirrorRenderer.drawReflectionsBeforeLevel` draws the reflection from `ViewportEvent.ComputeCameraAngles` (new `ClientEvents.onCameraAnglesFinal`, priority LOWEST), where the camera is set but Iris has not begun the level, so vanilla shaders still draw into our target; view rotation rebuilt from the final roll/pitch/yaw like `GameRenderer.renderLevel`, own `Frustum`. Step 2 (`compositeForPack`) draws the mirror faces through `RenderType.entityCutoutNoCull(bhfx:mirror_reflection)` (a `ReflectionTexture` that hands out the target's colour id), UV = vertex screen position under the drawn matrices, faces split 4x4, full-bright light, so the pack shades them like an entity. Without a pack nothing changed.
+- result: `gradlew build` passed. Not tested in game (with or without a pack).
+
+## 2026-10-23 — Mirror: reflect before the entity pass, Figura support, looser visibility
+- Reported (user, in game): in F5 the mirror in front sometimes showed nothing, the floor mirror under your feet showed nothing, and Figura hair physics in the mirror were slightly off. Causes and fixes in [`bugs.md`](bugs.md).
+- bhfx: `MirrorRenderer` split into `drawReflections` (`AFTER_SOLID_BLOCKS`, before entities: per surface, farthest first, open its screen area in our target with depth 1 + colour clear, draw players, close with depth 0; calls `Lighting.setupLevel` itself) and `composite` (`AFTER_BLOCK_ENTITIES`, one draw for all surfaces). Visibility: front-side test on the box centre; 8 sample points; fallback ray from the mirror point nearest the middle sample. New `FiguraMirror` (reflection): for the mirror pass sets `Avatar.culled = false` and `Avatar.renderScriptsSkipped = true`, then restores them.
+- Figura source checked: `figura-0.1.6-bhbuild.32+1.20.1-forge-mc.jar` (Mingyue Eclipse 0.1.3). It throttles render scripts with `renderScriptsSkipped` (`AvatarCulling.throttleRenderScripts`; skips RENDER/POST_RENDER and part scripts when `renderMode == RENDER`), shares shadow-pass scripts per `levelFrame`, and culls avatars outside the camera frustum (`AVATAR_VIEW_CULLING` → `culled`, and `getAvatarForRender` returns null).
+- result: `gradlew build` passed. Not tested in game.
+
+## 2026-10-23 — Carpet: NeoForged as a dev dependency
+- bhfx: `build.gradle` adds the Modrinth maven (only group `maven.modrinth`) and `implementation fg.deobf("maven.modrinth:XqqOkvZz:XMYeNIOx")` (Carpet: NeoForged 1.0.8, Forge 1.20.1), at the user's request. It is on the compile and dev-run classpath only; `mods.toml` does not declare it, so players don't need it.
+- result: `gradlew build` passed (the dependency resolved).
+
+## 2026-10-23 — Mirror: offscreen reflection instead of stencil
+- Symptom (user screenshot, floor mirror in rain): the reflected player was drawn far outside the mirror and the area showed clouds, caves and mob items through the ground. See [`bugs.md`](bugs.md).
+- bhfx: `MirrorRenderer` no longer uses the stencil buffer or `glDepthRange`. Per plane it clears a screen-sized `TextureTarget` (transparent), draws the mirrored players into it, binds the main target and draws the mirror faces with the new core shader `bhfx:mirror_composite` (`assets/bhfx/shaders/core/`, registered in `ClientBootstrap` via `RegisterShadersEvent`), which samples the target at `gl_FragCoord / ScreenSize` and discards empty pixels; main depth test `LEQUAL`, no depth writes. `tick()` frees the target when no mirror is loaded; `enableStencil()` removed.
+- result: `gradlew build` passed; both new shaders pass glslang 16.6 by hand (`-S vert` / `-S frag`; `checkShaders` only covers `shaders/bhfx/`). Not tested in game.
+
+## 2026-10-23 — Mirror: full block, players only, wall check, clusters
+- bhfx: `MirrorBlock` is now a full solid cube (`minecraft:block/cube` model, front on `up` rotated by `FACING`), facing the placer (`getNearestLookingDirection().getOpposite()`); recipe 8 nuggets + glass → 1. `MirrorTracker` keeps mirrors in clusters (facing, layer, 16x16 tile) with bounds; `MirrorBlockEntity.setBlockState` re-files rotated mirrors. `MirrorRenderer` culls by cluster (distance to bounds, back side, frustum), merges visible clusters of one plane, draws only `level.players()` (no spectators), skips a plane with no visible player, and checks line of sight per player (eyes/middle/feet: camera ray → mirror point must be on this plane, then `ClipContext.Block.VISUAL` clip to the player), cached per game tick. Glass sheen dropped. New client config `mirror.distance/maxPlanes/playerRange` (`BHFxConfig`); README config list. New `MirrorTrackerTest` (5 tests).
+- Figura: checked the Figura 0.1.5 forge jar; it hooks `LivingEntityRenderer`/`PlayerRenderer`/`EntityRenderDispatcher.render`, which is what the mirror calls, so avatars should render without extra code. Not seen in game.
+- result: `gradlew build` passed (all tests incl. `MirrorTrackerTest`). Not tested in game.
+- next: in-game checklist in [`testing.md`](testing.md).
+
+## 2026-10-23 — Mirror block (entity-only reflection)
+- bhfx: new `impl/block/` (`BHFxBlocks` registers block, item, block entity and the Functional Blocks tab entry; `MirrorBlock` 2 px plate with `FACING` = clicked face; `MirrorBlockEntity` only feeds `MirrorTracker` on the client); `impl/client/MirrorRenderer` (stencil clip + mirrored entity draw at `AFTER_BLOCK_ENTITIES`; asks for the stencil buffer from the client tick); hooks in `BHFxMod` and `ClientEvents`; assets (blockstate, models, two generated 16x16 textures, `en_us`), loot table, recipe; CHANGELOG "Unreleased".
+- result: `gradlew build` passed (tests + `checkShaders`). Not tested in game. The build copied the new jar over `BHSpells/libs/bhfx-0.3.4.jar` (same version number as the release).
+- next: in-game checklist in [`testing.md`](testing.md); version bump before shipping (see [`roadmap.md`](roadmap.md)).
+
 ## 2026-10-22 — Release 0.3.4
 - bhfx: `mod_version` 0.3.3 → 0.3.4 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.4 (config migration to Medium, slider rounding fix); README version lines.
 - BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.4`; `libs/` now holds `bhfx-0.3.4.jar` (copy task).

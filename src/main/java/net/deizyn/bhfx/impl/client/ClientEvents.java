@@ -17,11 +17,16 @@ import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.block.MirrorTracker;
 
-/** Forge-bus hooks. bhfx needs no mixins: it renders at {@code AFTER_LEVEL}, after the world and before the hand. */
+/**
+ * Forge-bus hooks. bhfx needs no mixins: it renders at {@code AFTER_LEVEL}, after the world and before the hand, and
+ * draws mirror reflections at {@code AFTER_SOLID_BLOCKS} (offscreen) and {@code AFTER_BLOCK_ENTITIES} (onto the mirrors).
+ */
 public final class ClientEvents {
     private ClientEvents() {
     }
@@ -30,6 +35,7 @@ public final class ClientEvents {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             ClientFxManager.tick(Minecraft.getInstance());
+            MirrorRenderer.tick();
         }
     }
 
@@ -39,6 +45,12 @@ public final class ClientEvents {
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY || stage == RenderLevelStageEvent.Stage.AFTER_SOLID_BLOCKS) {
             // these stages carry the camera-rotation pose stack (AFTER_LEVEL carries the projection stack instead)
             ClientFxManager.captureMatrices(event.getPoseStack().last().pose(), event.getProjectionMatrix());
+            if (stage == RenderLevelStageEvent.Stage.AFTER_SOLID_BLOCKS) {
+                MirrorRenderer.drawReflectionsInLevel(event.getPoseStack(), event.getCamera(), event.getFrustum(),
+                        event.getPartialTick());
+            }
+        } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
+            MirrorRenderer.composite(event.getPoseStack(), event.getCamera());
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             ClientFxManager.render(event.getCamera(), event.getPartialTick());
         }
@@ -54,6 +66,12 @@ public final class ClientEvents {
         event.setYaw(event.getYaw() + CameraNoise.sample(t * 11.0, 0.0) * 2.5f * amount);
         event.setPitch(event.getPitch() + CameraNoise.sample(t * 11.0, 37.0) * 2.0f * amount);
         event.setRoll(event.getRoll() + CameraNoise.sample(t * 7.0, 91.0) * 2.8f * amount);
+    }
+
+    /** Last, so the angles are final: with a shader pack the mirror reflections are drawn here (see MirrorRenderer). */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onCameraAnglesFinal(ViewportEvent.ComputeCameraAngles event) {
+        MirrorRenderer.drawReflectionsBeforeLevel(event);
     }
 
     @SubscribeEvent
@@ -81,6 +99,7 @@ public final class ClientEvents {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientFxManager.clear();
         ClientFxCommands.clear();
+        MirrorTracker.clear();
     }
 
     @SubscribeEvent

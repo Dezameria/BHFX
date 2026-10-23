@@ -8,6 +8,21 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Fixed
 
+### 2026-10-24 — Mirror behind another mirror wiped its reflection; lower part cut at the floor's horizon (fixed in code, not tested in game)
+- Symptom: with a mirror floor and a mirror wall standing on it, the wall's reflection was missing below a line that matched the floor's horizon; mirrors behind other mirrors broke up the same way.
+- Cause: `MirrorRenderer.setArea` opened each surface's screen area with `GL_ALWAYS` and no test against the world, and the floor (nearest, so drawn last) also covered the screen where its faces lie *behind* the wall, clearing the wall's reflection there. The composite then sampled the empty pixels.
+- Fix: `MirrorRenderer.drawFaceDepth` draws a depth pass of this frame's reflecting faces into its own target (`faces`); the new core shader `mirror_area` opens/closes each surface's area only where no nearer mirror face hides it. Works on both paths: the first try (same day) tested against the main depth instead, which the shader-pack path cannot use (the user's screenshot with Complementary still showed the cut).
+
+### 2026-10-23 — Mirror missed players in F5 / under your feet; Figura physics off in the mirror (fixed in code, not tested in game)
+- Symptom: a floor mirror never showed the player standing on it; in F5 the mirror in front sometimes showed nothing; Figura fine parts (hair physics) were in slightly wrong places in the reflection.
+- Cause: (1) the front-side test used the feet, which lie exactly on a floor mirror's plane. (2) Only 3 points (eyes, middle, feet) were tried and each had to land on the mirror, so a player whose reflection only partly overlapped a small mirror was dropped. (3) The BeeHouse Figura build culls avatars outside the camera frustum (`Avatar.culled`), so a player behind the camera had no avatar in the mirror. (4) The mirror pass ran after the entity pass and re-ran render scripts, so physics scripts stepped twice and read part matrices written by the mirrored render.
+- Fix: box-centre side test; 8 sample points plus a fallback ray; `FiguraMirror` clears `culled` and sets `renderScriptsSkipped` for the mirror pass; reflections are drawn at `AFTER_SOLID_BLOCKS`, before the entity pass, so the real render writes the part matrices last.
+
+### 2026-10-23 — Mirror reflection leaked out of the mirror (fixed in code, not tested in game)
+- Symptom: on a floor mirror the reflected player showed outside the mirror face, and clouds, caves and mob items showed through the area.
+- Cause: the first renderer clipped with the stencil buffer (`RenderTarget.enableStencil()`) and pushed depth to the far plane with `glDepthRange(1,1)`. On the user's setup the main target had no working stencil, and with no stencil buffer GL treats the stencil test as always passing, so nothing was clipped and the far-depth write opened a hole in the world's depth.
+- Fix: draw the reflection into its own `TextureTarget` and copy it onto the depth-tested mirror faces with `mirror_composite`; the world's depth/stencil are never written. Known edge: with Fabulous graphics, translucent held block items use `ITEM_ENTITY_TARGET` and may draw into the item-entity target instead of the reflection.
+
 ### 2026-10-22 — Settings sliders wrote float noise to the toml (fixed in code, not tested in game)
 - **Symptom**: after moving the Shake slider, `bhfx-client.toml` held `shakeScale = 0.30000000000000004`.
 - **Cause**: `BHFxSettingsScreen.Slider.current()` snapped with `Math.round(v / step) * step`, which is not exact in binary floating point.

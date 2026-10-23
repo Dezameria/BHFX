@@ -62,6 +62,24 @@
 - ✅ 2026-10-22 bhfx `runClient`: an old-default `bhfx-client.toml` moved to Medium once (`settingsVersion = 1`, log line printed).
 - ⏳ Second launch keeps the values (no second migration); a file with hand-made values (e.g. HIGH + 8 ms) is left alone in game; `BHSpells/run` and `run-client2` move on their next launch.
 
+- ⏳ 2026-10-23 Mirror block (build + `MirrorTrackerTest` only, not tested in game):
+  - [ ] All six faces reflect (walls on both sides, floor, ceiling); faces between two mirrors don't; your reflection is the right way round and moves with you in 1st and 3rd person.
+  - [ ] Maze of ~20,000 mirrors: frame time with and without players in view; chunk loading has no long hitch; `maxPlanes` / `maxReflections` / `distance` change the cost.
+  - [ ] Only players show (no mobs, items, spell cloud entities); spectators don't show.
+  - [ ] Wall check: another player behind a wall behind you is not reflected; behind glass they are; walking out from behind the wall makes them appear within a tick.
+  - [ ] A big mirror wall (e.g. 20x10) shows one continuous image; F3 frame time stays flat with no player in front; `maxPlanes`/`distance` changes apply.
+  - [ ] Lighting/culling of reflected models looks right (no inside-out faces); other players' name tags (expected: mirrored text).
+  - [ ] Figura avatar shows in the mirror (incl. custom parts and emissives), also for a player behind the camera; hair/physics parts sit right and don't jitter; the log says "Figura found; mirror overrides view culling, reuses render scripts" with the BeeHouse build. Epic Fight player model.
+  - [ ] F5 (both views): mirror in front always shows you; floor mirror under your feet shows you; a small mirror shows a player whose arm only just reaches it.
+  - [ ] Translucent things in front (water, stained glass, particles) still sort correctly.
+  - [ ] Closed mirror room (floor, ceiling, walls): every surface in view reflects with the default `maxPlanes` 6; Config > Mirror... sliders change distance/surfaces/players live and are saved; an old file with 32 / 4 moves to 16 / 6 once (log has no error).
+  - [ ] Mirror floor + mirror wall on it, and walls behind walls: the front reflection is whole, no cut along the floor's horizon, also when stepping back; with and without a shader pack (2026-10-24 fix).
+  - [ ] Clipping: the reflection never shows outside the mirror face or through blocks/entities in front of it (the 2026-10-23 leak, see `bugs.md`); window resize keeps it lined up.
+  - [ ] Fabulous graphics: a held translucent block item (stained glass) in the reflection.
+  - [ ] Embeddium; Oculus without a pack; Oculus with packs (Complementary, Photon, BSL): reflection lines up with the mirror while turning and walking, TAA packs don't smear it, no flicker, block texture shows where nobody is reflected; toggling the pack mid-game.
+
+- ⏳ 2026-10-24 `bhspells:purple_flame` (compile + glslang only): `/bhfx test bhspells:purple_flame` — one flame, cyan tips / violet body / pink root, colours blend without bands; floor pool only under it; embers; dies down on `/bhfx stop`; `{radius:..,height:..,color:..}` change it; `{density:0}` no embers, `{density:1}` 64; looks right from above and up close.
+
 ## BHSpells spells that use bhfx
 
 ### Annihilation Arrow (`bhspells:annihilation_charge`)

@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": ["NNN", "NGN", "NNN"],
+  "key": {
+    "N": { "item": "minecraft:iron_nugget" },
+    "G": { "item": "minecraft:glass" }
+  },
+  "result": { "item": "bhfx:mirror", "count": 1 }
+}

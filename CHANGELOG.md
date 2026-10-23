@@ -4,6 +4,17 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.5 — 2026-10-24 (protocol 2)
+- **Changed**: `compat.offWithShaderpack` defaults to false, so post effects stay on with a shader pack. An existing
+  `bhfx-client.toml` that still has `true` moves to `false` once (`ClientConfigMigration` step 2, `settingsVersion` 2);
+  the log says when it happens.
+- **Added**: Mirror block (`bhfx:mirror`, Functional Blocks tab, 8 iron nuggets + 1 glass → 1). A full block that
+  reflects on all six faces (faces touching another mirror don't), built for large mirror mazes; it reflects nearby players (Figura avatars included), not mobs, other entities
+  or blocks. Nobody shows through a wall: a player is reflected only when the way from the mirror to them is clear.
+  New client config section `mirror` (`distance` 16, `maxPlanes` 6, `playerRange`, `maxReflections`), also on its own settings page (Config > Mirror...); files still on the first defaults (32 / 4) move once. Works with Iris/Oculus shader packs
+  (the mirror surface is drawn like an entity there, so the pack shades it). The reflection is drawn into its own screen-sized buffer (freed when no mirror is loaded) and copied onto the
+  visible mirror faces; the world's depth and stencil are not touched.
+
 ## 0.3.4 — 2026-10-22 (protocol 2)
 - **Changed**: an existing `bhfx-client.toml` that still has the old defaults (HIGH, 2.3 MP, 6 ms) moves to the Medium
   preset once, on first launch (`ClientConfigMigration`, new key `settingsVersion`). Files the player changed are left

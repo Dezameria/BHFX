@@ -20,6 +20,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` for local handles.
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
+- [ ] Mirror block (added 2026-10-23, build only): test in game ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## 1.0 plan

@@ -9,7 +9,7 @@ import net.deizyn.bhfx.impl.BHFxConfig.Quality;
  */
 public final class ClientConfigMigration {
     /** Raise when adding a step to {@link #run()}. */
-    static final int CURRENT = 1;
+    static final int CURRENT = 3;
 
     private ClientConfigMigration() {
     }
@@ -28,6 +28,22 @@ public final class ClientConfigMigration {
             BHFxConfig.GPU_BUDGET_MS.set(4.0);
             BHFxMod.LOGGER.info("bhfx: bhfx-client.toml had the old default settings (HIGH, 2.3 MP, 6 ms); "
                     + "moved to the new defaults (MEDIUM, 1.6 MP, 4 ms). Pick High in Mods > bhfx > Config to go back.");
+        }
+        // 2 (0.3.5): offWithShaderpack defaults to false; true was the old default, so a file that still has it moves
+        if (version < 2 && BHFxConfig.OFF_WITH_SHADERPACK.get()) {
+            BHFxConfig.OFF_WITH_SHADERPACK.set(false);
+            BHFxMod.LOGGER.info("bhfx: compat.offWithShaderpack moved to the new default (false): post effects stay on "
+                    + "with a shader pack. Turn \"Off with shader pack\" on in Mods > bhfx > Config to go back.");
+        }
+        // 3 (0.3.5): mirror defaults distance 32 -> 16 and maxPlanes 4 -> 6 (a closed mirror room shows up to five
+        // surfaces at once). Each value moves only if it is still the old default.
+        if (version < 3) {
+            if (BHFxConfig.MIRROR_DISTANCE.get() == 32) {
+                BHFxConfig.MIRROR_DISTANCE.set(16);
+            }
+            if (BHFxConfig.MIRROR_MAX_PLANES.get() == 4) {
+                BHFxConfig.MIRROR_MAX_PLANES.set(6);
+            }
         }
         BHFxConfig.SETTINGS_VERSION.set(CURRENT);
         BHFxConfig.CLIENT_SPEC.save();

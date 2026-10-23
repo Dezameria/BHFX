@@ -1,0 +1,18 @@
+{
+  "blend": {
+    "func": "add",
+    "srcrgb": "one",
+    "dstrgb": "zero"
+  },
+  "vertex": "bhfx:mirror_composite",
+  "fragment": "bhfx:mirror_area",
+  "attributes": ["Position"],
+  "samplers": [{ "name": "Sampler0" }],
+  "uniforms": [
+    { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] },
+    { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] },
+    { "name": "ScreenSize", "type": "float", "count": 2, "values": [1.0, 1.0] },
+    { "name": "DepthRange", "type": "float", "count": 2, "values": [0.05, 1024.0] },
+    { "name": "AreaDepth", "type": "float", "count": 1, "values": [1.0] }
+  ]
+}

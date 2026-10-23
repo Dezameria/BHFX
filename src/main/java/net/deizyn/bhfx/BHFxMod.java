@@ -13,6 +13,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.deizyn.bhfx.impl.BHFxConfig;
 import net.deizyn.bhfx.impl.ClientConfigMigration;
+import net.deizyn.bhfx.impl.block.BHFxBlocks;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.deizyn.bhfx.impl.net.BHFxNetwork;
 import net.deizyn.bhfx.impl.server.ServerFxEvents;
@@ -27,6 +28,7 @@ public final class BHFxMod {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, BHFxConfig.SERVER_SPEC, "bhfx-server.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, BHFxConfig.CLIENT_SPEC, "bhfx-client.toml");
+        BHFxBlocks.register(modBus);
         modBus.addListener(this::commonSetup);
         modBus.addListener(BHFxMod::configLoaded);
         MinecraftForge.EVENT_BUS.register(ServerFxEvents.class);

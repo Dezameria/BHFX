@@ -124,8 +124,12 @@ public final class BHFxSettingsScreen extends Screen {
         addRenderableWidget(toggle(right, y, half, "Impact frames", BHFxConfig.IMPACT_FRAMES,
                 "Anime-style full-screen ink / negative flashes."));
 
+        addRenderableWidget(Button.builder(Component.literal("Mirror..."), b -> minecraft.setScreen(new MirrorSettingsScreen(this)))
+                .bounds(width / 2 - 154, height - 27, 150, 20)
+                .tooltip(Tooltip.create(Component.literal("Reflection distance and how many mirrors and players are drawn.")))
+                .build());
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-                .bounds(width / 2 - 100, height - 27, 200, 20)
+                .bounds(width / 2 + 4, height - 27, 150, 20)
                 .build());
     }
 

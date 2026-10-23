@@ -49,6 +49,10 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.EnumValue<CameraParams.Level> CAMERA_CONTROL;
     public static final ForgeConfigSpec.BooleanValue CAMERA_FROM_OTHERS;
     public static final ForgeConfigSpec.DoubleValue FOV_SCALE;
+    public static final ForgeConfigSpec.IntValue MIRROR_DISTANCE;
+    public static final ForgeConfigSpec.IntValue MIRROR_MAX_PLANES;
+    public static final ForgeConfigSpec.IntValue MIRROR_PLAYER_RANGE;
+    public static final ForgeConfigSpec.IntValue MIRROR_MAX_REFLECTIONS;
 
     static {
         ForgeConfigSpec.Builder s = new ForgeConfigSpec.Builder();
@@ -95,7 +99,7 @@ public final class BHFxConfig {
         c.push("compat");
         OFF_WITH_SHADERPACK = c.comment("Turn post effects off while an Iris/Oculus shader pack is active (camera shake still works).",
                         "Shader packs draw the world into their own buffers, so bhfx's depth would not match what is on screen.")
-                .define("offWithShaderpack", true);
+                .define("offWithShaderpack", false);
         c.pop();
         c.push("limits");
         MAX_ACTIVE_FX = c.comment("Most effects alive at once; the oldest is removed beyond this.")
@@ -104,6 +108,16 @@ public final class BHFxConfig {
                 .defineInRange("maxPassesPerFrame", 8, 1, 32);
         CULL_DISTANCE = c.comment("Effects farther than this from the camera keep ticking but draw nothing.")
                 .defineInRange("cullDistance", 256.0, 16.0, 2048.0);
+        c.pop();
+        c.push("mirror");
+        MIRROR_DISTANCE = c.comment("Mirrors farther than this from the camera show no reflection, in blocks.")
+                .defineInRange("distance", 16, 8, 128);
+        MIRROR_MAX_PLANES = c.comment("Most mirror surfaces drawn per frame (nearest first). Mirrors side by side in one flat wall count as one. 0 turns reflections off.")
+                .defineInRange("maxPlanes", 6, 0, 16);
+        MIRROR_PLAYER_RANGE = c.comment("Players farther than this from a mirror are not reflected in it, in blocks.")
+                .defineInRange("playerRange", 16, 4, 64);
+        MIRROR_MAX_REFLECTIONS = c.comment("Most player drawings in mirrors per frame, over all surfaces (nearest first). Each one costs about as much as drawing that player (Figura avatars more).")
+                .defineInRange("maxReflections", 6, 1, 64);
         c.pop();
         c.push("comfort");
         FLASH_SCALE = c.comment("Multiplier for screen flashes. 0 disables flashes (photosensitivity).")
