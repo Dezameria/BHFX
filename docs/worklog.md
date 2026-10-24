@@ -11,6 +11,18 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-10-24 — Version 0.3.6
+- bhfx: `mod_version` 0.3.5 → 0.3.6 (protocol stays 2) for `BHFxClient.drawingMirrorReflection()`; CHANGELOG, README and `API_PLAN.md` 4.8 say 0.3.6.
+- BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.6`; `libs/` holds `bhfx-0.3.6.jar` (copy task removed 0.3.5). The `[0.3.2,0.4)` range already covers it. BHSpells now needs 0.3.6 at runtime for Mirror Veil's mirror reflection (older bhfx: linkage error is caught and the veil hides everywhere).
+- Modpack `mods/` not updated: still 0.3.5.
+- result: bhfx `gradlew build` passed (tests + `checkShaders`, copy task wrote `bhfx-0.3.6.jar`); BHSpells `gradlew build` passed against it; not tested in game. Nothing committed.
+
+## 2026-10-24 — `BHFxClient.drawingMirrorReflection()` for BHSpells Mirror Veil
+- bhfx: `MirrorRenderer` (flag `drawing` around the player draws in `drawPlayers`), `ClientFxManager`, `api/client/BHFxClient` — new public query, listed in `API_PLAN.md` 4.8 and the 0.3.6 changelog.
+- BHSpells: effect `bhspells:mirror_veil` — not drawn in the world (body, armour, held items, name tag, shadow, hitbox, Epic Fight trails), drawn in mirror reflections. Helper `client/InvisibilityRender`, bridge `BhfxClientCompat.drawingMirrorReflection()`, new `EntityRenderDispatcherMixin` (shadow/hitbox), existing invisibility mixins now go through the helper.
+- result: bhfx `build` and BHSpells `build` passed; not tested in game.
+- next: in-game check in [`testing.md`](testing.md).
+
 ## 2026-10-24 — Version 0.3.5
 - bhfx: `mod_version` 0.3.4 → 0.3.5 (protocol stays 2); CHANGELOG "Unreleased" → 0.3.5 (mirror block, `offWithShaderpack` default, mirror settings); README version lines.
 - BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.5`; `libs/` now holds `bhfx-0.3.5.jar` (copy task). Its accepted range `[0.3.2,0.4)` already covers it.

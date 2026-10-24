@@ -113,8 +113,15 @@ final class MirrorRenderer {
     /** Line-of-sight answers, per surface and player, reused for the rest of the game tick. */
     private static final Map<Long, Map<Integer, Boolean>> SEEN = new HashMap<>();
     private static long seenTick = Long.MIN_VALUE;
+    /** True while {@link #drawPlayers} renders players into the reflection target. */
+    private static boolean drawing;
 
     private MirrorRenderer() {
+    }
+
+    /** Whether the entity renders running now are drawing a mirror reflection, not the real world. */
+    static boolean drawing() {
+        return drawing;
     }
 
     /** Frees the reflection targets once no mirror is loaded. */
@@ -541,6 +548,7 @@ final class MirrorRenderer {
         Runnable restoreFigura = FiguraMirror.begin(plane.players);
         GL11.glFrontFace(GL11.GL_CW);
         dispatcher.setRenderShadow(false);
+        drawing = true;
         try {
             for (Player player : plane.players) {
                 double x = Mth.lerp(partialTick, player.xOld, player.getX()) - cam.x;
@@ -552,6 +560,7 @@ final class MirrorRenderer {
             }
             BUFFERS.endBatch();
         } finally {
+            drawing = false;
             restoreFigura.run();
             dispatcher.setRenderShadow(true);
             GL11.glFrontFace(GL11.GL_CCW);

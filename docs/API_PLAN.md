@@ -406,6 +406,7 @@ public final class BHFxClient {
     public static void shake(Vec3 source, float amount, double range);
     public static FxSettings settings();
     public static boolean postAvailable();
+    public static boolean drawingMirrorReflection();                               // (0.3.6) true inside the mirror's player draws
 }
 ```
 

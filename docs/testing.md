@@ -82,6 +82,9 @@
 
 ## BHSpells spells that use bhfx
 
+### Mirror Veil effect (`bhspells:mirror_veil`, uses `BHFxClient.drawingMirrorReflection()`)
+- ⏳ 2026-10-24 (build only): `/effect give @s bhspells:mirror_veil 120 0 true`, stand in front of a `bhfx:mirror`. In F5 and from a second player: no body, armour, held item, name tag or shadow in the world; the mirror shows the full player. With Epic Fight on: same, and no weapon trails. With Figura: avatar shows in the mirror only. With an Oculus pack: still hidden in the world, shown in the mirror. Effect ends → visible again. `extra_invisibility` unchanged (hidden in mirrors too, shadow still shown).
+
 ### Annihilation Arrow (`bhspells:annihilation_charge`)
 - ✅ 2026-10-17, tested in game by the user: the shader compiles and renders; charge to full (halo) → fire (streak); cancel or die mid-charge; game without bhfx.
 - ✅ 2026-10-17 glslang passed.

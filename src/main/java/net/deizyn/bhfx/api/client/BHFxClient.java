@@ -59,4 +59,12 @@ public final class BHFxClient {
     public static boolean postAvailable() {
         return ClientFxManager.postAvailable();
     }
+
+    /**
+     * True while the entity renders running now draw a player into a mirror reflection rather than into the world. Lets
+     * a renderer hook show or hide someone only in mirrors (e.g. invisible except in a mirror).
+     */
+    public static boolean drawingMirrorReflection() {
+        return ClientFxManager.drawingMirrorReflection();
+    }
 }

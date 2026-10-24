@@ -142,6 +142,10 @@ public final class ClientFxManager {
         return enabled() && (renderer == null || !renderer.disabled()) && !ShaderpackDetector.blocksPost();
     }
 
+    public static boolean drawingMirrorReflection() {
+        return MirrorRenderer.drawing();
+    }
+
     static void setRuntimeOff(boolean off) {
         runtimeOff = off;
         if (off) {

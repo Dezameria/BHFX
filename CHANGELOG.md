@@ -4,6 +4,10 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.6 — 2026-10-24 (protocol 2)
+- **Added**: `BHFxClient.drawingMirrorReflection()`, true while the mirror draws players into its reflection, so a
+  renderer hook can show someone only in mirrors (BHSpells' Mirror Veil effect uses it).
+
 ## 0.3.5 — 2026-10-24 (protocol 2)
 - **Changed**: `compat.offWithShaderpack` defaults to false, so post effects stay on with a shader pack. An existing
   `bhfx-client.toml` that still has `true` moves to `false` once (`ClientConfigMigration` step 2, `settingsVersion` 2);
