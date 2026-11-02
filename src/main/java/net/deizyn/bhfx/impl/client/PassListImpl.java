@@ -1,6 +1,7 @@
 package net.deizyn.bhfx.impl.client;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.api.client.PassList;
 import net.deizyn.bhfx.api.client.PassOptions;
 import net.deizyn.bhfx.api.client.Uniforms;
@@ -12,7 +13,9 @@ import java.util.function.Consumer;
 
 /** Passes collected from every effect in one frame. */
 public final class PassListImpl implements PassList {
-    public record Entry(ResourceLocation shader, int order, int seq, double distance, Consumer<Uniforms> setup) {
+    /** {@code bx, by, bz} = camera-relative centre of the bounds; {@code radius <= 0} = whole screen. */
+    public record Entry(ResourceLocation shader, int order, int seq, double distance, Consumer<Uniforms> setup,
+                        double bx, double by, double bz, double radius) {
     }
 
     private static final Comparator<Entry> DRAW_ORDER = Comparator.comparingInt(Entry::order).thenComparingInt(Entry::seq);
@@ -22,9 +25,12 @@ public final class PassListImpl implements PassList {
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> kept = new ArrayList<>();
     private double distance;
+    private Vec3 camera = Vec3.ZERO;
 
-    void clear() {
+    /** Start a frame; bounds are stored relative to {@code camera}. */
+    void clear(Vec3 camera) {
         entries.clear();
+        this.camera = camera;
     }
 
     void currentDistance(double distance) {
@@ -42,7 +48,14 @@ public final class PassListImpl implements PassList {
 
     @Override
     public void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup) {
-        entries.add(new Entry(shader, options.order(), entries.size(), distance, setup));
+        PassOptions.Bounds b = options.bounds();
+        if (b == null) {
+            entries.add(new Entry(shader, options.order(), entries.size(), distance, setup, 0, 0, 0, 0));
+        } else {
+            Vec3 c = b.center();
+            entries.add(new Entry(shader, options.order(), entries.size(), distance, setup,
+                    c.x - camera.x, c.y - camera.y, c.z - camera.z, b.radius()));
+        }
     }
 
     /** Draw list capped at {@code max}: drops the latest-ordered, then farthest passes first. */

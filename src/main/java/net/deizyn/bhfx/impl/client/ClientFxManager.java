@@ -502,7 +502,7 @@ public final class ClientFxManager {
         VIEW_PROJ.set(PROJ).mul(VIEW);
         Vec3 cam = camera.getPosition();
         FRAME.begin(partial, cam, mc.getMainRenderTarget().width, mc.getMainRenderTarget().height, VIEW_PROJ, PROJ.m11());
-        PASSES.clear();
+        PASSES.clear(cam);
         SCREEN.reset();
         double cullCap = BHFxConfig.CULL_DISTANCE.get();
         for (Entry e : ACTIVE) {

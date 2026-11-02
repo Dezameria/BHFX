@@ -4,12 +4,12 @@ A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
 - Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md); changes per version: [`CHANGELOG.md`](CHANGELOG.md)
-- Version: **0.3.6** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
+- Version: **0.3.7** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
 
 ```bash
-./gradlew.bat build                 # jar at build/libs/bhfx-0.3.6.jar, also copied to ../BHSpells/libs
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.7.jar, also copied to ../BHSpells/libs
 ./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
 ./gradlew.bat runClient             # testing
 ./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
@@ -18,8 +18,8 @@ It is an **extra layer**: mods that use it keep their main visuals from Effeksee
 On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.3.6")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.6")   // dev only, to run them together
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.7")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.7")   // dev only, to run them together
 }
 ```
 
@@ -122,7 +122,7 @@ Include files with `#include "bhfx:light.glsl"` (include files live in `assets/<
 | Render hook | Mixin into `LevelRenderer` | **No mixins at all**: `RenderLevelStageEvent` (matrices captured at `AFTER_SKY`/`AFTER_SOLID_BLOCKS`, drawing at `AFTER_LEVEL`) + `ViewportEvent` for screen shake | Easier to get along with other mods, no refmap needed |
 | Depth | Snapshot both color and depth | Sample Minecraft's depth directly, copy only color | bhfx's FBOs don't attach depth, so there's no feedback loop; saves ~8 MB at 1080p |
 | Duration | Override `duration()` | Override **`defaultDuration()`**; `duration()` is final and honors the value in `FxSpawn` | The caller can always set the duration |
-| `PassOptions` | `order` + `resolution` | `order` only | Every pass uses the same FX resolution |
+| `PassOptions` | `order` + `resolution` | `order` + optional `within(center, radius)` bounds (Experimental, 0.3.7) | Every pass uses the same FX resolution; bounds cut cost by area instead (see `docs/decisions.md`) |
 | Test command | `/bhfx test` | `/bhfx test` (client, only you see it) and `/bhfx_play` (server, everyone sees it) | Client and server commands with the same root name clash, so the server one has its own root |
 | Textures in a pass | — | On first request, the texture loads after the frame ends, so it shows from the next frame | Keeps Minecraft's loading from changing GL state while bhfx holds it |
 | Bloom | 13-tap / 9-tap | Dual filter: 5-tap down / 8-tap up (added onto the same level) | Cheaper, and different from the original's implementation |

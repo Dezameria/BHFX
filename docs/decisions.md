@@ -3,6 +3,10 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-02 — Pass bounds by scissor + copy; no per-pass resolution
+- **Decision**: a pass may declare a world-space sphere (`PassOptions.within`). bhfx copies the input into the target with a blit, then draws the pass only inside the sphere's screen rect (scissor). If the sphere is off screen the pass is skipped; if the rect covers ≥ 85% of the screen the pass is drawn full. Per-pass resolution (`Resolution.FULL`, in the original plan) stays out.
+- **Reason**: the expensive part of a ray-marched pass is shading, which scales with the shaded area; a blit costs little in comparison. From the snapshot the copy uses the same LINEAR blit as the composite's `SceneLowSampler`, so outside the rect the detail restore gives back the exact world. Mixed resolutions would break the single-size ping-pong chain and the composite's ratio-based detail restore, and no effect has needed it.
+
 ## 2026-10-24 — Mirror defaults: distance 16, maxPlanes 6; own settings page
 - **Decision** (the user's request): `mirror.distance` 32 → 16 and `mirror.maxPlanes` 4 → 6; the four mirror values get their own page, `MirrorSettingsScreen`, opened by "Mirror..." on the bhfx settings screen. `ClientConfigMigration` step 3 moves each value once if it is still the old default.
 - **Reason**: a closed mirror room shows up to five surfaces facing the camera; with 4 the farthest one (the far wall) was dropped. The planes are ordered nearest first, so the cut fell on the wall straight ahead.

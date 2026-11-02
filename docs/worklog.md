@@ -11,6 +11,32 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-02 — Version 0.3.7; test results from the user; test setup moves to BHSpells runClient
+- bhfx: `mod_version` 0.3.7 (protocol stays 2) for `PassOptions.within`; CHANGELOG, README and `API_PLAN.md` 4.4 say 0.3.7. BHSpells `build.gradle` already points at `net.deizyn:bhfx:0.3.7`.
+- testing.md: the user reports the 2026-11-02 list tested: Mirror block, Mirror Veil, `purple_flame`, Heavenly Combo after the bridge change, window-resize fix, settings screen at GUI scale 4, and the multiplayer items (Annihilation Arrow checklist, tracker, `to @s`). No logs or per-item details were given. Only the `followSeen` in-game check is left (steps added).
+- The Mingyue Eclipse modpack is no longer used; in-game tests run in the BHSpells dev client (noted at the top of [`testing.md`](testing.md)).
+- result: see the build lines in the commit; pass bounds still not tested in game.
+
+## 2026-11-02 — Per-pass screen bounds (`PassOptions.within`)
+- bhfx: `api/client/PassOptions` gains an optional `Bounds` (`within(center, radius)`, `@ApiStatus.Experimental`; `new PassOptions(int)`, `DEFAULT`, `OVERLAY` kept, so 0.3.6 callers still link). `impl/client/PassListImpl` stores the bounds camera-relative (`clear(Vec3 camera)`). New `impl/render/ScreenRect` projects the bounding cube's 8 corners into a uv rect. `PostRenderer.render` skips a pass whose sphere is off screen and scissors one whose rect covers < 85% of the screen, after a blit makes the rest of the target equal to the input. `/bhfx status` shows the skipped count.
+- Per-pass resolution was not added: see [`decisions.md`](decisions.md).
+- No BHSpells pass uses bounds yet; behaviour without bounds is unchanged.
+- result: `gradlew build` passed (tests incl. 8 new in `ScreenRectTest`, `checkShaders`). Not tested in game. Released as 0.3.7 (see the next entry).
+- next: in-game check ([`testing.md`](testing.md)); then add bounds to BHSpells passes that stay inside a radius.
+
+## 2026-11-02 — Review: what could be improved in bhfx
+- No code changed. Read `PostRenderer.render`, `PassListImpl` and `UniformBinder`, plus bugs/testing/shaders notes.
+- ~~Found: `PassOptions.Resolution` is ignored~~ Wrong: the code never had `resolution`. `README.md` "Where the code differs from the plan" already says `PassOptions` is `order` only; only `API_PLAN.md` 4.4 still showed it (fixed the same day, see the next entry).
+- Proposed (not scheduled; the user picks): per-pass screen bounds with scissor (done the same day); a texture uniform; a previous-frame history target; an sRGB colour helper for the `Uniforms.color` pitfall; a dev-only warning for uniforms the shader doesn't declare; fix the stale GPU time in `/bhfx status`; clear the ⏳ backlog in [`testing.md`](testing.md).
+
+## 2026-11-02 — Assessment: can bhfx do ArcaneVortex's effects?
+- No code changed. I compared the unpacked ArcaneVortex 0.6.8 jar (All Rights Reserved) with the bhfx 0.3.6 API. Only ideas carry over; any shader would be written from scratch.
+- **Works with today's API** (a custom `PassList` pass, `scene.glsl` + `shapes.glsl`): a black hole with lensing (ray-march in the pass, then sample `SceneSampler` at the bent `projectUv`; scene occlusion by comparing with `sceneDepth`), a volumetric darkness/starfield dome, an expanding inverted/scanline/mosaic screen wipe, and shockwave distortion (`ScreenParams.ripple` + `ground.glsl` `shockRing`). Negative/inverted flash already exists as `ImpactStyle`.
+- **Works, but limited**: a Mandelbulb "sun" (fits only at low resolution within `gpuBudgetMs` 4.0); a distortion trail behind a sword arc (only as analytic segments passed through `Uniforms.floats`, with no ribbon geometry).
+- **Gaps in bhfx**: no texture uniform (removed in 0.3.2), so texture-driven parts such as an accretion disk or colour ramps must be procedural. Passes run at `AFTER_LEVEL`, so translucents and particles have no depth and get lensed/covered (ArcaneVortex has the same issue). Post is off when a shader pack is on in `AUTO`.
+- **Not bhfx's job** (it registers no RenderTypes/items/particles): the cosmic item/block shader, trail ribbon geometry, world particles, damage numbers, GUI particles. These belong in BHSpells (custom `RenderType` + core shader); see the `bhspells-vfx` skill.
+- next: backlog item for a texture uniform (see [`roadmap.md`](roadmap.md)).
+
 ## 2026-10-24 — Version 0.3.6
 - bhfx: `mod_version` 0.3.5 → 0.3.6 (protocol stays 2) for `BHFxClient.drawingMirrorReflection()`; CHANGELOG, README and `API_PLAN.md` 4.8 say 0.3.6.
 - BHSpells (working tree only, not committed): `build.gradle` → `net.deizyn:bhfx:0.3.6`; `libs/` holds `bhfx-0.3.6.jar` (copy task removed 0.3.5). The `[0.3.2,0.4)` range already covers it. BHSpells now needs 0.3.6 at runtime for Mirror Veil's mirror reflection (older bhfx: linkage error is caught and the veil hides everywhere).

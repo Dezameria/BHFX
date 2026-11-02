@@ -47,6 +47,8 @@ public final class PostRenderer {
     private static final int UNIT_DEPTH = 2;
     private static final int UNIT_AUX = 3;
     private static final int UNIT_BLOOM = 4;
+    /** Pixels added around a bounded pass's rect (linear filtering and rounding at its edge). */
+    private static final int RECT_PAD = 2;
 
     private final ShaderManager shaders = new ShaderManager();
     private final GlStateGuard guard = new GlStateGuard();
@@ -57,6 +59,7 @@ public final class PostRenderer {
     private final Matrix4f invView = new Matrix4f();
     private final Matrix4f viewProj = new Matrix4f();
     private final Vector4f eyeClip = new Vector4f();
+    private final Vector4f rectScratch = new Vector4f();
     private final Vector3f eye = new Vector3f();
     private final FloatBuffer matrixBuf = BufferUtils.createFloatBuffer(16);
     private final Set<ResourceLocation> failedSetups = new HashSet<>();
@@ -95,6 +98,7 @@ public final class PostRenderer {
     private int warmTex;
 
     private int lastPassCount;
+    private int lastSkippedCount;
     private double lastGpuSample = -1;
     private boolean disabled;
     private String disabledReason = "";
@@ -167,7 +171,8 @@ public final class PostRenderer {
         return "post " + fxW + "x" + fxH + " of " + fullW + "x" + fullH
                 + ", " + Math.round(resolution.share() * 100) + "% budget"
                 + (ms >= 0 ? String.format(", %.2f ms GPU", ms) : "")
-                + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)";
+                + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)"
+                + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "");
     }
 
     /** Drop compiled shaders and clear a previous failure; GL targets are rebuilt on demand. */
@@ -241,13 +246,30 @@ public final class PostRenderer {
             computeEye();
 
             int input = snapshotTex;
+            int inputFbo = snapshotFbo;
+            boolean inputFull = true;
             int ping = 0;
             int drawn = 0;
+            int skipped = 0;
             GL11.glViewport(0, 0, fxW, fxH);
             for (PassListImpl.Entry pass : passes) {
                 ShaderProgram program = shaders.get(pass.shader());
                 if (program == null) {
                     continue;
+                }
+                ScreenRect rect = pass.radius() > 0
+                        ? ScreenRect.ofSphere(viewProj, pass.bx(), pass.by(), pass.bz(), pass.radius(), rectScratch)
+                        : ScreenRect.FULL;
+                if (rect.empty()) {
+                    skipped++;
+                    continue;
+                }
+                boolean scissor = !rect.full();
+                if (scissor) {
+                    // the pass shades only its rect, so first make the rest of the target equal to the input; from
+                    // the full-resolution snapshot this is the same LINEAR blit as the composite's low-res scene copy
+                    blit(inputFbo, pingFbo[ping], inputFull ? w : fxW, inputFull ? h : fxH, fxW, fxH,
+                            inputFull && (fxW != w || fxH != h) ? GL11.GL_LINEAR : GL11.GL_NEAREST);
                 }
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
                 begin(program, input, depth, fxW, fxH, time);
@@ -259,12 +281,26 @@ public final class PostRenderer {
                     }
                     continue;
                 }
+                if (scissor) {
+                    int x0 = Math.max(0, (int) Math.floor(rect.minU() * fxW) - RECT_PAD);
+                    int y0 = Math.max(0, (int) Math.floor(rect.minV() * fxH) - RECT_PAD);
+                    int x1 = Math.min(fxW, (int) Math.ceil(rect.maxU() * fxW) + RECT_PAD);
+                    int y1 = Math.min(fxH, (int) Math.ceil(rect.maxV() * fxH) + RECT_PAD);
+                    GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                    GL11.glScissor(x0, y0, x1 - x0, y1 - y0);
+                }
                 GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+                if (scissor) {
+                    GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                }
                 input = pingTex[ping];
+                inputFbo = pingFbo[ping];
+                inputFull = false;
                 ping ^= 1;
                 drawn++;
             }
             lastPassCount = drawn;
+            lastSkippedCount = skipped;
 
             int bloom = 0;
             if (drawn > 0 && quality.bloom && BHFxConfig.BLOOM.get() && screen.bloomStrength() > 0.001f) {

@@ -4,8 +4,11 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 
 ## Now (0.3.x)
 
-- [ ] Test Annihilation Arrow in multiplayer with a friend (checklist in [`testing.md`](testing.md)).
-- [ ] Test Heavenly Combo after the bridge switched to `BHFxClient.fx(...)` (2026-10-17).
+- [ ] Test pass bounds (`PassOptions.within`, 0.3.7) in game ([`testing.md`](testing.md)).
+- [ ] Optional: `followSeen` in-game check (JUnit already covers it; steps in [`testing.md`](testing.md)).
+
+- [x] 2026-11-02 Test Annihilation Arrow in multiplayer with a friend (checklist in [`testing.md`](testing.md)).
+- [x] 2026-11-02 Test Heavenly Combo after the bridge switched to `BHFxClient.fx(...)` (2026-10-17).
 - [x] 2026-10-17 Permanent glslang at `ironspell_more/tools/glslang`; the build finds it on its own (see [`shaders.md`](shaders.md)).
 - [x] 2026-10-17 Commit pending work (the user committed it).
 - [x] 2026-10-17 Declare the mods BHSpells requires in `mods.toml` (see [`release.md`](release.md)).
@@ -20,7 +23,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 API `BHFxClient.fx/update/isAlive` for local handles.
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
-- [ ] Mirror block (added 2026-10-23, build only): test in game ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
+- [x] 2026-11-02 Mirror block (added 2026-10-23): tested in game (user report) ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## 1.0 plan
@@ -46,4 +49,5 @@ Suggested order: 1 → 2 → 3 can be done locally right away (3 done, 2 mostly 
 - Shader pack mode: while a pack is on, keep screen-only effects (flash, vignette, ripple, impact, bloom, pulses) and skip only depth-based world passes, instead of the all-or-nothing `offWithShaderpack`. Only needed if world-space parts look wrong with a pack (2026-10-17: the user reports effects visible with Complementary forced on).
 
 - `AaaParticlesBridge` (`ctx.effek(...)`): when there is a real use case.
+- `Uniforms.texture(name, ResourceLocation)` as `@ApiStatus.Experimental` (removed in 0.3.2): only when a real effect needs a texture lookup, e.g. a black-hole accretion disk or a colour-ramp trail (from the 2026-11-02 ArcaneVortex assessment in [`worklog.md`](worklog.md)).
 - BHSpells spells that would suit bhfx next: Indigo Lightning, Fiery Dance, Venomous Blossomfall (LONG/CONTINUOUS with all the hooks), and long-lasting zone spells (to test the tracker with long effects).

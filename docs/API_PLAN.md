@@ -313,10 +313,17 @@ public interface PassList {
     void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup);
 }
 
-public record PassOptions(int order, Resolution resolution) {
-    public enum Resolution { FX_SCALED, FULL }   // FX_SCALED = follows the GPU budget (default)
-    public static final PassOptions DEFAULT = new PassOptions(0, Resolution.FX_SCALED);
+public record PassOptions(int order, @Nullable Bounds bounds) {   // resolution was dropped: every pass uses the FX resolution
+    public PassOptions(int order);                                  // no bounds
+    public static final PassOptions DEFAULT = new PassOptions(0);
+    public static final PassOptions OVERLAY = new PassOptions(100);
     // order: lower draws first, sorted across all Fx. Suggested: world-space 0, overlays/synthetic scenes 100
+
+    @ApiStatus.Experimental                                        // (0.3.7)
+    public PassOptions within(Vec3 center, double radius);         // pass changes nothing outside this world sphere:
+                                                                    // shaded only inside its screen rect, skipped off screen
+    @ApiStatus.Experimental
+    public record Bounds(Vec3 center, double radius) {}
 }
 
 public interface Uniforms {

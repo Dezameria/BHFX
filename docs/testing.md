@@ -2,8 +2,11 @@
 
 ✅ = passed (say how), ⏳ = not tested. Once something is tested, change its ⏳ to ✅ with the date. Don't add new lines that contradict old ones.
 
+Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew runClient`, a second client with `run-client2`). The Mingyue Eclipse modpack is no longer used; older entries below that name it stay as history.
+
 ## bhfx
 
+- ⏳ 2026-11-02 pass bounds (`PassOptions.within`, build + `ScreenRectTest` only): give a test Fx a bounded pass (e.g. `bhfx:test` with `.within(position, radius)`). Check: (1) the effect looks the same as without bounds when the radius covers it, with no seam at the rect edge, also at reduced FX resolution; (2) a too-small radius cuts it off along a rectangle (expected); (3) turning away makes `/bhfx status` show "off-screen pass(es) skipped"; (4) standing inside the sphere still draws it; (5) two bounded passes plus one unbounded chain correctly; (6) GPU ms in `/bhfx stats` drops for a small distant effect compared with no bounds.
 - ✅ 0.1: tested in game (flat world). Effects render, no shader/GL errors in the log.
 - ✅ 0.2: `gradlew build` passed. `composite`, `test`, `bloom_down` and `bloom_up` (includes inlined) compile in WebGL2 / GLSL ES 3.00.
 - ✅ 0.3 (finished parts): `gradlew build` passed. All shaders, including `ground.glsl` and `sdf2d.glsl`, compile in WebGL2.
@@ -19,10 +22,10 @@
   - `/bhfx status`: quality HIGH, post 2073x1109 (2.3 MP cap), 0.3–0.7 ms GPU, ~68 MB, 6 shaders, 4 Fx registered. Warmup 51 ms (923 ms on the cold first start).
   - Clean `/bhfx bench` runs of `bhspells:heavenly_combo`: −0.33 / −0.08 / +0.53 ms per frame (noise level), bhfx GPU ~0.57 ms. Two `bhfx:test` benches were spoiled because the shader pack was toggled mid-bench (the +12.82 ms is the pack reloading).
   - ⏳ Not yet checked: whether world-space parts (light on blocks, terrain occlusion) line up with a shader pack on, and a `/bhfx status` taken *during* a charge (all status lines were after the release, so they show 0 fx).
-- ⏳ 0.3: tracker when walking into range later (`/bhfx_play fx bhfx:test_tracker {range:16}`), 2 players, shader pack detection (needs Oculus).
-- ⏳ 2026-10-20 window-resize fix: with an effect running, drag-resize, maximize/restore, minimize/restore and toggle fullscreen (F11). Effects must keep showing, at the right size, with no "post effects turned off" message.
-- ⏳ 0.2 in game: bloom, impact frames, ripple, resolution scaling by GPU time, automatic quality downgrade, tracker (walking into range later / logging in mid-effect / dying and respawning).
-- ⏳ 2026-10-17: `followSeen` fix. Change dimension within 0.5 seconds of the start, then check the effect doesn't stay stuck on the server.
+- ✅ 2026-11-02 0.3: tracker when walking into range later (`/bhfx_play fx bhfx:test_tracker {range:16}`), 2 players, shader pack detection: the user reports tested (no log or details recorded).
+- ✅ 2026-11-02 2026-10-20 window-resize fix (drag-resize, maximize/restore, minimize/restore, F11): the user reports tested (no details recorded).
+- ✅ 2026-11-02 0.2 in game: bloom, impact frames, ripple, resolution scaling by GPU time, automatic quality downgrade, tracker (walking into range later / logging in mid-effect / dying and respawning): the user reports tested (no details recorded).
+- ⏳ 2026-10-17: `followSeen` fix (covered by JUnit `entityGoneBeforeFirstPassEndsTheEffect`; in game still open). What it checks: an effect that follows an entity must end on the server when that entity is gone within the first 10 ticks (0.5 s), instead of staying forever, being re-sent to players who walk past, and using up `maxActivePerCaster`. How: three chain command blocks fired by one button, so all run in the same tick: `summon zombie ~ ~2 ~ {Tags:["fs"]}` → `bhfx_play fx bhfx:test attach @e[tag=fs,limit=1] {hold:true}` → `kill @e[tag=fs]`. Pass: the effect disappears at once; walking 100+ blocks away and back does not bring it back; a second player who joins afterwards does not see it.
 - ✅ 2026-10-17 0.3.1 with other shader packs (Mingyue Eclipse, Oculus 1.8.0): after a restart the user saw effects with Photon v1.3b and Complementary Unbound r5.9 + Euphoria Patches. `/bhfx status` with Photon: post forced on, 1-2 fx drawn, 0.08-0.15 ms GPU. In the session before the restart nothing showed with Photon or Noble v1.9.6 (Oculus failed to parse part of Noble: `RENDER_SCALE`); no bhfx error was logged and the cause is unknown. If it happens again, run `/bhfx status` while the effect plays.
 - ✅ 2026-10-17 0.3.2 (API lock), Mingyue Eclipse with a shader pack: the user reports everything works as before; the log shows no bhfx error, `/bhfx status` normal (0.30 ms GPU). Forge rewrote `bhfx-client.toml` once on load ("is not correct. Correcting") because the allowed values of `camera.control` changed; the user's values (`control = SUBTLE`, `offWithShaderpack = false`) were kept. What was checked: `bhfx:test` (bloom, impact frame, ripple, FOV punch) and Heavenly Combo's slam (zoom blur, desaturate, vignette, bloom) look the same as before; Annihilation Arrow cancel after a dimension change still stops the charge (keys are now server-wide).
 - ✅ 2026-10-21 1.0 step 4, Embeddium + Oculus: the user reports they checked both and bhfx works. No log or version numbers recorded for this check; the shader-pack world-space alignment item above and "shader pack detection" in the 0.3 line stay ⏳ until checked on their own.
@@ -42,7 +45,7 @@
   - ✅ (barely) `shadow_domain` + `flame_field` at the same time (00:08:49–00:09:10, 2 fx, 2 passes): **5.32–5.93 ms** GPU, just under the 6 ms budget. Two of these together on a mid-range GPU at 1080p may go over; no auto-downgrade fired here.
   - ⏳ Still open for step 5: a 1080p run on a mid-range machine; Heavenly Combo while really casting (no `/bhfx stats` line in the log up to 00:09:10).
 - ✅ 2026-10-17 JUnit (`gradlew test`, part of `build`), 41 tests pass (`ScreenParamsImplTest` 5: max/strongest merges, bloom radius floor, ripple cap and behind-camera; `SelectorSpecTest` 5: kinds, options, distance forms, rejected options), plus: `FxCommandArgsTest` (6), `FxParamsTest` (4), `WireTest` (7: every param type and `ScreenPulse` round-trip the wire, hostile input is rejected), `TimelineTest` (6: `Timeline`, `Ease`, `FxSpawn.isPersistent`), `TrackingTest` (8: expiry, the `followSeen` bug, enter/leave hysteresis, `forget`). The `followSeen` fix is now covered by `entityGoneBeforeFirstPassEndsTheEffect`; the in-game check below is still open.
-- ✅ 2026-10-17 effect commands, 0.3.1, single player (Mingyue Eclipse): the user reports they work; the log shows `/bhfx test`, `/bhfx_play fx`, `/bhfx_play pulse` and `/bhfx status` running. Items below that need a second player (`seen by a second player`, `to @s` seen only by you) stay ⏳ until the multiplayer test. Checklist:
+- ✅ 2026-10-17 effect commands, 0.3.1, single player (Mingyue Eclipse): the user reports they work; the log shows `/bhfx test`, `/bhfx_play fx`, `/bhfx_play pulse` and `/bhfx status` running. Items below that need a second player (`seen by a second player`, `to @s` seen only by you): the user reports tested 2026-11-02. Checklist:
   - `/bhfx test bhfx:test` (look target), `... at ~ ~ ~`, `... {radius:12}` (int into a float param), `... {seconds:3}` (now `{duration:3}`, renamed 2026-10-20), `... {hold:true}` then `/bhfx stop` (fades) and `/bhfx stop finish`.
   - `/bhfx test bhfx:test attach @s` follows you; `attach @e[type=zombie,limit=3]`; running it twice on the same entity replaces instead of stacking; `/bhfx stop @s` stops only yours.
   - Errors: unknown id → "not a registered effect"; `{tint:"red"}`, `{hold:true, seconds:3}`, `attach @e[tag=x]` (client) → readable messages.
@@ -56,13 +59,14 @@
   - LOW: GPU avg 0.82–1.10 ms, max 1.35–2.49 ms, ~20 MB, ~117 fps (1168–1181 frames / 10 s).
   - HIGH: GPU avg 5.63 ms, max 6.94 ms, ~61–68 MB, ~106 fps (1062 frames / 10 s). Over the 6 ms budget, so the resolution controller dropped to 88%: first in-game evidence that resolution scaling by GPU time works.
   - ⚠ One render-CPU spike of 18.95 ms right after switching to HIGH (likely targets and bloom being rebuilt); not seen again.
-- ⏳ Still to check: the screen fits at GUI scale 4 on 1080p; a dedicated server still starts with this jar (the screen class is client-only).
+- ✅ 2026-11-02 the screen fits at GUI scale 4 on 1080p: the user reports tested.
+- ⏳ Still to check: a dedicated server still starts with this jar (the screen class is client-only).
 
 ### Config migration (2026-10-22)
 - ✅ 2026-10-22 bhfx `runClient`: an old-default `bhfx-client.toml` moved to Medium once (`settingsVersion = 1`, log line printed).
 - ⏳ Second launch keeps the values (no second migration); a file with hand-made values (e.g. HIGH + 8 ms) is left alone in game; `BHSpells/run` and `run-client2` move on their next launch.
 
-- ⏳ 2026-10-23 Mirror block (build + `MirrorTrackerTest` only, not tested in game):
+- ✅ 2026-11-02 Mirror block: the user reports the checklist below tested (no details recorded per item):
   - [ ] All six faces reflect (walls on both sides, floor, ceiling); faces between two mirrors don't; your reflection is the right way round and moves with you in 1st and 3rd person.
   - [ ] Maze of ~20,000 mirrors: frame time with and without players in view; chunk loading has no long hitch; `maxPlanes` / `maxReflections` / `distance` change the cost.
   - [ ] Only players show (no mobs, items, spell cloud entities); spectators don't show.
@@ -78,17 +82,17 @@
   - [ ] Fabulous graphics: a held translucent block item (stained glass) in the reflection.
   - [ ] Embeddium; Oculus without a pack; Oculus with packs (Complementary, Photon, BSL): reflection lines up with the mirror while turning and walking, TAA packs don't smear it, no flicker, block texture shows where nobody is reflected; toggling the pack mid-game.
 
-- ⏳ 2026-10-24 `bhspells:purple_flame` (compile + glslang only): `/bhfx test bhspells:purple_flame` — one flame, cyan tips / violet body / pink root, colours blend without bands; floor pool only under it; embers; dies down on `/bhfx stop`; `{radius:..,height:..,color:..}` change it; `{density:0}` no embers, `{density:1}` 64; looks right from above and up close.
+- ✅ 2026-11-02 `bhspells:purple_flame`, the user reports tested: `/bhfx test bhspells:purple_flame` — one flame, cyan tips / violet body / pink root, colours blend without bands; floor pool only under it; embers; dies down on `/bhfx stop`; `{radius:..,height:..,color:..}` change it; `{density:0}` no embers, `{density:1}` 64; looks right from above and up close.
 
 ## BHSpells spells that use bhfx
 
 ### Mirror Veil effect (`bhspells:mirror_veil`, uses `BHFxClient.drawingMirrorReflection()`)
-- ⏳ 2026-10-24 (build only): `/effect give @s bhspells:mirror_veil 120 0 true`, stand in front of a `bhfx:mirror`. In F5 and from a second player: no body, armour, held item, name tag or shadow in the world; the mirror shows the full player. With Epic Fight on: same, and no weapon trails. With Figura: avatar shows in the mirror only. With an Oculus pack: still hidden in the world, shown in the mirror. Effect ends → visible again. `extra_invisibility` unchanged (hidden in mirrors too, shadow still shown).
+- ✅ 2026-11-02, the user reports tested: `/effect give @s bhspells:mirror_veil 120 0 true`, stand in front of a `bhfx:mirror`. In F5 and from a second player: no body, armour, held item, name tag or shadow in the world; the mirror shows the full player. With Epic Fight on: same, and no weapon trails. With Figura: avatar shows in the mirror only. With an Oculus pack: still hidden in the world, shown in the mirror. Effect ends → visible again. `extra_invisibility` unchanged (hidden in mirrors too, shadow still shown).
 
 ### Annihilation Arrow (`bhspells:annihilation_charge`)
 - ✅ 2026-10-17, tested in game by the user: the shader compiles and renders; charge to full (halo) → fire (streak); cancel or die mid-charge; game without bhfx.
 - ✅ 2026-10-17 glslang passed.
-- ⏳ Multiplayer checklist:
+- ✅ 2026-11-02 Multiplayer checklist, the user reports tested:
   1. A friend watches from about 20 blocks while you charge. Do they see the light and fire lines?
   2. A friend walks in from beyond 64 blocks during the charge, before and after it is full. They should see it continue from the current point, and the halo flash should not replay.
   3. On a server with low view distance (≤ 4), a friend starts about 50 blocks away and walks in. The effect must not collapse on its own.
@@ -97,7 +101,7 @@
 
 ### Heavenly Combo (`bhspells:heavenly_combo`)
 - ✅ 2026-10-17 glslang passed.
-- ⏳ 2026-10-17, after the bridge switched to `BHFxClient.fx(...)`: punches still show the effect as before (aura, blows, slam).
+- ✅ 2026-11-02 (user reports), after the bridge switched to `BHFxClient.fx(...)` on 2026-10-17: punches still show the effect as before (aura, blows, slam).
 - More to check: see `../BHSpells/docs/bhfx/heavenly_combo.md`.
 
 ### Reusable `bhspells:impact` / `impact_ring` / `impact_ripple` / `scorched_ground`
