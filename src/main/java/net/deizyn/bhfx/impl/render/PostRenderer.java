@@ -251,13 +251,15 @@ public final class PostRenderer {
             int ping = 0;
             int drawn = 0;
             int skipped = 0;
+            boolean sceneLowReady = false;
             GL11.glViewport(0, 0, fxW, fxH);
+            boolean bounds = BHFxConfig.PASS_BOUNDS.get();
             for (PassListImpl.Entry pass : passes) {
                 ShaderProgram program = shaders.get(pass.shader());
                 if (program == null) {
                     continue;
                 }
-                ScreenRect rect = pass.radius() > 0
+                ScreenRect rect = bounds && pass.radius() > 0
                         ? ScreenRect.ofSphere(viewProj, pass.bx(), pass.by(), pass.bz(), pass.radius(), rectScratch)
                         : ScreenRect.FULL;
                 if (rect.empty()) {
@@ -266,10 +268,19 @@ public final class PostRenderer {
                 }
                 boolean scissor = !rect.full();
                 if (scissor) {
-                    // the pass shades only its rect, so first make the rest of the target equal to the input; from
-                    // the full-resolution snapshot this is the same LINEAR blit as the composite's low-res scene copy
-                    blit(inputFbo, pingFbo[ping], inputFull ? w : fxW, inputFull ? h : fxH, fxW, fxH,
-                            inputFull && (fxW != w || fxH != h) ? GL11.GL_LINEAR : GL11.GL_NEAREST);
+                    // the pass shades only its rect, so first make the rest of the target equal to the input. From
+                    // the full-resolution snapshot, copy the composite's own low-res scene 1:1: a scaled blit straight
+                    // into this float target samples rows slightly differently on some drivers, and the composite's
+                    // detail restore (sharp / low-res ratio) turned that into bright horizontal lines on the ground
+                    int from = inputFbo;
+                    if (inputFull && (fxW != w || fxH != h)) {
+                        if (!sceneLowReady) {
+                            blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
+                            sceneLowReady = true;
+                        }
+                        from = sceneLowFbo;
+                    }
+                    blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
                 }
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
                 begin(program, input, depth, fxW, fxH, time);
@@ -308,7 +319,7 @@ public final class PostRenderer {
             }
 
             boolean upscaled = drawn > 0 && (fxW != w || fxH != h);
-            if (upscaled) {
+            if (upscaled && !sceneLowReady) {
                 blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
             }
 

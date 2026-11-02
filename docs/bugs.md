@@ -8,6 +8,12 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Fixed
 
+### 2026-11-02 — Floor effects drop out in horizontal lines (fixed; user confirmed in game the same day)
+- Symptom: horizontal lines across the lower screen where a floor effect is missing and the plain ground shows (bright lines on `lunebris_aura`'s darkened floor, dark lines across its white sigil star). BHSpells `runClient`, MEDIUM quality; the user first saw it after pass bounds (0.3.7), likely because cheaper passes changed the FX resolution.
+- Cause: passes run below native resolution at a non-integer ratio, and `sceneAt` read depth (NEAREST) at the pixel's uv but unprojected at that same uv. Between neighbour pixels the uv moved ~1.18 depth texels while the depth moved 1 or 2, so `dFdx/dFdy(s.pos)` normals tilted every few rows and `floorish` (normal.y ≥ 0.6) failed there.
+- Fix: `scene.glsl` `sceneAt` snaps uv to the centre of the depth texel it reads before unprojecting, so the position always matches its depth sample.
+- First attempt (same day, did not help): outside a bounded pass's rect, copy the composite's own `sceneLow` 1:1 instead of a separate scaled blit (kept; it makes the outside exactly what the composite divides by). Also added client option `quality.passBounds` (default true) to switch bounds off for A/B checks.
+
 ### 2026-10-24 — Mirror behind another mirror wiped its reflection; lower part cut at the floor's horizon (fixed in code, not tested in game)
 - Symptom: with a mirror floor and a mirror wall standing on it, the wall's reflection was missing below a line that matched the floor's horizon; mirrors behind other mirrors broke up the same way.
 - Cause: `MirrorRenderer.setArea` opened each surface's screen area with `GL_ALWAYS` and no test against the world, and the floor (nearest, so drawn last) also covered the screen where its faces lie *behind* the wall, clearing the wall's reflection there. The composite then sampled the empty pixels.

@@ -30,10 +30,12 @@ When the bhfx version changes, update the two `net.deizyn:bhfx:<version>` lines 
 | Every client | The same set as the server |
 | Single player | Everything on one machine |
 
-- **bhfx is optional**, but if you use it, it must be on **the server and every client** (the network channel is strict). The version must be in the range BHSpells accepts (currently `[0.3.2,0.4)`).
+- **bhfx is optional**, but if you use it, it must be on **the server and every client** (the network channel is strict). The version must be in the range BHSpells accepts (currently `[0.3.7,0.4)`, since 2026-11-02).
 - bhfx can be turned off or removed at any time (see "Removing bhfx" in `../README.md`). Worlds are not affected.
 
 ### Mods BHSpells requires (`BHSpells/src/main/resources/META-INF/mods.toml`)
+
+> 2026-11-02: on BHSpells branch `feature/deizy-integrate-1.8.0` the `mods.toml` declares only forge, minecraft and bhfx; the required-mod list below was found only on branch `bhfx-squash-1.6.5` (commit `eae2279`). Not restored yet.
 
 Declared `mandatory=true` on 2026-10-17, because BHSpells code (spells, entities, effects, mixins) calls these mods directly rather than through compat. If one is missing, Forge reports it at the loading screen instead of crashing.
 The minimum versions are the versions BHSpells is built and tested against.

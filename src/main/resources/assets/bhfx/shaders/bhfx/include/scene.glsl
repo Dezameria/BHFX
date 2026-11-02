@@ -41,9 +41,14 @@ Scene sceneAt(vec2 uv) {
     s.color = texture(DiffuseSampler, uv).rgb;
     s.origin = Eye;
     s.dir = viewDir(uv);
-    float d = sceneDepth(uv);
+    // unproject at the centre of the depth texel that is actually read: passes run below native resolution and depth
+    // is sampled NEAREST, so between neighbour pixels the uv and the depth would move by different amounts. That tilted
+    // dFdx/dFdy(pos) normals every few rows and made floor-only effects drop out in horizontal lines.
+    vec2 depthSize = vec2(textureSize(DepthSampler, 0));
+    vec2 texelUv = (floor(uv * depthSize) + 0.5) / depthSize;
+    float d = sceneDepth(texelUv);
     s.sky = depthIsSky(d);
-    s.pos = s.sky ? Eye + s.dir * BHFX_FAR : unprojectAt(uv, d);
+    s.pos = s.sky ? Eye + s.dir * BHFX_FAR : unprojectAt(texelUv, d);
     s.dist = length(s.pos - Eye);
     return s;
 }

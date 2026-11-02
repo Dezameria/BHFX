@@ -46,6 +46,7 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.BooleanValue IMPACT_FRAMES;
     public static final ForgeConfigSpec.BooleanValue OFF_WITH_SHADERPACK;
     public static final ForgeConfigSpec.BooleanValue WARMUP;
+    public static final ForgeConfigSpec.BooleanValue PASS_BOUNDS;
     public static final ForgeConfigSpec.EnumValue<CameraParams.Level> CAMERA_CONTROL;
     public static final ForgeConfigSpec.BooleanValue CAMERA_FROM_OTHERS;
     public static final ForgeConfigSpec.DoubleValue FOV_SCALE;
@@ -85,6 +86,8 @@ public final class BHFxConfig {
                 .define("bloom", true);
         WARMUP = c.comment("Compile effect shaders while the world loads (one per frame) instead of on the first cast.")
                 .define("warmup", true);
+        PASS_BOUNDS = c.comment("Shade a pass only inside the screen area its effect declares (PassOptions.within), and skip it off screen. Turn off to compare when an effect looks cut off.")
+                .define("passBounds", true);
         c.pop();
         c.push("camera");
         CAMERA_CONTROL = c.comment("How much your own spells' effects may move your camera.",

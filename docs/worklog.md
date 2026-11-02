@@ -11,6 +11,15 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-02 — Fix: floor effects dropped out in horizontal lines
+- bhfx: `include/scene.glsl` `sceneAt` unprojects at the centre of the depth texel it reads (cause and the first, unhelpful attempt in [`bugs.md`](bugs.md)). `PostRenderer`: outside a bounded pass's rect, copy `sceneLow` 1:1. `BHFxConfig`: new client option `quality.passBounds` (default true) to turn bounds off for A/B checks.
+- result: bhfx `gradlew build` passed (`checkShaders` 4 OK). The user confirmed in BHSpells `runClient` that the lines on `lunebris_aura` are gone. BHSpells shaders were not glslang-checked (this branch has no `checkShaders`); they loaded in game. Nothing committed.
+
+## 2026-11-02 — BHSpells uses pass bounds; bhfx declared again in BHSpells `mods.toml`
+- BHSpells (not committed): new `compat/bhfx/client/FxBounds`; `FlameFieldFx`, `ShadowDomainFx`, `LunebrisAuraFx`, `GroundBeatFx`, `GroundPulseFx`, `ImpactRingFx`, `ScorchedGroundFx`, `GoldenAuraFx`, `PurpleFlameFx`, `SmokeAuraFx` pass `FxBounds.cylinder(...)` to `out.add`. `mods.toml` declares `bhfx` again (`mandatory=false`, `[0.3.7,0.4)`): branch `feature/deizy-integrate-1.8.0` had no bhfx entry (the old one is on `bhfx-squash-1.6.5`). BHSpells docs (gitignored, local): `docs/bhfx/reusable_effects.md` table of bounds, lines in `lunebris`, `heavenly_combo`, `tempest_combo`, `vengeful_pressure`, `tempest_reiatsu`.
+- Notes: [`integrations/bhspells.md`](integrations/bhspells.md), [`release.md`](release.md) (the required-mod list is also missing on that branch), [`testing.md`](testing.md).
+- result: BHSpells `compileJava processResources` passed; expanded `mods.toml` has the bhfx entry. Not tested in game.
+
 ## 2026-11-02 — Version 0.3.7; test results from the user; test setup moves to BHSpells runClient
 - bhfx: `mod_version` 0.3.7 (protocol stays 2) for `PassOptions.within`; CHANGELOG, README and `API_PLAN.md` 4.4 say 0.3.7. BHSpells `build.gradle` already points at `net.deizyn:bhfx:0.3.7`.
 - testing.md: the user reports the 2026-11-02 list tested: Mirror block, Mirror Veil, `purple_flame`, Heavenly Combo after the bridge change, window-resize fix, settings screen at GUI scale 4, and the multiplayer items (Annihilation Arrow checklist, tracker, `to @s`). No logs or per-item details were given. Only the `followSeen` in-game check is left (steps added).

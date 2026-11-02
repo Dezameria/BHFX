@@ -86,6 +86,10 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## BHSpells spells that use bhfx
 
+### Pass screen bounds in BHSpells (2026-11-02, `compileJava` only)
+- ✅ 2026-11-02 the horizontal-line bug (see `bugs.md`) is gone on `lunebris_aura` after the `sceneAt` fix (user, BHSpells `runClient`, MEDIUM quality). The rest of the checklist below is still open.
+- ⏳ In BHSpells `runClient`, for each of the 10 bounded effects (`/bhfx test bhspells:<id>` with defaults, then with a big `radius`/`height`): (1) nothing is cut along a rectangle: walk round it, look from above and from far away, check glow tails, embers/ash at the top and floor light at the edge; (2) turning away shows "off-screen pass(es) skipped" in `/bhfx status`; (3) `/bhfx stats` GPU ms for `flame_field` / `shadow_domain` seen from ~60 blocks is lower than before (2.3–4.8 ms at full view in the 2026-10-22 run). If one is cut off, widen its numbers in its `*Fx.passes`.
+
 ### Mirror Veil effect (`bhspells:mirror_veil`, uses `BHFxClient.drawingMirrorReflection()`)
 - ✅ 2026-11-02, the user reports tested: `/effect give @s bhspells:mirror_veil 120 0 true`, stand in front of a `bhfx:mirror`. In F5 and from a second player: no body, armour, held item, name tag or shadow in the world; the mirror shows the full player. With Epic Fight on: same, and no weapon trails. With Figura: avatar shows in the mirror only. With an Oculus pack: still hidden in the world, shown in the mirror. Effect ends → visible again. `extra_invisibility` unchanged (hidden in mirrors too, shadow still shown).
 
