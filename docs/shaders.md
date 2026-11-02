@@ -11,7 +11,7 @@ It is wired into `check` → `build`, so it runs on every `gradlew build`. Run i
 Steps:
 1. Find every pass file: `assets/<ns>/shaders/bhfx/*.fsh` in `src/main/resources` (not `include/`).
 2. Assemble it the way `ShaderManager` does in game:
-   - Prepend the header: `#version 150` plus `DiffuseSampler`, `SceneSampler`, `DepthSampler`, `InvProj`, `InvView`, `ViewProj`, `Eye`, `OutSize`, `ScreenSize`, `GameTime`, `texCoord`, `fragColor`.
+   - Prepend the header: `#version 150` plus `DiffuseSampler`, `SceneSampler`, `DepthSampler`, `InvProj`, `InvView`, `ViewProj`, `Eye`, `OutSize`, `ScreenSize`, `GameTime`, `FogColor`, `FogRange` (0.3.8), `texCoord`, `fragColor`.
    - Replace each `#include "ns:file.glsl"` with that file from `assets/<ns>/shaders/bhfx/include/`.
    - Add `#line` directives so error line numbers match the original files.
    - bhfx looks up includes in `src/main/resources`.

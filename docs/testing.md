@@ -86,6 +86,58 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## BHSpells spells that use bhfx
 
+### bhfx 0.3.8 fog uniforms (2026-11-03, build + glslang only)
+- ⏳ `FogColor` / `FogRange` hold the terrain fog. Checked through `solar_eclipse`: with the sky replaced, far terrain fades into the new sky with no pale band. Try render distance 8 and 24, rain, underwater (water fog) and lava, and Embeddium on/off.
+
+### `bhspells:solar_eclipse` (2026-11-02 round 1 seen in game by the user; round 2 2026-11-03, build + glslang only)
+- 2026-11-02 round 1 (user screenshot): the space sky shows, but there was a pale band along the horizon (day fog on far terrain), and the eclipse looked like it was floating. Both are addressed in round 2, which is not seen yet.
+- ⏳ In BHSpells `runClient`, `/bhfx test bhspells:solar_eclipse` then `/bhfx_play fx bhspells:solar_eclipse {hold:true}`:
+  - (1) Phases in order: partial → diamond ring → totality → second diamond ring → collapse with boom and impact frames → black star with red lightning.
+  - (2) Totality:
+    - the sky turns from twilight into open space (red/gold nebula, stars) inside the umbra, with no seam where it meets terrain or the horizon rim
+    - the nebula swirls round the black star later
+    - corona with no seam, red prominences
+    - check the GPU ms of the sky pass while looking up
+  - (3) Shadow bands show on floors only, before and after totality.
+  - (4) The lens bends the scene round the black star with no edge at the bounds; nothing smears at the screen edge; it still works looking straight up.
+  - (4b) Round 2:
+    - The eclipse stays put in the sky while you walk.
+    - The black star shows a tilted fire disk whose near half crosses the hole, and an arch over and under the hole.
+    - ✅ 2026-11-03 Round 9 look, checked in game by the user in BHSpells `runClient`: OK apart from the molten drip, which is now removed. No `/bhfx stats` numbers recorded.
+    - Round 9:
+      - after the collapse the black sun shows a charred disc with faint lava veins, an uneven ring of fire, slow flame tongues, a red hair-line corona with long streamers (a few curved), embers, and a molten drip running down the sky
+      - no shimmer in the corona's hair-lines from far away
+      - at the finish the fire flares and blows out
+    - Round 8:
+      - The black disc has marbled liquid (crimson, red, pale gold) wound round it in a slow spiral, thick on one side, with gold filaments and star glints; no ring, no rays.
+      - The finish shows no lightning: the swirl unwinds.
+      - Ground bolts have a crisp core with no dots, plus a soft sheath.
+    - Round 7:
+      - The black disc reads clearly, not blown out, with a red corona drifting slowly.
+      - Nothing pulses fast.
+      - The sky is near black.
+      - Ground strikes look like crawling channels, not straight zigzags.
+      - At the finish the tears are smooth.
+      - `/bhfx stats` with ~4 bolts marched at once.
+    - Round 6:
+      - after the collapse: a black disc with a white rim and fine rays, inside a red disc of light with a sharp sparkling edge
+      - red cracks growing outward; red rings pulsing out
+      - the sky is mostly black
+      - at `/bhfx stop` (finish) or the end of the duration: lightning tears rip across the sky with a shock ring, then fade
+      - no black-hole disk or lens any more
+    - Round 5: no bolts round the black star. Many red bolts (about 7.5 a second) strike down out of the sky across the area. The eclipse hangs higher (60°). From totality on the sky stays red and black and flashes with the strikes. Check the sound isn't too busy and `/bhfx stats` with 32 strike slots.
+    - Round 4: the whole view turns blood red under the black star.
+    - Bolts come out of the star's direction.
+    - Clouds are replaced by the new sky.
+  - (5) A roof or hill in front hides the star and corona.
+  - (6) Bolts end at the terrain; scorch shows on floors and fades in about 4 s; thunder, shake and a red flash play on each strike.
+  - (7) `{duration:5}` plays every phase, compressed.
+  - (8) `/bhfx stop` (FINISH) and IMMEDIATE work both during the intro and during the black star.
+  - (9) Night, Nether, End.
+  - (10) From radius+80 away you see only the dark footprint, with no sky darkening.
+  - (11) `/bhfx stats` with `hold:true` at radius 32 and 120.
+- ⏳ Multiplayer: two clients see the same strike points and times; a client that joins mid-effect is in the right phase.
+
 ### Pass screen bounds in BHSpells (2026-11-02, `compileJava` only)
 - ✅ 2026-11-02 the horizontal-line bug (see `bugs.md`) is gone on `lunebris_aura` after the `sceneAt` fix (user, BHSpells `runClient`, MEDIUM quality). The rest of the checklist below is still open.
 - ⏳ In BHSpells `runClient`, for each of the 10 bounded effects (`/bhfx test bhspells:<id>` with defaults, then with a big `radius`/`height`): (1) nothing is cut along a rectangle: walk round it, look from above and from far away, check glow tails, embers/ash at the top and floor light at the edge; (2) turning away shows "off-screen pass(es) skipped" in `/bhfx status`; (3) `/bhfx stats` GPU ms for `flame_field` / `shadow_domain` seen from ~60 blocks is lower than before (2.3–4.8 ms at full view in the 2026-10-22 run). If one is cut off, widen its numbers in its `*Fx.passes`.

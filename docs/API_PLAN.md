@@ -454,6 +454,8 @@ uniform mat4 InvProj, InvView, ViewProj;
 uniform vec3 Eye;                   // ray origin (camera-relative), not always 0, because view bobbing moves the eye while walking
 uniform vec2 OutSize;               // this pass's target size
 uniform float GameTime;             // seconds (wraps daily)
+uniform vec4 FogColor;              // (0.3.8) the terrain fog colour as the level shaders mix it (a = strength)
+uniform vec4 FogRange;              // (0.3.8) terrain fog start, end (blocks), shape (0 sphere, 1 cylinder), unused
 in vec2 texCoord;
 out vec4 fragColor;                 // a = 1 light, a = 0 opaque drawn object (used as the bloom mask)
 ```
@@ -469,6 +471,7 @@ Analytic shapes (rays against cylinders, spheres, etc.) must use `Eye` (or `Scen
 | `light.glsl` | `glowGauss`, `glowExp`, `glowExp2` (two-layer haze), `lineLight` (1/d), `blackbody`, `tonemapSoft` |
 | `ground.glsl` (0.3, include `scene.glsl` first) | `groundAA`, `groundBand`, `groundDistance`, `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
 | `noise.glsl` | `hash11/12/13/22`, `vnoise2/3`, `fbm2/3` |
+| `fog.glsl` (0.3.8, include `scene.glsl` first) | `fogDistance`, `fogAmount` (how much of a far pixel is fog), `refog` (swap that fog for another colour, e.g. a sky a pass replaces) |
 | `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤ 8 corners), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
 
 ---

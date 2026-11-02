@@ -46,6 +46,7 @@ public final class ClientEvents {
             // these stages carry the camera-rotation pose stack (AFTER_LEVEL carries the projection stack instead)
             ClientFxManager.captureMatrices(event.getPoseStack().last().pose(), event.getProjectionMatrix());
             if (stage == RenderLevelStageEvent.Stage.AFTER_SOLID_BLOCKS) {
+                ClientFxManager.captureFog();
                 MirrorRenderer.drawReflectionsInLevel(event.getPoseStack(), event.getCamera(), event.getFrustum(),
                         event.getPartialTick());
             }

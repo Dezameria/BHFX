@@ -466,6 +466,11 @@ public final class ClientFxManager {
         PROJ.set(projection);
     }
 
+    /** Called after the solid blocks, while the terrain fog is still set up. */
+    static void captureFog() {
+        renderer().captureFog();
+    }
+
     static void render(Camera camera, float partial) {
         BENCH.frame(System.nanoTime());
         frameShake = 0f;

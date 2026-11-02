@@ -61,6 +61,9 @@ public final class PostRenderer {
     private final Vector4f eyeClip = new Vector4f();
     private final Vector4f rectScratch = new Vector4f();
     private final Vector3f eye = new Vector3f();
+    /** The terrain fog of this frame: rgba as the level shaders mix it, then start, end, shape (0 sphere, 1 cylinder). */
+    private final float[] fogColor = new float[4];
+    private final float[] fogRange = {Float.MAX_VALUE, Float.MAX_VALUE, 0f};
     private final FloatBuffer matrixBuf = BufferUtils.createFloatBuffer(16);
     private final Set<ResourceLocation> failedSetups = new HashSet<>();
 
@@ -481,6 +484,20 @@ public final class PostRenderer {
         binder.f2("ScreenSize", fullW, fullH);
         binder.f1("GameTime", time);
         binder.f3("Eye", eye.x, eye.y, eye.z);
+        binder.f4("FogColor", fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
+        binder.f4("FogRange", fogRange[0], fogRange[1], fogRange[2], 0f);
+    }
+
+    /**
+     * Remembers the fog the terrain is drawn with, so passes can tell how much of a far pixel is fog (and swap it for
+     * their own sky). Call while the terrain fog is set up (after the solid blocks).
+     */
+    public void captureFog() {
+        float[] c = RenderSystem.getShaderFogColor();
+        System.arraycopy(c, 0, fogColor, 0, Math.min(4, c.length));
+        fogRange[0] = RenderSystem.getShaderFogStart();
+        fogRange[1] = RenderSystem.getShaderFogEnd();
+        fogRange[2] = RenderSystem.getShaderFogShape().getIndex();
     }
 
     /**

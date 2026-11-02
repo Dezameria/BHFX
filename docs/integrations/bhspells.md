@@ -16,7 +16,7 @@ BHSpells (`../BHSpells`) uses bhfx as a **soft dependency**: it plays normally w
 
 Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`.
 
-`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.7,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
+`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.8,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`, 0.3.8 for the fog uniforms `solar_eclipse` uses). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
 
 `build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")`, resolved from **`BHSpells/libs/bhfx-0.3.2.jar`** (`flatDir` comes before `mavenLocal`). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
 - **After changing bhfx, run `./gradlew.bat build` in bhfx.** The `copyToBHSpells` task (which finalizes `build`) copies the reobfuscated jar over the one in `../BHSpells/libs` and deletes older `bhfx-*.jar` files. If you forget, BHSpells keeps using the old jar in `libs/`, even if mavenLocal is newer.
@@ -31,6 +31,19 @@ Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>
 | Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) | In the spell class, through `BhfxCompat.pulse` |
 
 ## Lessons from real use
+
+- 2026-11-02 (`bhspells:solar_eclipse`, not seen in game yet):
+  - A screen-space lens should sample `DiffuseSampler` in a pass with a higher order. That way it bends what the earlier passes drew; `SceneSampler` is the world before any pass.
+  - Use effect-wide randomness that every client must agree on, such as strike points and times, from a hash of `init().seed()` and an index, not from `random()` in sequence. This also keeps late joiners in step.
+  - Sky-wide darkening needs a full-screen pass only while the camera is in the area. From outside, bound it to the footprint.
+- 2026-11-03 (`solar_eclipse` round 2, not seen in game yet):
+  - Replacing only depth-1 pixels leaves a band of day fog on far terrain at the horizon, stepped at chunk edges. The user saw it in round 1. Swap that fog with `fog.glsl` `fogAmount` + `refog` (bhfx 0.3.8).
+  - Treat the cloud layer as sky by its height; pass `level.effects().getCloudHeight()` minus the camera Y.
+  - A sky object placed a few dozen blocks up parallaxes as you walk and reads as "floating". Put it at a fixed direction far away (camera + dir × 600), like the real sun.
+  - Lightning as a polyline of a few straight segments reads stiff (round 6). A channel whose sideways offset is smooth multi-layer noise along its length looks natural; march the view ray through its column, or for 2D measure the offset from the line. Expose the summed light with `1 - exp(-x)` (round 7, after grandsigil's `fx_bolt_column`).
+  - Marching a thin core in steps turns it into dots, because steps skip over it (round 7 screenshot). Draw the core analytically as a polyline through the noise path, and march only the soft sheath (round 8).
+  - Many small per-strike screen flashes at several strikes a second tint the whole view. Keep each flash small.
+  - Don't lay a world object out in screen pixels round its projected point. It turns with the camera and stretches near the screen edges. Use each pixel's view ray against a world-fixed plane or shape instead (round 3, 2026-11-03).
 
 - 2026-11-02: pass screen bounds. `client/FxBounds.cylinder(base, horizontal, below, above)` turns an upright cylinder into `PassOptions.within` (sphere ×1.15). Used by the 10 radial Fx (flame_field, shadow_domain, lunebris_aura, ground_beat, ground_pulse, impact_ring, scorched_ground, golden_aura, purple_flame, smoke_aura); the per-effect numbers, read from each shader, are in `BHSpells/docs/bhfx/reusable_effects.md`. Not used where the shape is not one cylinder (annihilation_charge, golden_clash, heavenly_combo, ningyao_mid). Rule: when a shader starts drawing farther out, widen its bounds too, or it is cut along a rectangle.
 - 2026-10-24: Mirror Veil (`bhspells:mirror_veil`) hides a player everywhere except bhfx mirrors. The mirror draws players through the normal `EntityRenderDispatcher.render`, so render hooks can't tell a reflection from the world by themselves; `BHFxClient.drawingMirrorReflection()` gives them that (via `BhfxClientCompat`, false without bhfx).

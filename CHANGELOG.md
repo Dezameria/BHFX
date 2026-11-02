@@ -4,6 +4,11 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.8 — 2026-11-02 (protocol 2)
+- **Added**: header uniforms `FogColor` and `FogRange` (start, end, shape) with the terrain fog of the frame, captured
+  after the solid blocks, and the include `bhfx:fog.glsl` (`fogDistance`, `fogAmount`, `refog`). A pass that replaces
+  the sky can now swap the fog on far terrain for its own sky, so the horizon no longer shows a band of day fog.
+
 ## 0.3.7 — 2026-11-02 (protocol 2)
 - **Added** (Experimental): `PassOptions.within(center, radius)`. A pass that stays inside a world-space sphere is
   shaded only inside that sphere's screen rect, and skipped while the sphere is off screen. Passes without bounds work

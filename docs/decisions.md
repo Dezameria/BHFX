@@ -3,6 +3,15 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-03 — Expose the terrain fog to passes (0.3.8), instead of overriding the fog
+- **Decision**: bhfx captures the terrain fog (`RenderSystem` fog colour, start, end, shape) after the solid blocks and gives it to every pass as `FogColor` / `FogRange`, with `fog.glsl` (`fogAmount`, `refog`). A pass that replaces the sky swaps the fog on far terrain for its own sky colour in post.
+- **Reason**:
+  - Far terrain is mixed with the day fog colour, so a post pass that replaces only depth-1 pixels leaves a pale band at the horizon (`solar_eclipse` round 1).
+  - Re-fogging in post is exact for the vanilla formula: `col + k × (newSky − FogColor)`.
+  - It needs no new API surface on `Fx`.
+  - It changes nothing for effects that don't use it.
+- **Rejected for now**: an `Fx` hook that overrides the fog colour (`ViewportEvent.ComputeFogColor`). That would also tint water and every other mod's fog, and the fog would then lag a frame behind the pass.
+
 ## 2026-11-02 — Pass bounds by scissor + copy; no per-pass resolution
 - **Decision**: a pass may declare a world-space sphere (`PassOptions.within`). bhfx copies the input into the target with a blit, then draws the pass only inside the sphere's screen rect (scissor). If the sphere is off screen the pass is skipped; if the rect covers ≥ 85% of the screen the pass is drawn full. Per-pass resolution (`Resolution.FULL`, in the original plan) stays out.
 - **Reason**: the expensive part of a ray-marched pass is shading, which scales with the shaded area; a blit costs little in comparison. From the snapshot the copy uses the same LINEAR blit as the composite's `SceneLowSampler`, so outside the rect the detail restore gives back the exact world. Mixed resolutions would break the single-size ping-pong chain and the composite's ratio-based detail restore, and no effect has needed it.

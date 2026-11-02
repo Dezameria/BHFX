@@ -52,6 +52,8 @@ final class ShaderManager {
             uniform vec2 OutSize;
             uniform vec2 ScreenSize;
             uniform float GameTime;
+            uniform vec4 FogColor;
+            uniform vec4 FogRange;
             in vec2 texCoord;
             out vec4 fragColor;
             """;

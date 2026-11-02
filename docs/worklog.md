@@ -11,9 +11,147 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-03 — `solar_eclipse`: drip removed, look accepted
+- The user saw round 9 in game. They asked to remove the molten drip and said everything else is OK. The drip block is removed from `solar_eclipse.fsh`, and the header and javadoc are updated.
+- result: `checkShaders` OK (copies removed), BHSpells `compileJava` passed. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 9: burning black sun, hair-line red corona
+- The user sent two references:
+  - a painting of a charred black sun in a ring of fire, with flames, embers and a molten drip falling to the ground;
+  - an engraving-style red corona with fine streamers.
+- They asked for the transformation to look like these instead of the marbled swirl.
+- `solar_eclipse.fsh` black sun:
+  - The disc is charred `fbm2` rock with lava veins (narrow `fbm2` ridges, AA'd from `aa`).
+  - An uneven ring of fire that almost goes out in places.
+  - Flame tongues flowing outward (`fbm2` with a radial-minus-time term).
+  - The corona has streamers 0.5–4.5 horizon radii, a few bending with log distance. They are filled with 90 hair-lines per turn, which blend to their average below ~5 px spacing.
+  - Embers.
+  - A molten drip down the sky from the bottom edge.
+  - Finish: the fire flares and blows outward.
+- `SolarEclipseFx`: black-sun bloom is 0.5 again.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 8: marbled swirl, hybrid bolts
+- The user sent a round-7 screenshot: the disc was clear, but a red ring and rays sat round it, and the ground bolts looked dotted like smoke. They also sent a reference painting of marbled ink swirling into a black hole. They asked for these changes:
+  - No finish lightning round the eclipse.
+  - Mix the old bolt style back in.
+  - Remove the ring.
+  - Make it feel like the painting, in the same colours.
+- `solar_eclipse_storm.fsh`: the dots came from marching a thin core in steps. The core is now a crisp 16-segment polyline (`rayLine`) through the noise channel, with 2 forks; the sheath is still marched (24 steps) and exposed.
+- `solar_eclipse.fsh`:
+  - Removed: ring/halo, sparks, red corona and rays, finish tears.
+  - New `marble()`: domain-warped `fbm2` in a log-twisted frame, slow. Crimson to red to pale gold; thick and bright on one side.
+  - Gold contour filaments, AA'd from `aa` with no derivatives.
+  - Star glints.
+  - Finish: the swirl spins up and unwinds under a soft shock ring.
+- `SolarEclipseFx`: finish sound is now beacon deactivate plus a soft explosion.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 7: dark calm black sun, noise-channel lightning
+- The user sent an in-game screenshot of round 6. The centre was blown out white, the whole sky looked red, and the lightning was stiff. They asked for a clear black eclipse, no stiff lightning, and calm, floating rays rather than fast pulsing. They suggested another way to compute lightning: textures, or how grandsigil does it.
+- grandsigil (studied for technique only):
+  - `client/Bolt`: CPU midpoint displacement with branches.
+  - `fx_bolt_column.fsh`: the channel's offset is noise of height in three layers, and the view ray is marched through the column. Light is summed and exposed with `1 - exp(-x)`. One hit plus two re-lights.
+- `solar_eclipse_storm.fsh`: bolts rebuilt that way, with 40 steps and a fork; no texture needed.
+- `solar_eclipse.fsh`:
+  - Removed: cracks (`rifts`), pulsing rings, fast sparks.
+  - The black sun is a black disc with a thin rim, a red corona and fine rays drifting slowly, and a faint breathing halo.
+  - Finish tears are 2D noise channels (`tear`).
+- Sky darker: `pow 2.0`. Strike flash 0.2 (it tinted the whole view at 7.5 strikes/s). Black-sun bloom 0.35.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 6: black sun like the reference, black sky, finish tears
+- The user sent a reference picture of an eclipse: a black disc with a white rim, fine rays, a sharp-edged disc of light and cracks. They asked for these changes:
+  - Remove the black-hole look, including the disk lines across the middle.
+  - Make the background black so the red light stands out.
+  - Add red cracks and waves radiating out.
+  - At the finish, add a ripple of lightning tears.
+- `solar_eclipse.fsh` rewritten for the black sun:
+  - Removed: disk, arch, lens, photon ring.
+  - A black disc with a white-hot rim and fine rays.
+  - A red halo disc (3× the black disc) that swells out at the collapse, with a sharp edge and sparks.
+  - 12 jagged red cracks with branches (`rifts`, 2D `sdSegment`).
+  - Pulsing red rings.
+  - Finish: 16 lightning tears re-cut 12×/s racing out across the sky, a shock ring and a flash (`EclD.x`).
+- `solar_eclipse_sky.fsh`:
+  - The sky is black-first: `DEEP` near black, `pow 1.6`, 12% red pull.
+  - No swirl round the star; no red grade on the sky (the ground keeps it).
+  - The `Star` uniform is dropped.
+- `SolarEclipseFx`:
+  - `finishSeconds`, and `finishCue` (thunder, explosion, shake) on a FINISH/CANCEL stop or at the start of the last 40 ticks.
+  - A red flash, aberration and zoom blur, plus an FOV push.
+  - The eclipse pass fades only in the second half of the ending.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 5: storm from the sky, red-black sky
+- The user asked for these changes:
+  - Remove the lightning round the eclipse.
+  - Many more bolts, striking down from the sky rather than from the eclipse.
+  - Move the eclipse higher.
+  - Keep the sky red, and make it blacker.
+- `solar_eclipse.fsh`: `starBolts` and its helpers removed.
+- `solar_eclipse_storm.fsh`:
+  - `MAX_STRIKES` 16 → 32; bolts start 80 blocks up with a random lean of ±0.35 × that.
+  - Visible 0.5 s, with flickering return strokes; 3 forks.
+  - `SkyDir` uniform dropped.
+- `SolarEclipseFx`:
+  - Strike rate 3 + 9 × `density` per second (7.5 at default).
+  - Default `elevation` 60.
+  - Thunder on 35% of strikes.
+  - Strike glow goes to the sky pass (`SkyC.w`).
+- `solar_eclipse_sky.fsh`: from the space phase on the sky stays red and black:
+  - `DEEP` haze replaces `INDIGO`; `NEB_DUST` 0.42; red-weighted nebula; blacks pushed down; 35% pull to `BLOOD`.
+  - Red-orange rim; red flash on strikes.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 4: red lightning round the star, red grade
+- The user asked to "adjust the screen colour too". They also said the things flying out of the eclipse should not be streaks; they want a lot of red lightning instead.
+- `solar_eclipse.fsh`:
+  - `strokes`, `splatter` and `paint` are replaced by `starBolts`, drawn twice:
+    - 26 long bolts (4–10 horizon radii);
+    - 18 short crackles (0.8–2.2).
+  - Each bolt re-strikes in a new direction every 0.22–0.52 s and has 2 forks.
+  - Bolts are 2D `sdSegment` on the star plane, with a corridor reject.
+- `solar_eclipse_sky.fsh`: new `SkyC.z` red grade (`BLOOD`). Under the black star the umbra goes from cold to red, and the whole view from inside is graded red (ground 55%, sky 25%).
+- `SolarEclipseFx`: the vignette turns blood red (`#4A0504`) under the black star, with no desaturation.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
+## 2026-11-03 — `solar_eclipse` round 3: world-fixed layout
+- The user reported that the eclipse turns when the camera turns, and is sometimes skewed.
+- Cause: round 2 laid the eclipse out in screen pixels round its projected centre, so its axes followed the screen, and perspective stretched it near the screen edges.
+- Fix: `solar_eclipse.fsh` works on the plane square to the star's direction, with world-fixed axes (`E = cross(D, up)`, `N = cross(E, D)`). Each pixel uses its own view ray: `q = (ray·E, ray·N) / (ray·D · tanS)`. The lens maps the bent `q` back to a direction and then to the screen with `projectUv`.
+- result: `checkShaders` 7 OK (copies removed). No Java change. Not seen in game. Not committed.
+
+## 2026-11-03 — bhfx 0.3.8 fog uniforms; `solar_eclipse` round 2
+- Why: in BHSpells `runClient` the user saw round 1 and reported three things. The space sky was good, but a pale band with stepped edges ran along the horizon. The eclipse looked like it was floating. They asked for a black star like a painted black hole, in reds, using every technique, and to check what bhfx needs.
+- bhfx (0.3.8):
+  - `ShaderManager.HEADER` and `glsl-check.gradle` gain `FogColor` and `FogRange` (start, end, shape).
+  - `PostRenderer.captureFog()` reads `RenderSystem` fog after the solid blocks, through `ClientEvents` → `ClientFxManager.captureFog()`, and binds it in `begin()`.
+  - New include `fog.glsl`: `fogDistance`, `fogAmount`, `refog`.
+  - Updated CHANGELOG, README, `API_PLAN.md` 5.2/5.3 and `shaders.md`.
+- BHSpells: `build.gradle` and `mods.toml` move to bhfx 0.3.8 (`[0.3.8,0.4)`); the bhfx build copied `libs/bhfx-0.3.8.jar` and removed 0.3.7.
+- `SolarEclipseFx`:
+  - The sun now hangs at infinity: camera + `skyDir` × 600. `skyDir` points towards the spawn target, or comes from the seed.
+  - New params `size` and `elevation` (`BhfxIds.SIZE` / `ELEVATION`) replace `height`; the gold default is now `#FFD27A`.
+  - Bolts come from `SkyDir` × 70.
+  - The cloud height is passed to the shaders.
+- Shaders:
+  - Sky: far-terrain fog and the cloud layer are replaced with the new sky (`skyAt`).
+  - `solar_eclipse.fsh` is rewritten for the black star: accretion disk (near and far halves), a lensed arch over and under the hole, three layers of paint strokes plus splatter that burst out at the collapse, a shock ring, and a red haze.
+  - Storm: bolts come from the sky direction.
+- result: bhfx `gradlew build` passed. With the 3 eclipse shaders copied in, bhfx `checkShaders` passed (7 OK; copies removed). BHSpells `compileJava` passed. Not seen in game. Not committed.
+- next: in-game check of the fog swap at different render distances and in rain; the black-star look; GPU cost.
+
+## 2026-11-02 — BHSpells: standalone `bhspells:solar_eclipse` effect
+- BHSpells: new `compat/bhfx/client/SolarEclipseFx` + `solar_eclipse.fsh` (sun, moon, corona, diamond ring, black star lens; order 10, `within(star, 7R)`), `solar_eclipse_sky.fsh` (twilight sky, horizon rim, umbra darkening, shadow bands; full screen inside the umbra), `solar_eclipse_storm.fsh` (seeded red lightning + scorch; `Strikes[16]` vec4). `BhfxIds.SOLAR_ECLIPSE`, registered in `BhfxClientBridge.onRegister`. Not tied to any spell; `SolarEclipseSpell` untouched. Design notes in `BHSpells/docs/bhfx/solar_eclipse.md`.
+- Same day, on request ("change the sky itself, like ArcaneVortex"): from totality on, `solar_eclipse_sky.fsh` replaces sky pixels with open space instead of twilight: a volumetric kaliset nebula along the view ray (`space()`, 14 samples × 14 folds, red near / gold far / indigo haze), fixed to world directions, swirling round the star once it forms. New uniforms `Star`, `SkyB.w` (space), `SkyC.x` (swirl), `Tint2`. Only the idea comes from ArcaneVortex (`partial_darkness`); the code is new. Brightness constants are guesses.
+- Lens samples `DiffuseSampler` in a pass drawn last, so the darkened world and the bolts bend too (`SceneSampler` would bring back the un-darkened world).
+- result: BHSpells `compileJava` + `build` passed; the 3 shaders passed glslang through bhfx `checkShaders` (copied in, then removed). Not seen in game. Not committed.
+- next: in-game checklist in [`testing.md`](testing.md).
+
 ## 2026-11-02 — Fix: floor effects dropped out in horizontal lines
 - bhfx: `include/scene.glsl` `sceneAt` unprojects at the centre of the depth texel it reads (cause and the first, unhelpful attempt in [`bugs.md`](bugs.md)). `PostRenderer`: outside a bounded pass's rect, copy `sceneLow` 1:1. `BHFxConfig`: new client option `quality.passBounds` (default true) to turn bounds off for A/B checks.
-- result: bhfx `gradlew build` passed (`checkShaders` 4 OK). The user confirmed in BHSpells `runClient` that the lines on `lunebris_aura` are gone. BHSpells shaders were not glslang-checked (this branch has no `checkShaders`); they loaded in game. Nothing committed.
+- result: bhfx `gradlew build` passed (`checkShaders` 4 OK). The user confirmed in BHSpells `runClient` that the lines on `lunebris_aura` are gone. BHSpells shaders were not glslang-checked (this branch has no `checkShaders`); they loaded in game. Committed 2026-11-02: bhfx `1d09489`, BHSpells `f71d9f6` (with the bounds work and the rebuilt jar).
 
 ## 2026-11-02 — BHSpells uses pass bounds; bhfx declared again in BHSpells `mods.toml`
 - BHSpells (not committed): new `compat/bhfx/client/FxBounds`; `FlameFieldFx`, `ShadowDomainFx`, `LunebrisAuraFx`, `GroundBeatFx`, `GroundPulseFx`, `ImpactRingFx`, `ScorchedGroundFx`, `GoldenAuraFx`, `PurpleFlameFx`, `SmokeAuraFx` pass `FxBounds.cylinder(...)` to `out.add`. `mods.toml` declares `bhfx` again (`mandatory=false`, `[0.3.7,0.4)`): branch `feature/deizy-integrate-1.8.0` had no bhfx entry (the old one is on `bhfx-squash-1.6.5`). BHSpells docs (gitignored, local): `docs/bhfx/reusable_effects.md` table of bounds, lines in `lunebris`, `heavenly_combo`, `tempest_combo`, `vengeful_pressure`, `tempest_reiatsu`.
