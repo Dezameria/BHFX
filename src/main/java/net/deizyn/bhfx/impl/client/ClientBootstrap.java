@@ -13,6 +13,9 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.client.RegisterFxEvent;
+import net.deizyn.bhfx.impl.client.test.FlowTestFx;
+import net.deizyn.bhfx.impl.client.test.ParticlesTestFx;
+import net.deizyn.bhfx.impl.client.test.VortexTestFx;
 import net.deizyn.bhfx.impl.client.test.TestFx;
 import net.deizyn.bhfx.impl.client.test.TrackerTestFx;
 
@@ -37,6 +40,9 @@ public final class ClientBootstrap {
         event.enqueueWork(() -> {
             ClientFxManager.register(BHFxMod.id("test"), TestFx::new);
             ClientFxManager.register(BHFxMod.id("test_tracker"), TrackerTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_particles"), ParticlesTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_vortex"), VortexTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_flow"), FlowTestFx::new);
             ModLoader.get().postEvent(new RegisterFxEvent());
         });
     }

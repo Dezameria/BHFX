@@ -3,6 +3,32 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-04 — Curves in the vertex shader; ribbons by back-links; ground snapping on the CPU (0.3.9)
+- **Over-life curves** are batch uniforms evaluated in `particle/vertex.vsh` and folded into `pColor` (now a smooth varying, like the new `pAge`), not a footer step: every material, BHSpells' included, follows them with no change, and they cost nothing per pixel. Keys are evenly spaced (1–4) to stay in uniforms; a ramp texture covers anything finer.
+- **Ribbons** link each point to the previous point's slot (texel 6 w) with a chain id (axis.x), instead of "the next ring slot": several streams can share one batch without breaking each other. Each end of a segment uses its own point's backward tangent, which both segments meeting there compute the same way, so there are no cracks; a central tangent would need the next point, which a point doesn't know. Memory per slot is unchanged.
+- **Turbulence** is a sum of sines minus its value at birth: analytic, smooth, starts at no offset. Not curl noise: no divergence-free guarantee, which particles that don't interact don't need.
+- **Ground snapping** is a CPU block probe at emit time (`LevelGround`), not a depth-buffer lookup: it works off screen and before the frame, and emits are rare compared with frames.
+- **`maxPassesPerFrame` counts screen passes only** (2026-11-04): particle batches are not full-screen passes and already have a per-frame slot cap; counting them let a few particle effects push each other out (`bugs.md`).
+- **Fluid surfaces count as ground** (2026-11-04, after the user's test): a point over water first landed on the bed, where the water surface's depth hid it. Replaces the first rule "water doesn't count".
+
+## 2026-11-04 — Orbit as a turning frame round a batch axis; streams spread births in time (0.3.9)
+- **Decision**: orbit motion is analytic: the usual motion runs in a frame that turns round one axis per batch (`FxParticles.orbit`, a uniform), by `ωt + αt²/2` per particle, with `pull` towards the axis along the spawn radius (same drag curve as the velocity, stopping on the axis). Per particle it costs one texel (7 instead of 6, 112 bytes a slot).
+- **Reason**: keeps "no CPU after spawn" and no GPU simulation. A batch axis that can move each frame carries a whirlwind with its caster at no cost. Angular speed that rises as a particle falls in (true angular momentum) has no closed form with drag, so spin-up `α` stands in for it.
+- **Rejected**: pulling towards a point (a sphere black hole) — not analytic together with the turn; use a ring/disc across the axis instead. Per-particle orbit centres — 1 more texel for a case no effect needs yet.
+- **Streams**: `Stream.emit` spawns what is due since its last call with births spread over the interval (`birth` set directly, possibly before "now") and positions along the line from the last centre, so a trail behind something fast is even at any tick or frame rate. Gaps over 0.25 s are dropped instead of caught up. Emitters use the effect's random, so they are deterministic from `tick` only.
+
+## 2026-11-04 — GPU particles live in bhfx, drawn inside the pass chain (0.3.9)
+- **Decision** (the user asked for shader-mixed particles in bhfx): bhfx draws its own particles, client-only, with no `ParticleType` or registry entry. A batch belongs to an `Fx` (`createParticles`) and is drawn among that frame's passes by order (`PassList.particles`), into the effect-resolution HDR chain at `AFTER_LEVEL`, depth-tested in the shader against the depth buffer.
+- **Reason**: no registry keeps bhfx removable; drawing in the chain reuses the dynamic resolution, bloom and the shader-pack path that already works for passes (drawing mid-level breaks under packs, see the 2026-10-23 mirror entries); passes ordered after particles can read them. Motion is analytic, so CPU cost is per spawn, not per frame.
+- **Storage**: one buffer texture per batch (GL 3.1) instead of instanced attributes (`glVertexAttribDivisor` is GL 3.3); a ring that overwrites the oldest instead of compaction, so uploads are only the newly spawned run.
+- **Colours are display-encoded** (`color(0xRRGGBB, a)` passes through), unlike `Uniforms.color`: the frame is display-encoded and the linear conversion is a recorded pitfall ([`shaders.md`](shaders.md)). `FxTexture` likewise reads as stored unless `.srgb()`.
+- **Costs/limits**: particles draw over water and glass like passes; no sorting for ALPHA; per-frame slot caps 4096/16384/32768 by quality.
+- Changes the 2026-11-02 assessment line "not bhfx's job: world particles" for particles bhfx draws itself; vanilla/Forge particle types stay out of bhfx.
+
+## 2026-11-04 — Resolution steps: hold the way up, don't allocate at the cap
+- **Decision**: `ResolutionController.share()` drops at once but rises at most one 1/8 step per 2 s. Effect targets are still sized to the effect resolution.
+- **Reason**: allocating at the cap and drawing into a smaller viewport would change the uv range of every texture a pass samples (`DiffuseSampler` at `texCoord`, `projectUv` lookups, bloom), so every pass shader in bhfx and BHSpells would need a uv scale. Holding the upward steps removes the back-and-forth resizes mid-cast, which were the hitch, without touching shaders.
+
 ## 2026-11-03 — Expose the terrain fog to passes (0.3.8), instead of overriding the fog
 - **Decision**: bhfx captures the terrain fog (`RenderSystem` fog colour, start, end, shape) after the solid blocks and gives it to every pass as `FogColor` / `FogRange`, with `fog.glsl` (`fogAmount`, `refog`). A pass that replaces the sky swaps the fog on far terrain for its own sky colour in post.
 - **Reason**:

@@ -16,10 +16,11 @@ BHSpells (`../BHSpells`) uses bhfx as a **soft dependency**: it plays normally w
 
 Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`.
 
-`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.8,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`, 0.3.8 for the fog uniforms `solar_eclipse` uses). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
+`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.9,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`, 0.3.8 for the fog uniforms `solar_eclipse` uses, 0.3.9 for particles / textures / emitters / ribbons in `conqueror_haki` and `dawn_rend`; raised 2026-11-05). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
 
-`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")`, resolved from **`BHSpells/libs/bhfx-0.3.2.jar`** (`flatDir` comes before `mavenLocal`). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
+`build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")`, resolved from **`BHSpells/libs/bhfx-0.3.2.jar`** (`flatDir`; for the same version a ~/.m2 copy wins, see below). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
 - **After changing bhfx, run `./gradlew.bat build` in bhfx.** The `copyToBHSpells` task (which finalizes `build`) copies the reobfuscated jar over the one in `../BHSpells/libs` and deletes older `bhfx-*.jar` files. If you forget, BHSpells keeps using the old jar in `libs/`, even if mavenLocal is newer.
+- **mavenLocal beats `libs/` for the same version** (Gradle prefers a repository with a pom over flatDir), so `copyToBHSpells` also runs `publishToMavenLocal`. It then deletes ForgeGradle's deobf copy (`~/.gradle/caches/forge_gradle/deobf_dependencies/net/deizyn/bhfx/<version>_mapped_*`), which only works while BHSpells' client is closed; if the build warns "could not clear", close the client and delete the folder. See [`bugs.md`](../bugs.md) 2026-11-04.
 - Whenever the jar in `libs/` changes, commit it in BHSpells too. If the bhfx version changes, update the version in BHSpells' `build.gradle` to match the file name.
 
 ## Spells that use bhfx
@@ -29,6 +30,13 @@ Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>
 | Annihilation Arrow | **The first user of `BHFx.start` + `FxKey` + `update` + `stop`** from the server: starts in `onServerPreCast`, sends `update(READY)` when the charge reaches 200 ticks, stops in `onServerCastComplete`. Follows the caster, `UNTIL_STOPPED`, range 64, persistent (late joiners see it continue). | `client/AnnihilationChargeFx`, `annihilation_charge.fsh`, spec: `docs/spells/fire/annihilation_arrow.md` |
 | Heavenly Combo | `BHFxClient.play` plays a local Fx from the existing VFX cues (no extra packets). `BHFxClient.fx(...)` gets the Fx instance to trigger blow/slam. | `client/HeavenlyComboFx`, `heavenly_combo.fsh`, design notes: `docs/bhfx/heavenly_combo.md` |
 | Shocking, Lightning Strike | `BHFx.pulse` (ScreenPulse) | In the spell class, through `BhfxCompat.pulse` |
+
+## GPU particles and textures (bhfx 0.3.9, 2026-11-04)
+- Available to BHSpells effects through the same `Fx` subclasses: `createParticles(material, capacity)` in the constructor, spawn in `tick`, `out.particles(batch, PassOptions.PARTICLES, u -> u.texture(...))` in `passes`. Materials go in `assets/bhspells/shaders/bhfx/particle/<name>.fsh`; textures anywhere under `assets/bhspells/textures/`. Spec: [`../API_PLAN.md`](../API_PLAN.md) 5.4. Reference effect: bhfx `ParticlesTestFx`.
+- Keep vanilla/Iron's particles as the fallback when `ctx.postAvailable()` is false (bhfx particles are off with post).
+- First user: the standalone `bhspells:conqueror_haki` (2026-11-04, not a spell). No spell uses them yet; BHSpells builds against 0.3.9 (`build.gradle`, `libs/bhfx-0.3.9.jar`).
+- 2026-11-04 `bhspells:dawn_rend` (standalone, `DawnRendFx`): the first BHSpells user of emitters, streams, orbit / pull, turbulence, over-life curves, ribbons, `onGround` and the built-in materials, plus a reused pass (`flame_field.fsh` from another Fx) and 12 particle batches in one effect. Design notes: `BHSpells/docs/bhfx/dawn_rend.md`. Not seen in game yet.
+- Lesson: a sprite with a black core and a glowing edge needs one particle that both covers and adds light — use `#define BHFX_PREMULTIPLIED` on an ALPHA batch rather than two batches.
 
 ## Lessons from real use
 

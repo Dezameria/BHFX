@@ -6,6 +6,49 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### 0.3.9 textures and GPU particles (2026-11-04, build + JUnit + glslang only)
+- ✅ 2026-11-04 loads and runs: BHSpells `runClient` (started by Claude after the user reported "runClient fails"; not reproduced, no error text given) reached the menu with bhfx 0.3.9; warmup "28 shader(s) in 647 ms", none broken (the 6 particle materials included); `bhfx:test_particles` played 7 times; no bhfx error, GL error from bhfx or crash in `latest.log`; normal shutdown. 2026-11-04 the user reports it works, no per-item details; the items below stay open until checked one by one.
+- ⏳ How it looks (items below). In the BHSpells dev client (it now runs bhfx 0.3.9 from `libs/`):
+  1. `/bhfx test bhfx:test_particles at ^ ^ ^6 {duration:30}` on flat ground. Expect: rising embers (orange → dark red as they cool), dark smoke lit orange from below that spins and dissolves, wavy air above the fire (heat haze), and every 2.5 s a burst of sparks that arc down, a flipbook puff and a ring spreading on the ground. Bright parts bloom.
+  2. Walk behind a wall or a block: particles behind it are hidden, and fade softly where they touch the ground (no hard cut line).
+  3. Turn away: `/bhfx status` shows skipped batches; turn back, they are there at once.
+  4. `/bhfx status` while it plays: "N particle slot(s)", "4 texture(s)", memory goes up by a few MB only.
+  5. Textures load late at worst by a frame or two (first run after start): parts may pop in, never a stall.
+  6. F3+T while it plays: nothing breaks, textures and materials reload.
+  7. Log: no `bhfx particle material ... broken`, no GL error; warmup line counts the 6 materials.
+  8. With a shader pack (post forced on): same look; world occlusion lines up.
+  9. `/bhfx bench bhfx:test_particles 20`: record the GPU ms here.
+  10. Resolution steps: with a heavy effect plus this one, F3 shows the effect size dropping at once and rising one step every ~2 s.
+- ⏳ 2026-11-04 `bhspells:dawn_rend` (BHSpells showcase, every technique at once; build + glslang only). `/bhfx test bhspells:dawn_rend at ^ ^ ^6`, then `attach @s`: fire spreads over the ground, ribbon flames and motes into the hand, at 1.6 s five claw strokes drawn up into the sky with slash impact frames, the tears open onto a violet starry sky with burning lips and bent edges, cracks, furrows on the ground, embers falling and light shafts, then the tears seal (4.5–6 s) and the fire dies (7.5 s). Log: warmup counts the 3 new shaders, no broken material. `/bhfx bench bhspells:dawn_rend 20` GPU ms. Details: `BHSpells/docs/bhfx/dawn_rend.md`.
+- 2026-11-04 first in-game round (user, BHSpells `runClient` 21:33–22:05, MEDIUM, flat world + a dirt pillar with water; log `BHSpells/run/logs/latest.log`, 3 screenshots in chat):
+  - ✅ warmup "37 shader(s) in 1255 ms", none broken, no bhfx exception or bhfx GL error (the many "GL ERROR 65539: Invalid key 0" lines come with chat commands: GLFW key input, not bhfx). The grandsigil "not drawn a frame in 6–20 s" dumps mostly show the frame limiter / event wait (window in the background), not bhfx.
+  - `test_flow`: ✅ 1 smoke, ✅ 3 helices (user), ✅ 5 dust and scorch on the terrain, flipbook plays. ❌ 2 embers white (user couldn't tell them apart), ❌ 4 comet tail white not red, zigzag; also the helices zigzag in the screenshots → fixed same day (`bugs.md`). ? 5 sparks colour/fall not judged. ? 6 over water the points "float" (by design they drop to the floor within 4 blocks or stay; to clarify with the user). ❌ 7 attached: moves oddly when walking → orbit fix (`bugs.md`).
+  - `test_vortex`: ✅ 1, 3, 4, 5, 7; ✅ 2 (the ring is tilted, so it looks oval: expected). ❌ 6 attached: follows but swings → same orbit fix.
+  - `test_particles`: ✅ no hard cut line, ✅ F3+T reload; ? off-screen skip ("1 off-screen pass(es) skipped" seen in `/bhfx status`); ⏳ shader pack.
+  - ❌ all three at once: some flicker, "as if they fight to spawn". Not reproduced; 3 instances need 13,184 slots, under the MEDIUM budget 16,384, so the budget only explains it with extra instances running. Next: `/bhfx status` while it flickers.
+  - Bench (camera still, 20 s, 119 fps cap so frame cost ~0): bhfx GPU `test_flow` 0.90 ms, `test_vortex` 1.01 ms, `test_particles` 0.57 ms (+0.46 ms/frame, 97 fps scene), `bhspells:conqueror_haki` 0.76 ms. `/bhfx status`: 2,936–3,920 particle slots, ~45 MB.
+- 2026-11-04 second round (user, after the ramp / seed / orbit-frame fixes): ✅ ramp colours (comet tail, embers, puff); ✅ comet and helices smooth (comet head a bit square; helix start shaky); ✅ `test_flow` attached embers trail; ✅ `test_vortex` attached whirlwind follows; ✅ `test_flow` sparks; ✅ off-screen skip. ❌ `test_flow` attached helices swing and split into sheets when walking; ❌ vortex hole ring stays where it was spawned; ❌ water: points land under water and can't be seen. Fixed same day (`bugs.md`), not re-tested.
+- 2026-11-04 third round (user): ✅ attached `test_flow` helices smooth, no sheets, steady start; ✅ `test_vortex` hole ring follows; ✅ dust and scorch on the water surface; ✅ comet head soft. ❌ several effects at once: some parts still vanish → pass-cap fix (`bugs.md`).
+- ⏳ 2026-11-04 fourth round: `test_flow`, `test_vortex` and `test_particles` together, walk round them and move closer / farther: every part of all three stays, no flicker; `/bhfx status` still shows the slot count.
+- ✅ 2026-11-04 (third round) attached `test_flow` + walk/sprint: helices smooth round you, no sheets, steady at their start; `test_vortex` attached: the hole ring above follows; `test_flow` by a pool: dust and scorch lie on the water surface; comet head soft.
+- ✅ 2026-11-04 (second round) re-test after the ramp / ribbon seed / orbit-frame fixes: comet tail white → orange → red, embers white-yellow → red, puff orange; comet and helices smooth curves (no kinks); `attach @s` + walk: helices and whirlwind stay round you without swinging; embers and smoke trail behind.
+- ⏳ 2026-11-04 turbulence, curves, ribbons, ground snapping, built-in materials (build + 13 `ParticleBatchTest` cases + glslang only). `/bhfx test bhfx:test_flow at ^ ^ ^8 {duration:30}` on hilly ground, then `attach @s`:
+  1. Smoke: soft grey puffs that grow, darken and fade, drifting and curling (not straight up), neighbours moving together.
+  2. Embers: start white-yellow, cool to red along the ramp, wobble, shrink and fade out.
+  3. Three cyan → blue → purple ribbons winding up round the centre as helices, smooth curves with no gaps, cracks or flicker at the joints; they thin and fade at the top. From the side and from above.
+  4. A comet whose tail is one continuous ribbon, yellow-white at the head to red at the tail, wobbling; smooth at 30 FPS too.
+  5. Every 2.5 s on uneven ground: the dust ring and the ring of scorch marks sit on the terrain at each point's own height (on slopes, steps and slabs; none floating or buried); a flipbook puff in the centre; sparks white → orange → red.
+  6. While attached and walking: the helices stay round you.
+  7. Log: warmup counts the 4 built-in materials; no broken material or GL error. (2026-11-04: the 15:50 and 19:45 BHSpells `runClient` checks loaded the stale 14:18 jar from ~/.m2, not this one; see `bugs.md`. The 19:56 `runClient` loaded this jar and reached the title screen with no bhfx error; no world joined, so warmup and the driver's compile/link of the rewritten vertex shader are still unchecked.)
+- ⏳ 2026-11-04 emitters, streams and orbits (build + 8 `ParticleBatchTest` cases + glslang only). `/bhfx test bhfx:test_vortex at ^ ^ ^7 {duration:30}`, then `/bhfx test bhfx:test_vortex attach @s` and walk:
+  1. A whirlwind: brown dust and orange embers rise from the ground, turning anticlockwise seen from above, the funnel widening as they rise. Smooth flow, no puffs every tick.
+  2. Attached: the whirlwind stays centred on you while you walk (the axis follows each frame); particles already in the air move with it.
+  3. Above: every 2.5 s a tilted purple ring of streaks spirals into one point, spinning faster as it shrinks; the streaks point along their motion (not radially).
+  4. Same pulse: an even ring of embers flies outwards at the feet, and sparks fountain up from 2.5 blocks and fall.
+  5. A blue comet circles the whirlwind; its trail is an even line with no gaps or clumps, at high and low FPS (try a capped 30 FPS).
+  6. Particles don't vanish at the screen edge when looking slightly away (cull sphere includes the turn).
+  7. `/bhfx stop` mid-effect: what is in the air finishes, nothing new spawns.
+
 - ⏳ 2026-11-02 pass bounds (`PassOptions.within`, build + `ScreenRectTest` only): give a test Fx a bounded pass (e.g. `bhfx:test` with `.within(position, radius)`). Check: (1) the effect looks the same as without bounds when the radius covers it, with no seam at the rect edge, also at reduced FX resolution; (2) a too-small radius cuts it off along a rectangle (expected); (3) turning away makes `/bhfx status` show "off-screen pass(es) skipped"; (4) standing inside the sphere still draws it; (5) two bounded passes plus one unbounded chain correctly; (6) GPU ms in `/bhfx stats` drops for a small distant effect compared with no bounds.
 - ✅ 0.1: tested in game (flat world). Effects render, no shader/GL errors in the log.
 - ✅ 0.2: `gradlew build` passed. `composite`, `test`, `bloom_down` and `bloom_up` (includes inlined) compile in WebGL2 / GLSL ES 3.00.
@@ -88,6 +131,17 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ### bhfx 0.3.8 fog uniforms (2026-11-03, build + glslang only)
 - ⏳ `FogColor` / `FogRange` hold the terrain fog. Checked through `solar_eclipse`: with the sky replaced, far terrain fades into the new sky with no pale band. Try render distance 8 and 24, rain, underwater (water fog) and lava, and Embeddium on/off.
+
+### `bhspells:conqueror_haki` (2026-11-04, build + glslang only)
+- ✅ 2026-11-04 round 1 seen in game by the user: works, but the sprites were stills, too small, and read as "electric current" (fixed in round 2).
+- ✅ 2026-11-04 round 2 seen in game by the user (feedback → round 3).
+- ✅ 2026-11-04 round 3 seen in game by the user (feedback → round 4).
+- ✅ 2026-11-04 round 4 seen in game by the user (tone too red → round 5).
+- ⏳ Round 5: the screen tone is faint grey-dark with only a trace of red; the world's own colours stay readable.
+- ⏳ Round 4 items still to look at: the screen bends (ripple, zoom, distortion shell, FOV) only for a moment at the first release, then only shakes; with `{hold:true}` later bursts shake without bending; the whole screen looks muted, slightly dark red, with deeper blacks, and settles but stays tinted while the effect lasts.
+- ⏳ Round 3: no dark patch on the ground; three red rings run out over the ground after the burst; bolts deep red (not pink or white); only one red impact flash, and with `{hold:true}` the later bursts have no flash or ripple.
+- ⏳ Round 2 items still to look at: big bolts tear out of the body in every direction (some into the ground), each bent 2–3 times, tilted so their angle shows in depth when walking round them, each playing the 14 frames as an animation. Then the items below.
+- ⏳ `/bhfx test bhspells:conqueror_haki attach @s` in third person and first person. Expect: bolts snapping on the body for 0.6 s, then a boom with impact frames, a bending shell racing out to 14 blocks, bolts popping where the front passes, the ground behind the front drained towards red-black with a red line at the front. Bolt cores must look black (cover the world), not glowing; glow red around them. Check `{hold:true}` (repeat every 3 s, `/bhfx stop` fades out) and `{radius:24, color:"#8A2BFF"}`.
 
 ### `bhspells:solar_eclipse` (2026-11-02 round 1 seen in game by the user; round 2 2026-11-03, build + glslang only)
 - 2026-11-02 round 1 (user screenshot): the space sky shows, but there was a pale band along the horizon (day fog on far terrain), and the eclipse looked like it was floating. Both are addressed in round 2, which is not seen yet.

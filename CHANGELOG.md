@@ -4,6 +4,46 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.9 — 2026-11-04 (protocol 2)
+- **Added** (Experimental): textures. `Uniforms.texture(name, FxTexture)` binds an image to a `sampler2D` in a pass
+  or particle material (up to 10). `FxTexture.of(file)`, `FxTexture.packed(r, g, b, a)` (four grayscale masks in one
+  texture), `.srgb()`, `.clamp()`, `.nearest()`. Decoded on a background thread, so the frame never waits (the sampler
+  reads zero until it has loaded; `BHFxClient.preload` starts early, `BHFxClient.textureReady` asks). Grayscale images
+  use a quarter of the memory. Mipmapped, freed after 60 s unused and on resource reload.
+- **Added** (Experimental): GPU particles. `Fx.createParticles(material, capacity)` makes an `FxParticles` batch;
+  `PassList.particles(batch, options, setup)` draws it among the passes (default order `PassOptions.PARTICLES` = 50).
+  Materials live in `assets/<ns>/shaders/bhfx/particle/<name>.fsh` and define `vec4 material(Particle p)` (helpers in
+  `bhfx:particle.glsl`: fades, sphere normals, flipbooks, erosion; `#define BHFX_PREMULTIPLIED` lets a material return
+  premultiplied colour plus added light, so one particle can both darken and glow). Particle colours are display-encoded like the frame
+  (`color(0xRRGGBB, a)` shows as given; unlike `Uniforms.color`). Motion is computed on the GPU (velocity, gravity,
+  drag), so a particle costs no CPU after its spawn. Blends `ADD`, `ALPHA` (premultiplied) and `DISTORT` (bends the
+  image behind it); facings `CAMERA`, `VELOCITY` (streaks), `FLAT` (ground decals) and `AXIS` (each particle's own
+  direction and length via `ParticleSpawn.axis`, tilted round it in depth: bolts, beams); `pivot` puts the spawn point
+  at the quad's base so it grows out from there. Hidden by terrain in front, soft
+  where they meet it, bright ones bloom. At most 4096 / 16384 / 32768 particle slots per frame on Low / Medium / High.
+- **Added** (Experimental): emitters and orbit motion. `FxEmitter` shapes (`point`, `sphere`, `shell`, `ring`,
+  `disc`, `cylinder`, `cone`, `line`, `box`; `.axis(dir)` turns them, `.even()` spaces one emit evenly) give each
+  particle an offset and a direction. `FxParticles.emit(shape, centre, count, speed, each)` spawns a burst from one;
+  `FxParticles.stream(perSecond)` makes a `Stream` that spawns at a steady rate, spreading births in time and along
+  the way the centre moved between calls, so trails stay even. Orbits: `FxParticles.orbit(centre, axis)` sets a batch
+  axis (can move every frame, carrying a whirlwind along), and per particle `ParticleSpawn.orbit(rad/s, spinUp)` turns
+  round it and `pull(blocks/s)` moves towards it (negative = away), all on the GPU: vortices, black holes.
+- **Added** (Experimental): turbulence, over-life curves, ribbons, ground snapping and built-in materials.
+  `FxParticles.turbulence(blocks, frequency[, scale])` wobbles particles smoothly (neighbours alike).
+  `colorOverLife(colours...)` / `colorOverLife(ramp, from, to)`, `alphaOverLife(keys...)`, `sizeOverLife(keys...)`
+  (1–4 keys) shape every material from Java. `Facing.RIBBON` draws connected strips through the points of each
+  `FxParticles.ribbon()` / `Stream` (several per batch). `Shape.onGround(search[, lift])` drops emitted points onto
+  the terrain. Built-in materials `FxParticles.DOT`, `STREAK`, `SPRITE` (texture + optional flipbook) and `RIBBON`,
+  so simple particles need no shader.
+- **Added**: test effects `bhfx:test_flow` (smoke, embers, helix ribbons, a comet ribbon, ground rings on uneven
+  terrain, all on built-in materials), `bhfx:test_particles` (`/bhfx test fx bhfx:test_particles`), a bonfire that uses every
+  particle and texture feature, and `bhfx:test_vortex`, a whirlwind, black hole and comet trail that use the emitters,
+  streams and orbits.
+- **Changed**: effect resolution now rises at most one step (1/8) every 2 s; it still drops at once. Each step resized
+  the effect targets, so a spell whose cost swung could resize them back and forth mid-cast.
+- Shader warmup also warms particle materials (as particle programs, not as passes).
+- `checkShaders` also checks particle materials (between bhfx's particle header and footer) and `particle/*.vsh`.
+
 ## 0.3.8 — 2026-11-02 (protocol 2)
 - **Added**: header uniforms `FogColor` and `FogRange` (start, end, shape) with the terrain fog of the frame, captured
   after the solid blocks, and the include `bhfx:fog.glsl` (`fogDistance`, `fogAmount`, `refog`). A pass that replaces

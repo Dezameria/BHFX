@@ -17,6 +17,7 @@ Steps:
    - bhfx looks up includes in `src/main/resources`.
    - BHSpells looks them up in `src/main/resources` and in **the bhfx jar on the compileClasspath**, so it checks against the same bhfx version it compiles against.
 3. Write the result to `build/glsl-check/<ns>_<name>.frag` and run glslang on each file. If any fails, the build fails with the errors.
+4. (0.3.9) Particle materials `assets/<ns>/shaders/bhfx/particle/*.fsh`: bhfx's `particle/_header.glsl` + the material (includes inlined) + `particle/_footer.glsl`, written as `<ns>_particle_<name>.frag`. The header and footer are read from the include roots, so BHSpells would check against the bhfx jar it compiles with. `particle/*.vsh` files are checked as they are. In game `ShaderManager.getParticle` assembles them the same way, from the same files.
 
 **If the header in `ShaderManager.HEADER` changes, update `glslHeader` in `glsl-check.gradle` in both repos too.**
 
@@ -41,5 +42,10 @@ Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`gl
 - **`smoothstep(a, b, x)` with `a > b`**: GLSL leaves the result undefined. Most drivers compute it anyway, but it isn't guaranteed. Use `1.0 - smoothstep(b, a, x)` instead (found in `annihilation_charge.fsh`, 2026-10-17).
 - **`texture()` inside a per-pixel branch**: implicit derivatives are undefined there. Use `textureLod(..., 0.0)` (2026-10-17).
 - **`dFdx`/`dFdy` inside a branch**: the values are undefined. Compute them outside the `if` and use them inside, and flip the normal to face the camera (`dot(nrm, s.dir) > 0.0 ? -nrm : nrm`).
+- **`pow(x, 2.0)` with a negative `x` is undefined** (GLSL spec): the driver may return NaN, which glslang does not catch. In BHSpells `dawn_rend.fsh` (2026-11-04) `exp(-pow((s - head) * k, 2.0))` behind the stroke's head turned the whole tear plane into a flat grey sheet that the bloom spread further. Square with `x * x`; `pow` only on a base known to be ≥ 0 (`max(…, 0.0)`). Also guard `normalize` of a possibly zero vector, and a pass may end with `if (any(isnan(col)) || any(isinf(col))) col = s.color;` as a safety net. BHSpells `golden_clash.fsh` still has the same pattern (lines 125, 315, 383), not changed.
 - **`Uniforms.color` is linear, the frame is not**: `UniformBinder.color` applies `pow(c, 2.2)`, but passes add straight onto the display-encoded frame and nothing converts back. A tint used as an emitted colour comes out darker and more saturated than asked (`#FFB424` gold looks orange-red). Convert back with `pow(Tint.rgb, vec3(1.0 / 2.2))` (found in BHSpells `flame_field.fsh`, then `inferno.fsh`, 2026-10-20).
 - **Rays must start at `Eye`, not `vec3(0.0)`**: view bobbing moves the eye (see `API_PLAN.md` 5.2).
+- **Particle depth**: compare clip-space w with w, not with `-viewZ` from `InvProj`: Minecraft folds view bobbing into the projection, so the two spaces differ slightly. The scene's w is `1 / (InvProj * ndc).w` (`_footer.glsl`, 2026-11-04).
+- **Two sampler types on one unit**: a `samplerBuffer` left on unit 0 next to the `sampler2D` there is an invalid operation at draw time. Always set `PData` (unit 5), also in warmup (2026-11-04).
+- **Reserved words**: `half` (also `input`, `output`, `filter`, `sample`, ...) is reserved in GLSL 1.50 and fails to compile as a variable name (`particle/vertex.vsh`, 2026-11-04).
+- **Particle materials and `discard`**: run `material()` before discarding, since its `texture()` calls need derivatives (same rule as the `texture()` in a branch item above).

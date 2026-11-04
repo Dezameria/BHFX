@@ -107,7 +107,7 @@ public final class BHFxConfig {
         c.push("limits");
         MAX_ACTIVE_FX = c.comment("Most effects alive at once; the oldest is removed beyond this.")
                 .defineInRange("maxActiveFx", 32, 1, 256);
-        MAX_PASSES_PER_FRAME = c.comment("Most shader passes per frame; the farthest / last-ordered passes are skipped beyond this.")
+        MAX_PASSES_PER_FRAME = c.comment("Most shader passes per frame; the farthest / last-ordered passes are skipped beyond this. Particle batches don't count.")
                 .defineInRange("maxPassesPerFrame", 8, 1, 32);
         CULL_DISTANCE = c.comment("Effects farther than this from the camera keep ticking but draw nothing.")
                 .defineInRange("cullDistance", 256.0, 16.0, 2048.0);

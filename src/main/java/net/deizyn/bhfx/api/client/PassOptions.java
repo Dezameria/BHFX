@@ -5,12 +5,16 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * @param order  lower draws first, sorted across all effects. Suggested: world-space 0, full-screen overlays 100.
+ * @param order  lower draws first, sorted across all effects. Suggested: world-space 0, particles 50, full-screen
+ *               overlays 100.
  * @param bounds world-space sphere the pass stays inside, or null for the whole screen (see {@link #within})
  */
 public record PassOptions(int order, @Nullable Bounds bounds) {
     public static final PassOptions DEFAULT = new PassOptions(0);
     public static final PassOptions OVERLAY = new PassOptions(100);
+    /** Default order of particle batches: over world-space passes, under overlays. */
+    @ApiStatus.Experimental
+    public static final PassOptions PARTICLES = new PassOptions(50);
 
     public PassOptions(int order) {
         this(order, null);

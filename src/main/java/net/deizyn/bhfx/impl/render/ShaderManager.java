@@ -58,8 +58,14 @@ final class ShaderManager {
             out vec4 fragColor;
             """;
 
+    private static final ResourceLocation PARTICLE_VERTEX = new ResourceLocation("bhfx", "shaders/bhfx/particle/vertex.vsh");
+    private static final ResourceLocation PARTICLE_HEADER = new ResourceLocation("bhfx", "shaders/bhfx/particle/_header.glsl");
+    private static final ResourceLocation PARTICLE_FOOTER = new ResourceLocation("bhfx", "shaders/bhfx/particle/_footer.glsl");
+
     private final Map<ResourceLocation, ShaderProgram> programs = new HashMap<>();
     private final Set<ResourceLocation> broken = new HashSet<>();
+    private final Map<ResourceLocation, ShaderProgram> particlePrograms = new HashMap<>();
+    private final Set<ResourceLocation> brokenParticles = new HashSet<>();
 
     ShaderProgram get(ResourceLocation id) {
         ShaderProgram program = programs.get(id);
@@ -71,12 +77,40 @@ final class ShaderManager {
             StringBuilder source = new StringBuilder(HEADER);
             files.add(id);
             append(source, toPass(id), files, new HashSet<>(), 1);
-            program = link(id, source.toString(), files);
+            program = link(id, VERTEX, source.toString(), files);
             programs.put(id, program);
             BHFxMod.LOGGER.debug("bhfx compiled {}", id);
         } catch (IOException | IllegalStateException e) {
             broken.add(id);
             BHFxMod.LOGGER.error("bhfx shader {} is broken and will be skipped until reload: {}", id, e.getMessage());
+        }
+        return program;
+    }
+
+    /**
+     * A particle material: "ns:name" → assets/ns/shaders/bhfx/particle/name.fsh between bhfx's particle header and
+     * footer, linked with the shared particle vertex shader. Cached like passes.
+     */
+    ShaderProgram getParticle(ResourceLocation id) {
+        ShaderProgram program = particlePrograms.get(id);
+        if (program != null || brokenParticles.contains(id)) {
+            return program;
+        }
+        List<ResourceLocation> files = new ArrayList<>();
+        try {
+            StringBuilder source = new StringBuilder(read(PARTICLE_HEADER));
+            source.append('\n');
+            ResourceLocation file = new ResourceLocation(id.getNamespace(), "shaders/bhfx/particle/" + id.getPath() + ".fsh");
+            files.add(file);
+            append(source, file, files, new HashSet<>(), 1);
+            files.add(PARTICLE_FOOTER);
+            source.append("#line 1 ").append(files.size()).append('\n').append(read(PARTICLE_FOOTER));
+            program = link(id, read(PARTICLE_VERTEX), source.toString(), files);
+            particlePrograms.put(id, program);
+            BHFxMod.LOGGER.debug("bhfx compiled particle material {}", id);
+        } catch (IOException | IllegalStateException e) {
+            brokenParticles.add(id);
+            BHFxMod.LOGGER.error("bhfx particle material {} is broken and will be skipped until reload: {}", id, e.getMessage());
         }
         return program;
     }
@@ -89,10 +123,13 @@ final class ShaderManager {
         programs.values().forEach(ShaderProgram::delete);
         programs.clear();
         broken.clear();
+        particlePrograms.values().forEach(ShaderProgram::delete);
+        particlePrograms.clear();
+        brokenParticles.clear();
     }
 
     int compiledCount() {
-        return programs.size();
+        return programs.size() + particlePrograms.size();
     }
 
     private static ResourceLocation toPass(ResourceLocation id) {
@@ -134,8 +171,9 @@ final class ShaderManager {
         }
     }
 
-    private static ShaderProgram link(ResourceLocation id, String fragmentSource, List<ResourceLocation> files) {
-        int vs = compile(GL20.GL_VERTEX_SHADER, VERTEX, id, files);
+    private static ShaderProgram link(ResourceLocation id, String vertexSource, String fragmentSource,
+                                      List<ResourceLocation> files) {
+        int vs = compile(GL20.GL_VERTEX_SHADER, vertexSource, id, files);
         int fs;
         try {
             fs = compile(GL20.GL_FRAGMENT_SHADER, fragmentSource, id, files);

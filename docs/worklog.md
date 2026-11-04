@@ -11,6 +11,125 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-05 — bhfx `runClient` fixed (Carpet refmap)
+- bhfx: `build.gradle` — run configs remap mixin refmaps (`mixin.env.remapRefMap`, `refMapRemappingFile`), so Carpet's mixins apply in dev (see [`bugs.md`](bugs.md)).
+- result: `runClient` reaches the title screen; no world joined or effect tested yet.
+
+## 2026-11-05 — Reference skills for what was built
+- bhfx `.claude/skills/`: `bhfx-particles` (what the GPU particle system can do, API cheat sheet, rules, limits), `bhfx-effect-recipes` (lightning, sky tears, ground marks, grades, screen reactions, shader traps; `scripts/glslcheck.py` checks shaders of any mod), `bhfx-dev-loop` (build → BHSpells → runClient, stale jar cache, log reading, status / bench).
+- BHSpells `.claude/skills/`: `dawn-cleaving-solar-flash`, `conqueror-haki`, `ef-animation-cut` (`scripts/cut_animation.py` analyze / build; reproduces the shipped dawn_cleaving charge / release files exactly).
+- `.claude/` is git-ignored in both repos: the skills live on this machine only.
+
+## 2026-11-05 — `bhspells:dawn_rend` rounds 2–5 and the spell Dawn Cleaving Solar Flash
+- In-game rounds with the user: a white / grey sheet over the screen was NaN from `pow(negative, 2.0)` (now in `shaders.md`); claws made bigger, per-claw table (`DawnRendFx.CLAWS_TABLE` → uniform arrays `Claw` / `ClawB`), diagonal from the ground on the right up to the left, capsule distances and a soft fade where the tear plane meets the terrain (a rectangular frame before); lightning pass `dawn_rend_storm.fsh` (after `solar_eclipse_storm`) with gold tear bolts and pink bolts gathering into and bursting out of the caster; ground rings, smoke and the flame-spark helix removed.
+- BHSpells: new Legendary lightning spell `bhspells:dawn_cleaving_solar_flash` (LONG 32 ticks) that starts the effect from the server (`BhfxCompat.dawnRendStart` / `dawnRendCancel`, `FxKey` per caster), plays Epic Fight `efn:biped/exsiliumgladius_reborn/exsiliumgladius_aaa` on release and deals the claw damage once. Notes: `BHSpells/docs/bhfx/dawn_rend.md`, spec `BHSpells/docs/spells/lightning/dawn_cleaving_solar_flash.md`.
+- result: BHSpells `build` passed, shaders pass glslang (scratch script). Not seen in game. Not committed.
+
+## 2026-11-04 — BHSpells showcase effect `bhspells:dawn_rend` (ประกายอรุณฉีกนภา)
+- The user asked for one effect using every bhfx technique: the ground bursts into dawn fire, then a swipe rakes five claw marks tearing the sky.
+- BHSpells: `compat/bhfx/client/DawnRendFx` (12 particle batches, per-frame ribbon / orbit streams, reuses `flame_field`), shaders `dawn_rend.fsh` (ray-plane tears with a parallax sky inside, bent image, cracks, ground furrows, tear light, dawn sky), `dawn_rend_grade.fsh`, `particle/dawn_haze.fsh`; `BhfxIds.DAWN_REND`, registered in `BhfxClientBridge`; `docs/bhfx/dawn_rend.md`.
+- result: BHSpells `compileJava` and `build` passed; the three shaders pass glslang through a scratch script that expands includes like `checkShaders`. Not seen in game. Not committed.
+
+## 2026-11-04 — Third in-game round passed; pass cap no longer counts particle batches
+- User: the round-two fixes pass (helices, hole ring, water, comet head); several effects at once still lose parts.
+- bhfx: `PassListImpl.drawList` caps screen passes only; `BHFxConfig` comment; new JUnit `PassListImplTest`. `bugs.md`, `decisions.md`, `testing.md`.
+- result: `gradlew build` passed (JUnit, `checkShaders`); jar copied to `BHSpells/libs` and ~/.m2, deobf copy cleared by the build. Not re-tested in game.
+
+## 2026-11-04 — Second in-game round; helices per frame, vortex hole follows, water counts as ground
+- Read the user's second-round results (see `testing.md`).
+- bhfx: `FlowTestFx` streams helices in `passes()`; `VortexTestFx` sets the hole centre per frame; `LevelGround` counts fluid surfaces; `particle/ribbon.fsh` soft head; javadoc `FxParticles.orbit`, `FxEmitter.Shape.onGround`; `decisions.md`, `API_PLAN.md`, `bugs.md`.
+- result: `gradlew build` passed (JUnit, `checkShaders` 16 OK); jar copied; deobf copy not cleared yet (the user's client was open). Not re-tested in game.
+
+## 2026-11-04 — First in-game round of the 0.3.9 particle features; three fixes
+- Read the user's results, screenshots and `latest.log` (details and bench numbers in `testing.md`).
+- bhfx: `PostRenderer.drawBatch` binds the ramp so it uploads; `particle/vertex.vsh` ribbon turbulence seeded per chain, orbiting particles placed round the current centre; `ParticleBatch` `Cursor.orbit` / `pull` store from the centre, cull sphere + |centre|; `FxParticles.orbit` javadoc; `ParticleBatchTest` 14 cases. See `bugs.md`.
+- result: `gradlew build` passed (JUnit, `checkShaders` 16 OK); jar copied to `BHSpells/libs` and ~/.m2, but the deobf copy could not be cleared (the user's client was open). Not re-tested in game.
+- next: close the client and clear the deobf copy, re-test (checklist in `testing.md`); water behaviour and the flicker to clarify with the user.
+
+## 2026-11-04 — Particle memory and optimization plan (no code change)
+- Answered: memory is fixed per batch, 112 bytes per slot on the GPU plus the same in the Java `float[]` mirror, plus one shared ~1.75 MB off-heap upload buffer (`test_flow` ≈ 0.42 MB each side). The real cost is GPU fill rate and the vertex work on dead slots.
+- Optimization plan agreed and written into `roadmap.md` (live window, peak stats, LOD, near-camera limits; on hold until the 0.3.9 in-game checklists pass; release as 0.3.10).
+- result: docs only. Nothing measured.
+
+## 2026-11-04 — BHSpells runClient loaded a stale bhfx 0.3.9
+- The user reported "run client ไม่ติด", then "no bhfx flow to run". BHSpells' `runClient` (19:45) reached the title screen with the 14:18 bhfx 0.3.9 from ~/.m2 (mavenLocal wins over `libs/` for the same version), without the 15:50 features (`bhfx:test_flow`, ribbons, ground, built-in materials). The 15:50 title-screen check had the same stale jar. See `bugs.md`.
+- bhfx `build.gradle`: `copyToBHSpells` depends on `publishToMavenLocal` (which waits for `reobfJar`) and afterwards deletes ForgeGradle's deobf copy of `<mod_version>`, warning when a running client holds it. `docs/bugs.md`, `docs/integrations/bhspells.md`, `docs/testing.md` updated.
+- result: ~/.m2 and `BHSpells/libs` jars have the same sha1; after clearing the deobf copy, `runClient` (19:56) loaded it (`.input` `orig=` matches; `FlowTestFx`, `LevelGround`, `particle/ribbon.fsh` present), title screen, no bhfx error. No world joined yet.
+- next: the `test_flow` / `test_vortex` checklists in `testing.md`.
+
+## 2026-11-04 — Turbulence, over-life curves, ribbons, ground snapping, built-in materials (0.3.9)
+- The user asked for all four proposed additions so everything is tested in one go.
+- bhfx API: `FxParticles.turbulence`, `colorOverLife` (keys / ramp), `alphaOverLife`, `sizeOverLife`, `Facing.RIBBON`, `ribbon()` + `Ribbon`, material constants `DOT` / `STREAK` / `SPRITE` / `RIBBON`; `FxEmitter.Shape.onGround(search[, lift])`, `groundSearch()`, `groundLift()`, `FxEmitter.GroundProbe` (internal).
+- impl: `ParticleBatch` (curve and turbulence fields, ribbon links in axis.x / texel 6 w, streams keep a chain, cull sphere adds the size curve and turbulence), new `LevelGround`, `PostRenderer.drawBatch` uniforms (`PTurb`, `PRing`, `PCurves`, `PColorKey0..3`, `PAlphaKeys`, `PSizeKeys`, `PRamp`, `PRampRange`). `particle/vertex.vsh` rewritten round `bhfxPoint(slot)` (motion, turbulence, orbit, size curve) with a ribbon path; `pColor` smooth and new `pAge` (header/footer). New materials `particle/dot|streak|sprite|ribbon.fsh`. Test effect `FlowTestFx` = `bhfx:test_flow`. `ParticleBatchTest` 13 cases (5 new).
+- result: `gradlew build` passed (all JUnit, `checkShaders` 16 OK); jar copied to `BHSpells/libs/`. Not seen in game. Not committed.
+
+## 2026-11-04 — Emitters, streams and orbit motion (0.3.9)
+- The user picked "emitter + orbit" from the "what else can the system do" list.
+- bhfx: new `api/client/FxEmitter` (shapes, `EmitPoint`, `EmitAction`); `FxParticles.orbit(centre, axis)`, `emit`, `stream` + `Stream`; `ParticleSpawn.orbit(rad/s, spinUp)`, `pull`; `Fx.bhfxRandom()` (internal). `ParticleBatch`: 28 floats a slot, emit/stream impl, orbit centre relative to the origin, cull sphere + 2|c| when orbiting. `particle/vertex.vsh`: 7 texels, turning frame (`bhfxTurn`), pull, velocity with the turn; uniforms `POrbit`, `POrbitAxis` set in `PostRenderer.drawBatch`. Test effect `impl/client/test/VortexTestFx` registered as `bhfx:test_vortex`. `ParticleBatchTest`: 4 new cases (orbit storage + cull, even ring emit, cone angle, stream births/positions/gap/reset). Docs: CHANGELOG 0.3.9, README test table, API_PLAN 5.4, decisions.
+- Version stays 0.3.9 (not released or committed yet); the jar in `BHSpells/libs/` was rebuilt.
+- result: `gradlew build publishToMavenLocal` passed (JUnit `ParticleBatchTest` 8/8, `checkShaders` 12 OK); BHSpells `compileJava` passed against the new jar. Not seen in game. Not committed.
+
+## 2026-11-04 — BHSpells conqueror_haki round 5 (no bhfx change)
+- The user: the screen tone was too red; wanted grey-black, faint, with the world's colours showing.
+- BHSpells `ConquerorHakiFx`: grade keeps 70% colour, crush 0.7, tint grey with a trace of red at 12%, strength 0.35 / 0.6 / settling 0.3; vignette `#060606`. Bolt and ring colours unchanged.
+- result: BHSpells `compileJava` passed (no shader change). Not seen in game. Not committed.
+
+## 2026-11-04 — BHSpells conqueror_haki round 4 (no bhfx change)
+- The user saw round 3: wanted the screen sucking/ripple only at the opening, shake instead, and a slightly red, muted, darker screen tone.
+- BHSpells: the distortion shell, ripple, zoom blur, aberration and FOV kick only on the first burst for 0.35 s; stronger, longer shake after it; new overlay pass `conqueror_haki_grade.fsh` (mute 55%, pull to dark red keeping brightness, crush blacks) replacing `desaturate`. Notes in `BHSpells/docs/bhfx/conqueror_haki.md`.
+- Found while editing: the round 3 PowerShell `Get-Content`/`Set-Content` rewrite had decoded the Java file as cp874 (Thai ANSI), turning `—`, `–` and `°` into mojibake. Repaired with `encode('cp874').decode('utf-8')`; no other file affected. Don't round-trip source files through Windows PowerShell 5.1 text cmdlets.
+- result: `checkShaders` 17 OK (copies removed); BHSpells `compileJava processResources` passed. Not seen in game. Not committed.
+
+## 2026-11-04 — BHSpells conqueror_haki round 3 (no bhfx change)
+- The user saw round 2: the ground looked like a black shadow, wanted deep red bolts, the red screen ripple only the first time, and expanding rings instead of noise on the ground.
+- BHSpells: `conqueror_haki.fsh` rewritten as three clean red rings running out (no darkening, no noise, drawn only for 1.5 s after a burst); default glow `#8E0012`, birth boost on bolts cut; impact sequence is one red frame + one ink frame; impact, ripple, aberration and zoom blur only on the first burst. Notes in `BHSpells/docs/bhfx/conqueror_haki.md`.
+- result: `checkShaders` 16 OK (copies removed); BHSpells `compileJava processResources` passed. A PowerShell `Set-Content -Encoding utf8` added a BOM and broke the Java compile once (fixed; use the edit tools or Python for writes). Not seen in game. Not committed.
+
+## 2026-11-04 — Particles: `Facing.AXIS`, per-particle `axis(dir, length)`, batch `pivot`; conqueror_haki round 2
+- The user saw `conqueror_haki` round 1 in game: sprites were separate stills, not an animation; asked for bolts that stretch long and large, in every direction, with clearly tilted depth (sketch: figure in the middle, jagged lines radiating out).
+- bhfx: `FxParticles.Facing.AXIS` (long side along a per-particle axis, `rotation` tilts the quad round it away from facing the camera), `ParticleSpawn.axis(dir, length)`, `FxParticles.pivot(0..1)` (spawn point at the quad's base). Slot grew 20 → 24 floats (6 texels, 96 bytes); `vertex.vsh` builds every facing as centre + half extents. `ParticleBatchTest.axisLengthCountsForTheCullSphere`. A GLSL pitfall hit: `half` is a reserved word.
+- BHSpells: new `particle/haki_strike.fsh` (AXIS, frame animation with hard cuts, grows out from its base); `haki_bolt.fsh` now animates; `ConquerorHakiFx` releases 22 chained strikes (2–3 bent segments), keeps striking while it settles, the 70 wave-front bolts are gone. Notes in `BHSpells/docs/bhfx/conqueror_haki.md`.
+- result: `checkShaders` 16 OK (BHSpells copies removed), bhfx `build publishToMavenLocal` + JUnit (ParticleBatchTest 4) passed, BHSpells `compileJava processResources` passed. Round 2 not seen in game. Not committed.
+
+## 2026-11-04 — BHSpells `bhspells:conqueror_haki` (first effect on bhfx particles); `BHFX_PREMULTIPLIED`
+- The user gave a 14-bolt black/red lightning strip and asked for a Conqueror's-Haki feel. Design notes: `BHSpells/docs/bhfx/conqueror_haki.md`.
+- bhfx: `particle/_footer.glsl` — a material may `#define BHFX_PREMULTIPLIED` and return premultiplied rgb (+ added light) with a = coverage, so one ALPHA particle can darken and glow. Part of 0.3.9 (unreleased), CHANGELOG and `API_PLAN.md` 5.4 updated.
+- BHSpells: `compat/bhfx/client/ConquerorHakiFx`, `BhfxIds.CONQUEROR_HAKI`, registered in `BhfxClientBridge`; shaders `conqueror_haki.fsh`, `particle/haki_bolt.fsh`, `particle/haki_wave.fsh`; texture `textures/fx/haki_bolts.png` (4x4 grid of the user's bolts, R core / G glow).
+- result: the 3 BHSpells shaders passed glslang through bhfx `checkShaders` (copied in, removed after; 15 OK); bhfx `build publishToMavenLocal` passed; BHSpells `compileJava processResources` passed. Not seen in game. Not committed.
+
+## 2026-11-04 — "runClient fails" (user): not reproduced
+- The user reported runClient failing, with no error text. `latest.log` was from 11:19, before the 0.3.9 build, so it had failed before the game logged. Likely cause (unconfirmed): it ran during the bhfx rebuild, while BHSpells `build.gradle` already asked for 0.3.9 but `libs/` had no 0.3.9 jar yet.
+- Claude's own `runClient` run at 12:01 worked: menu reached, warmup clean, `bhfx:test_particles` played 7 times without errors (see [`testing.md`](testing.md)). No code changed.
+
+## 2026-11-04 — 0.3.9: textures, GPU particles, distortion, held resolution steps
+- The user asked to start the whole plan from the assessment below and to get a test effect.
+- bhfx, textures: `api/client/FxTexture` (`of`, `packed`, `srgb`, `clamp`, `nearest`), `Uniforms.texture`, `BHFxClient.preload`/`textureReady`. `impl/render/FxTextures` decodes on `Util.backgroundExecutor()`, uploads on a later frame (gray → `R8` + swizzle, mipmaps, 8x aniso), sweeps after 60 s unused. `UniformBinder` binds them on units 6..15.
+- bhfx, particles: `api/client/FxParticles` (+ `ParticleSpawn`), `Fx.createParticles`, `PassList.particles`, `PassOptions.PARTICLES` (50). `impl/render/ParticleBatch` (ring of 20-float slots, analytic motion, cull sphere, pending-run upload), `impl/render/ParticleRenderer` (one buffer texture per batch, `glDrawArraysInstanced` strips, idle sweep 5 s). `PostRenderer` draws runs of particle entries inside the pass chain; DISTORT batches write an RG16F target and `particle_resolve.fsh` bends the input. `GlStateGuard.touchBlend` saves/restores the blend func and equation. Shaders: `particle/vertex.vsh`, `particle/_header.glsl`, `particle/_footer.glsl`, `include/particle.glsl`.
+- bhfx, resolution: `ResolutionController` rises at most one 1/8 step per 2 s (drops at once). The "allocate at the cap, use a smaller viewport" idea was dropped: see [`decisions.md`](decisions.md).
+- bhfx, warmup: `ShaderWarmup` warms `particle/` files with `PostRenderer.warmupParticle` (they would otherwise have been compiled as passes and logged as broken).
+- bhfx, test: `impl/client/test/ParticlesTestFx` = `bhfx:test_particles`, six `test_*.fsh` materials, textures `textures/fx/{noise_fbm,noise_cells,ramp_fire,burst_flipbook}.png` (generated procedurally by a scratch Python script, not kept).
+- `gradle/glsl-check.gradle` also checks `particle/*.fsh` (header + material + footer) and `particle/*.vsh`. BHSpells has no copy of this file (see [`shaders.md`](shaders.md)).
+- Version 0.3.9 (protocol 2): `gradle.properties`, CHANGELOG, README (test effect row), `API_PLAN.md` 4.2, 4.4, 4.8, 5.1, 5.3, new 5.4. BHSpells `build.gradle` → `net.deizyn:bhfx:0.3.9`; `libs/` now holds `bhfx-0.3.9.jar` (copy task). BHSpells `mods.toml` range `[0.3.7,0.4)` already covers it.
+- Two recorded pitfalls hit during the work and were fixed before the build: reversed `smoothstep` edges in the new shaders, and particle colours (first written as linear like `Uniforms.color`, now display-encoded; see [`decisions.md`](decisions.md)). The footer runs the material before `discard` (implicit derivatives).
+- result: bhfx `gradlew build publishToMavenLocal` passed: 64 JUnit tests (new `ParticleBatchTest` 3, `ResolutionControllerTest` 2), `checkShaders` 12 OK. BHSpells `compileJava` passed against 0.3.9. **Not tested in game.** Nothing committed.
+- next: in-game checklist in [`testing.md`](testing.md); then a first BHSpells spell on particles.
+
+## 2026-11-04 — Assessment: shader particles and textures in bhfx
+- No code changed. Re-read the ArcaneVortex 0.6.8 particles (`GlowParticle` etc.: vanilla `Particle` + own `ParticleRenderType`, additive, `setShader`) and Shooting Star `07_PERFORMANCE.md` (`FxTextures`: off-thread decode, R8 + swizzle, channel packing, mipmaps), against bhfx 0.3.8.
+- Already handled in bhfx (Shooting Star weak points 3 and 4): `GlStateGuard` restores only touched units; `PostRenderer.ensureTargets` rebuilds full-size and fx-size targets separately. Still left: fx targets are reallocated whenever `ResolutionController` steps (1/8), which can hitch mid-cast; allocating at the cap and drawing with a smaller viewport would avoid it.
+- Proposed (the user picks, see [`roadmap.md`](roadmap.md)): (1) texture uniform with off-thread decode, R8/channel packing, mipmaps, 1D colour ramps; (2) a client-only bhfx particle renderer: instanced billboards with analytic motion (position from spawn data + age in the vertex shader, no per-frame CPU), a fragment "material" written like a pass, drawn at `AFTER_LEVEL` into the HDR chain before bloom with a test against the depth snapshot (works with shader packs the same way passes do; soft-particle fade from depth); (3) particles that write a distortion/emissive buffer read by passes; (4) later: half-res offscreen particles, flipbooks, mesh particles, GPU simulation by texture ping-pong (no compute shaders: GL 3.2 core / macOS 4.1).
+- Cost notes: VRAM for small textures is tiny next to the targets (one 1080p RGBA16F ping target is 16.6 MB; 256² RGBA8 with mips ≈ 0.34 MB, R8 a quarter of that). Particle cost is overdraw, not count: keep quads tight, prefer additive/premultiplied (no sorting).
+- A client-only renderer registers nothing, so bhfx stays removable; it changes the 2026-11-02 line "not bhfx's job: world particles" only for particles bhfx draws itself, not vanilla `ParticleType`s.
+
+## 2026-11-03 — `solar_eclipse` round 10: no collapse ribbons, black sun swells
+- The user asked to remove the ribbon-like lines at the second burst and keep the rest of the rays. They also asked for the eclipse to grow big as the ripple enters phase 2.
+- `solar_eclipse.fsh`:
+  - The pre-collapse corona no longer twists. Twisted, its streamers read as ribbons. Assumption: the user meant this, not the bending streamers of the black sun's hair-line corona.
+  - The black disc swells `SWELL` = 2.4× over 0.9 s after the collapse; everything scaled by its radius grows with it.
+  - `REACH` 13 → 24.
+- `SolarEclipseFx`: `EFFECT_REACH` 14 → 25.
+- result: `checkShaders` 7 OK (copies removed), BHSpells `compileJava` passed. Not seen in game. Not committed.
+
 ## 2026-11-03 — `solar_eclipse`: drip removed, look accepted
 - The user saw round 9 in game. They asked to remove the molten drip and said everything else is OK. The drip block is removed from `solar_eclipse.fsh`, and the header and javadoc are updated.
 - result: `checkShaders` OK (copies removed), BHSpells `compileJava` passed. Not committed.

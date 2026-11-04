@@ -13,11 +13,13 @@ import java.util.List;
 /**
  * Compiles every bhfx pass shader (from every namespace) one per frame after a world loads, so the first cast does
  * not stall on shader compilation. Finds them by listing {@code assets/<ns>/shaders/bhfx/**.fsh}; include files are
- * compiled as part of the passes that use them.
+ * compiled as part of the passes that use them. Files under {@code particle/} are particle materials and are warmed as
+ * particle programs.
  */
 final class ShaderWarmup {
     private static final String ROOT = "shaders/bhfx/";
     private static final String SUFFIX = ".fsh";
+    private static final String PARTICLE = "particle/";
 
     private final Deque<ResourceLocation> queue = new ArrayDeque<>();
     private int total;
@@ -69,7 +71,10 @@ final class ShaderWarmup {
             return;
         }
         long start = System.nanoTime();
-        if (!renderer.warmup(id)) {
+        boolean ok = id.getPath().startsWith(PARTICLE)
+                ? renderer.warmupParticle(new ResourceLocation(id.getNamespace(), id.getPath().substring(PARTICLE.length())))
+                : renderer.warmup(id);
+        if (!ok) {
             failed++;
         }
         long took = System.nanoTime() - start;

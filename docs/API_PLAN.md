@@ -265,7 +265,9 @@ public abstract class Fx {
     protected void onRemoved() {}                             // release resources, stop looping sounds
 
     // ---------- per frame (overridable) ----------
-    protected void passes(FrameContext f, PassList out) {}    // shader passes
+    protected void passes(FrameContext f, PassList out) {}    // shader passes and particle batches
+    @ApiStatus.Experimental                                   // (0.3.9) see 5.4; freed when the Fx ends
+    protected final FxParticles createParticles(ResourceLocation material, int capacity);
     protected void screen(FrameContext f, ScreenParams s) {}  // screen effects
     protected void camera(FrameContext f, CameraParams c) {}  // (v0.3)
     protected void hud(GuiGraphics g, FrameContext f) {}
@@ -311,12 +313,17 @@ public interface FrameContext {
 public interface PassList {
     void add(ResourceLocation shader, Consumer<Uniforms> setup);
     void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup);
+    @ApiStatus.Experimental                                         // (0.3.9) GPU particles, see 5.4
+    default void particles(FxParticles batch);                      // at PassOptions.PARTICLES
+    @ApiStatus.Experimental
+    void particles(FxParticles batch, PassOptions options, Consumer<Uniforms> setup);
 }
 
 public record PassOptions(int order, @Nullable Bounds bounds) {   // resolution was dropped: every pass uses the FX resolution
     public PassOptions(int order);                                  // no bounds
     public static final PassOptions DEFAULT = new PassOptions(0);
     public static final PassOptions OVERLAY = new PassOptions(100);
+    @ApiStatus.Experimental public static final PassOptions PARTICLES = new PassOptions(50);   // (0.3.9)
     // order: lower draws first, sorted across all Fx. Suggested: world-space 0, overlays/synthetic scenes 100
 
     @ApiStatus.Experimental                                        // (0.3.7)
@@ -334,6 +341,8 @@ public interface Uniforms {
     Uniforms vec3(String name, Vec3 v);                 // converts double → float
     Uniforms color(String name, int rgb, float alpha);  // 0xRRGGBB → linear vec4
     Uniforms floats(String name, float[] values);       // uniform array (vec4[N])
+    @ApiStatus.Experimental                             // (0.3.9) see 5.4
+    Uniforms texture(String name, FxTexture texture);   // sampler2D; reads zero until loaded
 }
 ```
 
@@ -409,6 +418,8 @@ public final class BHFxClient {
     public static void update(LocalFxHandle handle, FxParams changed);              // (0.3.x) runs onParamsChanged
     public static <T extends Fx> Optional<T> fx(LocalFxHandle handle, Class<T> type); // (0.3.x) the running Fx, for client-side cues
     public static boolean isAlive(LocalFxHandle handle);                            // (0.3.x)
+    @ApiStatus.Experimental public static void preload(FxTexture texture);          // (0.3.9) start decoding now
+    @ApiStatus.Experimental public static boolean textureReady(FxTexture texture);  // (0.3.9)
 
     public static void shake(Vec3 source, float amount, double range);
     public static FxSettings settings();
@@ -441,6 +452,7 @@ public final class BHFxClient {
 ```
 assets/<namespace>/shaders/bhfx/<name>.fsh          ← pass (called by ResourceLocation "<ns>:<name>")
 assets/<namespace>/shaders/bhfx/include/<name>.glsl ← include file
+assets/<namespace>/shaders/bhfx/particle/<name>.fsh ← particle material (0.3.9, see 5.4); "particle/" is reserved
 ```
 The `bhfx/` folder avoids clashing with vanilla's `shaders/core` and `shaders/post`. Files are loaded through the ResourceManager, so resource packs can override them, and they reload with F3+T or `/bhfx reload`.
 
@@ -473,6 +485,69 @@ Analytic shapes (rays against cylinders, spheres, etc.) must use `Eye` (or `Scen
 | `noise.glsl` | `hash11/12/13/22`, `vnoise2/3`, `fbm2/3` |
 | `fog.glsl` (0.3.8, include `scene.glsl` first) | `fogDistance`, `fogAmount` (how much of a far pixel is fog), `refog` (swap that fog for another colour, e.g. a sky a pass replaces) |
 | `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤ 8 corners), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
+| `particle.glsl` (0.3.9, particle materials only) | `fadeInOut`, `radialMask`, `sphereNormal`, `wrapLight`, `spriteUv`, `flipbookUv`, `flipbook`, `erode` |
+
+### 5.4 Textures and GPU particles (0.3.9, Experimental)
+**Textures.** `Uniforms.texture("Name", FxTexture)` binds to `uniform sampler2D Name;` (units 6..15, so up to 10 per
+pass). `FxTexture.of(rl)` for one file, `FxTexture.packed(r, g, b, a)` for up to four grayscale masks (each image's red
+channel) in one RGBA8 texture. Defaults: read as stored, repeat, mipmaps + 8x anisotropy. `.srgb()` converts to linear on
+sampling (only for shaders that work in linear and convert back: the frame is display-encoded), `.clamp()` for ramps
+and sprites, `.nearest()` for lookup tables. Images are stored top row at v = 0, like
+Minecraft's (`spriteUv` flips a quad's uv). A grayscale non-sRGB image is uploaded as `R8` with an `rrr1` swizzle when
+the driver has GL 3.3 / `ARB_texture_swizzle`, else as RGBA8. Loading: decode on `Util.backgroundExecutor()`, upload on
+the first frame after; the sampler reads a 1x1 transparent black until then. Freed 60 s after its last use, on
+resource reload, and with the rest after 30 s without effects.
+
+**Particles.** `Fx.createParticles(material, capacity)` (≤ 16384) returns an `FxParticles` batch, freed when the effect
+ends. Per batch: `blend` (`ADD`, `ALPHA`, `DISTORT`), `facing` (`CAMERA`, `VELOCITY`, `FLAT`, `AXIS`), `stretch`,
+`pivot` (0 centred, 1 = spawn point at the quad's base), `gravity`, `drag`, `softness`, `distortion`. Per particle (`spawn(pos)` returns a reused cursor): `velocity`, `life`, `size`
+(start, end), `rotation` (+ spin), `color` (int or floats, display-encoded like the frame, not linear), `data` (4 free
+floats), `delay`, `axis(dir, length)` (AXIS: long side along dir, full length; `rotation` then tilts the quad round
+the axis away from facing the camera, 0 = faces it), `orbit(rad/s, spinUp)` and `pull(blocks/s)` (round / towards
+the batch's `orbit(centre, axis)`, default through the first spawn, up). Units:
+seconds, blocks, blocks/s. Draw with `PassList.particles(batch[, options, setup])`.
+- **Emitters** (`FxEmitter`): immutable shapes `point`, `sphere`, `shell`, `ring`, `disc`, `cylinder`, `cone`,
+  `line`, `box`, with `.axis(dir)` and `.even()`; `Shape.sample(random, index, count, out)` gives an offset and a unit
+  direction. `batch.emit(shape, centre, count, speed, each)` spawns at centre + offset with velocity direction × speed,
+  then calls `each(spawn, point)`. `batch.stream(perSecond)` returns a `Stream`; `stream.emit(shape, centre, speed,
+  each)` spawns what is due since its last call, births spread evenly over the interval and positions along the line
+  from the last centre (first call starts the clock; gaps over 0.25 s are not caught up). Both use the effect's
+  random: deterministic from `tick`, not from `passes`.
+- **Shaping without a shader**: `turbulence(blocks, frequency[, scale])` (sum of sines, offset 0 at birth, phase from
+  the spawn point so neighbours move alike); `colorOverLife(colours...)` or `colorOverLife(ramp, from, to)`,
+  `alphaOverLife(keys...)`, `sizeOverLife(keys...)`, 1–4 evenly spaced keys, applied in the vertex shader (colour and
+  alpha into `p.color`, so every material follows them; a ramp waits for its texture). Built-in materials
+  `FxParticles.DOT`, `STREAK`, `SPRITE` (`Sprite` sampler, `SpriteGrid` = cols, rows, frames, mask) and `RIBBON`.
+- **Ribbons**: `Facing.RIBBON`; points come from `FxParticles.ribbon()` (`spawn`, `cut`) or a `Stream` (each keeps its
+  own chain; `reset` cuts). A point stores its chain id (axis.x) and its previous point's slot + 1 (texel 6 w);
+  instance i draws the segment previous → i, each end turned by its point's backward tangent, so segments share edges.
+  A link is valid while the previous point is alive, has the same id and is not newer (an overwritten slot is newer).
+  `p.age` runs along the ribbon, `p.uv.y` across.
+- **Ground**: `Shape.onGround(search[, lift])` moves each emitted point to the nearest block collision or fluid surface below it
+  (or up out of the block it is in), within `search`; CPU block lookups at emit time; points with none stay.
+- **Storage**: a ring of `capacity` slots, 112 bytes (7 texels) each, in a buffer texture (GL 3.1, no instanced attributes). A new
+  spawn past capacity replaces the oldest. Only slots spawned since the last upload are sent.
+- **Clock**: the owner's age; spawns from `tick` are born at age + 1 tick (the next frame shows age + 1 + partial),
+  spawns from `passes` at the frame's time. Same randomness rule as the rest of `Fx`: use `random()`.
+- **Motion** in `particle/vertex.vsh`: `p(t) = p0 + v0 (1 - e^-kt)/k + g t²/2`; dead slots collapse. An orbiting
+  particle follows that in a frame turning round the orbit axis by `ωt + αt²/2`, pulled towards the axis along its
+  spawn radius by `pull (1 - e^-kt)/k` (stops on the axis); its velocity (for `VELOCITY` facing) includes the turn.
+  The axis is a batch uniform, so moving it moves every orbiting particle of the batch. The cull sphere adds twice the
+  axis point's distance from the origin when any particle orbits.
+- **Material**: `vec4 material(Particle p)` with `p.uv`, `p.corner` (-1..1), `p.age` (0..1), `p.seconds`, `p.seed`,
+  `p.color`, `p.data`, `p.pos`; the pass header's samplers and matrices are there too. `_footer.glsl` does the depth
+  test against the scene (clip-space w, exact with view bobbing), the soft fade, and the output: ADD `(rgb·a, 0)`,
+  ALPHA `(rgb·a, a)`, both with `ONE, ONE_MINUS_SRC_ALPHA`; a material with `#define BHFX_PREMULTIPLIED` returns
+  rgb already times its coverage plus any added light, and a = coverage (one particle that darkens and glows); DISTORT writes `(xy along the quad's axes)·a·strength` as
+  a screen-uv offset into an RG16F target.
+- **In the chain**: consecutive particle entries form a group. The input is copied into the next target (or, when a
+  batch distorts, bent by `particle_resolve.fsh`), then the ADD/ALPHA batches blend over it. Particles draw at effect
+  resolution and get bloom from the same prefilter as passes. Not sorted.
+- **Culling and budget**: `options.within` bounds if given, else a sphere bhfx keeps from the spawns (reach + gravity
+  over the longest life). Total slots per frame: Low 4096, Medium 16384, High 32768; batches past that are skipped.
+- **Limits**: draws over water and glass (`AFTER_LEVEL`, like passes); off while post is off (shader pack with
+  `offWithShaderpack`, quality OFF, GL error). No mesh particles, attraction to a point, collision or
+  GPU simulation yet (see `roadmap.md`).
 
 ---
 

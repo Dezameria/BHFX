@@ -21,6 +21,7 @@ import net.deizyn.bhfx.api.client.FxFactory;
 import net.deizyn.bhfx.api.client.FxInit;
 import net.deizyn.bhfx.api.client.LocalFxHandle;
 import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.render.ParticleBatch;
 import net.deizyn.bhfx.impl.render.PostRenderer;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -140,6 +141,16 @@ public final class ClientFxManager {
 
     public static boolean postAvailable() {
         return enabled() && (renderer == null || !renderer.disabled()) && !ShaderpackDetector.blocksPost();
+    }
+
+    public static void preloadTexture(net.deizyn.bhfx.api.client.FxTexture texture) {
+        if (enabled()) {
+            renderer().preload(texture);
+        }
+    }
+
+    public static boolean textureReady(net.deizyn.bhfx.api.client.FxTexture texture) {
+        return renderer != null && renderer.textureReady(texture);
     }
 
     public static boolean drawingMirrorReflection() {
@@ -423,6 +434,7 @@ public final class ClientFxManager {
             return;
         }
         long tickStart = System.nanoTime();
+        ParticleBatch.clockOffset(1f);
 
         Iterator<Entry> it = ACTIVE.iterator();
         while (it.hasNext()) {
@@ -508,6 +520,7 @@ public final class ClientFxManager {
         Vec3 cam = camera.getPosition();
         FRAME.begin(partial, cam, mc.getMainRenderTarget().width, mc.getMainRenderTarget().height, VIEW_PROJ, PROJ.m11());
         PASSES.clear(cam);
+        ParticleBatch.clockOffset(partial);
         SCREEN.reset();
         double cullCap = BHFxConfig.CULL_DISTANCE.get();
         for (Entry e : ACTIVE) {
@@ -540,7 +553,7 @@ public final class ClientFxManager {
         }
         List<PassListImpl.Entry> draw = PASSES.drawList(BHFxConfig.MAX_PASSES_PER_FRAME.get());
         float time = ((level.getGameTime() % 24000L) + partial) / 20f;
-        r.render(draw, SCREEN, PROJ, VIEW, time, effectiveQuality());
+        r.render(draw, SCREEN, PROJ, VIEW, cam, time, effectiveQuality());
         lastPassCount = r.lastPassCount();
         lastPostNanos = System.nanoTime();
         checkBudget(r, lastPostNanos);

@@ -1,11 +1,13 @@
 package net.deizyn.bhfx.api.client;
 
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.StopMode;
+import net.deizyn.bhfx.impl.render.ParticleBatch;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -13,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
  * Base class of every client-side effect. Override the hooks you need:
  * <ul>
  *   <li>{@link #tick} — 20/s: particles, sounds, shakes, Effekseer</li>
- *   <li>{@link #passes} — per frame: shader passes</li>
+ *   <li>{@link #passes} — per frame: shader passes and GPU particle batches ({@link #createParticles})</li>
  *   <li>{@link #screen} — per frame: full-screen parameters</li>
  *   <li>{@link #camera} — per frame: FOV, hand, and (if the player allows) roll / HUD / camera override</li>
  * </ul>
@@ -31,6 +33,8 @@ public abstract class Fx {
     private StopMode stopMode;
     private int stopAge;
     private int endTicks;
+    @Nullable
+    private java.util.List<ParticleBatch> particleBatches;
 
     protected Fx(FxInit init) {
         this.init = init;
@@ -128,6 +132,23 @@ public abstract class Fx {
         };
     }
 
+    // ------------------------------------------------------------------ particles
+
+    /**
+     * A new batch of GPU particles drawn with {@code material} ({@code assets/ns/shaders/bhfx/particle/name.fsh}),
+     * holding up to {@code capacity} particles (at most 16384). Make batches once (constructor or {@link #onStart}),
+     * spawn into them, and add them to the frame with {@link PassList#particles}. Freed when this effect ends.
+     */
+    @ApiStatus.Experimental
+    protected final FxParticles createParticles(ResourceLocation material, int capacity) {
+        ParticleBatch batch = new ParticleBatch(this, material, capacity);
+        if (particleBatches == null) {
+            particleBatches = new java.util.ArrayList<>(2);
+        }
+        particleBatches.add(batch);
+        return batch;
+    }
+
     // ------------------------------------------------------------------ hooks
 
     /** Once, before the first tick. Skipped when this client joined mid-effect (startAge > 0). */
@@ -214,9 +235,22 @@ public abstract class Fx {
         onParamsChanged(changed);
     }
 
+    /** For bhfx's own emitters ({@link FxParticles#emit}), which share the effect's random. */
+    @ApiStatus.Internal
+    public final RandomSource bhfxRandom() {
+        return random;
+    }
+
     @ApiStatus.Internal
     public final void bhfxRemoved() {
-        onRemoved();
+        try {
+            onRemoved();
+        } finally {
+            if (particleBatches != null) {
+                particleBatches.forEach(ParticleBatch::close);
+                particleBatches = null;
+            }
+        }
     }
 
     @ApiStatus.Internal

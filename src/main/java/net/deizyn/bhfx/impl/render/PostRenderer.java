@@ -6,7 +6,10 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.client.FxParticles;
+import net.deizyn.bhfx.api.client.FxTexture;
 import net.deizyn.bhfx.api.client.ImpactStyle;
 import net.deizyn.bhfx.impl.BHFxConfig;
 import net.deizyn.bhfx.impl.client.PassListImpl;
@@ -17,10 +20,12 @@ import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +39,8 @@ import java.util.Set;
  *   <li>Passes run in RGBA16F at a resolution capped by pixels and by measured GPU time; the composite tone-maps once
  *       and restores world detail when passes ran below native resolution.</li>
  *   <li>Bloom targets exist only while something uses them.</li>
+ *   <li>Particle batches are drawn into the chain at their order: the input is copied (or bent by the batches'
+ *       distortion) into the next target, then the batches blend over it.</li>
  *   <li>Any GL failure disables post-processing for the session instead of breaking the game.</li>
  * </ul>
  */
@@ -41,6 +48,7 @@ public final class PostRenderer {
     private static final ResourceLocation COMPOSITE = BHFxMod.id("composite");
     private static final ResourceLocation BLOOM_DOWN = BHFxMod.id("bloom_down");
     private static final ResourceLocation BLOOM_UP = BHFxMod.id("bloom_up");
+    private static final ResourceLocation PARTICLE_RESOLVE = BHFxMod.id("particle_resolve");
     private static final int BLOOM_LEVELS = 5;
     private static final int UNIT_INPUT = 0;
     private static final int UNIT_SCENE = 1;
@@ -49,10 +57,14 @@ public final class PostRenderer {
     private static final int UNIT_BLOOM = 4;
     /** Pixels added around a bounded pass's rect (linear filtering and rounding at its edge). */
     private static final int RECT_PAD = 2;
+    private static final float[] ZERO4 = new float[4];
 
     private final ShaderManager shaders = new ShaderManager();
     private final GlStateGuard guard = new GlStateGuard();
-    private final UniformBinder binder = new UniformBinder();
+    private final FxTextures textures = new FxTextures();
+    private final UniformBinder binder = new UniformBinder(guard, textures);
+    private final ParticleRenderer particles = new ParticleRenderer(guard);
+    private final List<PassListImpl.Entry> particleGroup = new ArrayList<>();
     private final GpuTimer timer = new GpuTimer();
     private final ResolutionController resolution = new ResolutionController();
     private final Matrix4f invProj = new Matrix4f();
@@ -80,6 +92,11 @@ public final class PostRenderer {
     private int fullH;
     private int fxW;
     private int fxH;
+    private int distortFbo;
+    private int distortTex;
+    private int distortW;
+    private int distortH;
+    private Vec3 camera = Vec3.ZERO;
 
     private final int[] downFbo = new int[BLOOM_LEVELS];
     private final int[] downTex = new int[BLOOM_LEVELS];
@@ -102,6 +119,7 @@ public final class PostRenderer {
 
     private int lastPassCount;
     private int lastSkippedCount;
+    private int lastParticleCount;
     private double lastGpuSample = -1;
     private boolean disabled;
     private String disabledReason = "";
@@ -140,7 +158,8 @@ public final class PostRenderer {
         if (!allocated()) {
             return 0L;
         }
-        long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4);
+        long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4)
+                + (long) distortW * distortH * 4 + textures.heldBytes() + particles.heldBytes();
         if (bloomForW > 0) {
             for (int i = 0; i < BLOOM_LEVELS; i++) {
                 bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
@@ -150,7 +169,7 @@ public final class PostRenderer {
     }
 
     public double resolutionShare() {
-        return resolution.share();
+        return resolution.currentShare();
     }
 
     /** Size of the effect targets, e.g. "2073x1109". */
@@ -172,23 +191,36 @@ public final class PostRenderer {
         long bytes = heldBytes();
         double ms = resolution.averageMs();
         return "post " + fxW + "x" + fxH + " of " + fullW + "x" + fullH
-                + ", " + Math.round(resolution.share() * 100) + "% budget"
+                + ", " + Math.round(resolution.currentShare() * 100) + "% budget"
                 + (ms >= 0 ? String.format(", %.2f ms GPU", ms) : "")
                 + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)"
-                + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "");
+                + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "")
+                + (lastParticleCount > 0 ? ", " + lastParticleCount + " particle slot(s)" : "")
+                + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "");
     }
 
     /** Drop compiled shaders and clear a previous failure; GL targets are rebuilt on demand. */
     public void reload() {
         RenderSystem.assertOnRenderThread();
         shaders.clear();
+        textures.clear();
         failedSetups.clear();
         disabled = false;
         disabledReason = "";
     }
 
+    /** Start loading a texture early (no GL needed). */
+    public void preload(FxTexture texture) {
+        textures.preload(texture);
+    }
+
+    public boolean textureReady(FxTexture texture) {
+        return textures.ready(texture);
+    }
+
     public void render(List<PassListImpl.Entry> passes, ScreenParamsImpl screen, Matrix4f projection, Matrix4f view,
-                       float time, BHFxConfig.Quality quality) {
+                       Vec3 camera, float time, BHFxConfig.Quality quality) {
+        this.camera = camera;
         if (disabled) {
             return;
         }
@@ -257,7 +289,92 @@ public final class PostRenderer {
             boolean sceneLowReady = false;
             GL11.glViewport(0, 0, fxW, fxH);
             boolean bounds = BHFxConfig.PASS_BOUNDS.get();
-            for (PassListImpl.Entry pass : passes) {
+            int particleBudget = particleCap(quality);
+            int particleSlots = 0;
+            for (int index = 0; index < passes.size(); index++) {
+                PassListImpl.Entry pass = passes.get(index);
+                if (pass.particles() != null) {
+                    // a run of particle batches shares one copy of the input
+                    int end = index + 1;
+                    while (end < passes.size() && passes.get(end).particles() != null) {
+                        end++;
+                    }
+                    particleGroup.clear();
+                    boolean distort = false;
+                    for (int j = index; j < end; j++) {
+                        PassListImpl.Entry e = passes.get(j);
+                        ParticleBatch b = e.particles();
+                        if (b.closed() || b.filled > particleBudget - particleSlots
+                                || shaders.getParticle(e.shader()) == null) {
+                            skipped++;
+                            continue;
+                        }
+                        ScreenRect r = e.radius() > 0
+                                ? ScreenRect.ofSphere(viewProj, e.bx(), e.by(), e.bz(), e.radius(), rectScratch)
+                                : ScreenRect.ofSphere(viewProj, b.ox - camera.x, b.oy - camera.y, b.oz - camera.z,
+                                b.cullRadius(), rectScratch);
+                        if (r.empty()) {
+                            skipped++;
+                            continue;
+                        }
+                        particleSlots += b.filled;
+                        particleGroup.add(e);
+                        distort |= b.blend == FxParticles.Blend.DISTORT;
+                    }
+                    index = end - 1;
+                    if (particleGroup.isEmpty()) {
+                        continue;
+                    }
+                    ShaderProgram resolve = distort ? shaders.get(PARTICLE_RESOLVE) : null;
+                    if (resolve != null) {
+                        // bend the input by the distortion batches while copying it into the next target
+                        ensureDistort();
+                        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, distortFbo);
+                        GL30.glClearBufferfv(GL11.GL_COLOR, 0, ZERO4);
+                        guard.touchBlend();
+                        GL11.glEnable(GL11.GL_BLEND);
+                        GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+                        GL14.glBlendEquation(GL14.GL_FUNC_ADD);
+                        for (PassListImpl.Entry e : particleGroup) {
+                            if (e.particles().blend == FxParticles.Blend.DISTORT) {
+                                drawBatch(e, input, depth, time);
+                            }
+                        }
+                        GL11.glDisable(GL11.GL_BLEND);
+                        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
+                        begin(resolve, input, depth, fxW, fxH, time);
+                        bindUnit(UNIT_AUX, distortTex, resolve, "AuxSampler");
+                        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+                    } else {
+                        int from = inputFbo;
+                        if (inputFull && (fxW != w || fxH != h)) {
+                            if (!sceneLowReady) {
+                                blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
+                                sceneLowReady = true;
+                            }
+                            from = sceneLowFbo;
+                        }
+                        blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                    }
+                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
+                    guard.touchBlend();
+                    GL11.glEnable(GL11.GL_BLEND);
+                    // premultiplied: ADD writes alpha 0 (pure add), ALPHA covers by its alpha; the target keeps its alpha
+                    GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ZERO, GL11.GL_ONE);
+                    GL14.glBlendEquation(GL14.GL_FUNC_ADD);
+                    for (PassListImpl.Entry e : particleGroup) {
+                        if (e.particles().blend != FxParticles.Blend.DISTORT) {
+                            drawBatch(e, input, depth, time);
+                        }
+                    }
+                    GL11.glDisable(GL11.GL_BLEND);
+                    input = pingTex[ping];
+                    inputFbo = pingFbo[ping];
+                    inputFull = false;
+                    ping ^= 1;
+                    drawn++;
+                    continue;
+                }
                 ShaderProgram program = shaders.get(pass.shader());
                 if (program == null) {
                     continue;
@@ -315,6 +432,9 @@ public final class PostRenderer {
             }
             lastPassCount = drawn;
             lastSkippedCount = skipped;
+            lastParticleCount = particleSlots;
+            particles.sweep(now);
+            textures.sweep(now);
 
             int bloom = 0;
             if (drawn > 0 && quality.bloom && BHFxConfig.BLOOM.get() && screen.bloomStrength() > 0.001f) {
@@ -387,6 +507,57 @@ public final class PostRenderer {
             return true;
         } catch (RuntimeException e) {
             BHFxMod.LOGGER.warn("bhfx warmup of {} failed: {}", id, e.toString());
+            return false;
+        } finally {
+            guard.restore();
+        }
+    }
+
+    /** Like {@link #warmup}, for a particle material: one draw of one (empty, so invisible) instance. */
+    public boolean warmupParticle(ResourceLocation id) {
+        if (disabled) {
+            return false;
+        }
+        RenderSystem.assertOnRenderThread();
+        guard.capture();
+        try {
+            ShaderProgram program = shaders.getParticle(id);
+            if (program == null) {
+                return false;
+            }
+            if (warmVao == 0) {
+                warmVao = GL30.glGenVertexArrays();
+                warmFbo = GL30.glGenFramebuffers();
+                warmTex = GL11.glGenTextures();
+                guard.touchUnit(0);
+                texture(warmTex, 1, 1, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+                attach(warmFbo, warmTex, "warmup");
+            }
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, warmFbo);
+            GL11.glViewport(0, 0, 1, 1);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDisable(GL11.GL_BLEND);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glDepthMask(false);
+            GL11.glColorMask(true, true, true, true);
+            GL30.glBindVertexArray(warmVao);
+            GL20.glUseProgram(program.id());
+            for (int unit = UNIT_INPUT; unit <= UNIT_BLOOM; unit++) {
+                guard.touchUnit(unit);
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+            }
+            // no buffer texture bound: the slot reads life 0, so the vertex shader drops it
+            guard.touchUnit(ParticleRenderer.UNIT_DATA);
+            int data = program.location("PData");
+            if (data >= 0) {
+                // a samplerBuffer left on unit 0 would clash with the sampler2D there (invalid operation)
+                GL20.glUniform1i(data, ParticleRenderer.UNIT_DATA);
+            }
+            org.lwjgl.opengl.GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, 1);
+            return true;
+        } catch (RuntimeException e) {
+            BHFxMod.LOGGER.warn("bhfx warmup of particle material {} failed: {}", id, e.toString());
             return false;
         } finally {
             guard.restore();
@@ -469,6 +640,87 @@ public final class PostRenderer {
             inH = bloomSize[i][1];
         }
         return upTex[0];
+    }
+
+    /** Draw one particle batch into the bound target (blend state already set). */
+    private void drawBatch(PassListImpl.Entry e, int input, int depth, float time) {
+        ParticleBatch b = e.particles();
+        ShaderProgram program = shaders.getParticle(e.shader());
+        if (program == null) {
+            return;
+        }
+        begin(program, input, depth, fxW, fxH, time);
+        particles.bind(b, program);
+        binder.f3("POrigin", (float) (b.ox - camera.x), (float) (b.oy - camera.y), (float) (b.oz - camera.z));
+        binder.f1("PTime", e.time());
+        binder.f4("PMotion", b.gx, b.gy, b.gz, b.drag);
+        binder.f4("PShape", b.facing.ordinal(), b.stretch, b.pivot, 0f);
+        binder.f4("PMode", b.blend.ordinal(), b.softness, b.distortion, 0f);
+        binder.f3("POrbit", b.orbitX(), b.orbitY(), b.orbitZ());
+        binder.f3("POrbitAxis", b.oax, b.oay, b.oaz);
+        binder.f4("PTurb", b.turbAmp, b.turbFreq, b.turbScale, 0f);
+        binder.f4("PRing", b.capacityValue(), b.filled, 0f, 0f);
+        float colourMode = b.colorKeyCount;
+        if (b.ramp != null) {
+            // binding is what uploads a decoded texture (FxTextures.get); until then the 1x1 fallback is bound unused
+            binder.texture("PRamp", b.ramp);
+            if (textureReady(b.ramp)) {
+                binder.f2("PRampRange", b.rampFrom, b.rampTo);
+                colourMode = -1f;
+            }
+        }
+        binder.f4("PCurves", colourMode, b.alphaKeyCount, b.sizeKeyCount, 0f);
+        if (b.colorKeyCount > 0) {
+            float[] k = b.colorKeys;
+            binder.f3("PColorKey0", k[0], k[1], k[2]);
+            binder.f3("PColorKey1", k[3], k[4], k[5]);
+            binder.f3("PColorKey2", k[6], k[7], k[8]);
+            binder.f3("PColorKey3", k[9], k[10], k[11]);
+        }
+        binder.f4("PAlphaKeys", b.alphaKeys[0], b.alphaKeys[1], b.alphaKeys[2], b.alphaKeys[3]);
+        binder.f4("PSizeKeys", b.sizeKeys[0], b.sizeKeys[1], b.sizeKeys[2], b.sizeKeys[3]);
+        try {
+            e.setup().accept(binder);
+        } catch (RuntimeException ex) {
+            if (failedSetups.add(e.shader())) {
+                BHFxMod.LOGGER.error("bhfx uniform setup for particle material {} threw", e.shader(), ex);
+            }
+            particles.unbind();
+            return;
+        }
+        particles.draw(b);
+        particles.unbind();
+    }
+
+    /** Most particle slots drawn per frame at this quality. */
+    private static int particleCap(BHFxConfig.Quality quality) {
+        return switch (quality) {
+            case OFF -> 0;
+            case LOW -> 4096;
+            case MEDIUM -> 16384;
+            case HIGH -> 32768;
+        };
+    }
+
+    private void ensureDistort() {
+        if (distortW == fxW && distortH == fxH && distortFbo != 0) {
+            return;
+        }
+        guard.touchUnit(0);
+        if (distortFbo == 0) {
+            distortFbo = GL30.glGenFramebuffers();
+            distortTex = GL11.glGenTextures();
+        }
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, distortTex);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL13.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL13.GL_CLAMP_TO_EDGE);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RG16F, fxW, fxH, 0, GL30.GL_RG, GL11.GL_FLOAT,
+                (java.nio.ByteBuffer) null);
+        attach(distortFbo, distortTex, "distortion");
+        distortW = fxW;
+        distortH = fxH;
     }
 
     private void begin(ShaderProgram program, int input, int depth, int outW, int outH, float time) {
@@ -665,6 +917,11 @@ public final class PostRenderer {
             deleteTex(upTex[i]);
             upFbo[i] = upTex[i] = 0;
         }
+        deleteFbo(distortFbo);
+        deleteTex(distortTex);
+        distortFbo = distortTex = distortW = distortH = 0;
+        particles.releaseAll();
+        textures.clear();
         timer.delete();
         vao = outFbo = snapshotFbo = snapshotTex = sceneLowFbo = sceneLowTex = 0;
         outAttached = fullW = fullH = fxW = fxH = bloomForW = bloomForH = 0;

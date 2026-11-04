@@ -1,6 +1,7 @@
 // Compile-checks every bhfx pass shader (assets/<ns>/shaders/bhfx/<name>.fsh) with glslangValidator, the way bhfx
 // builds them in game: the bhfx header first, then the file with each #include "ns:name.glsl" inlined. `check` (and so
-// `build`) depends on it.
+// `build`) depends on it. Particle materials (assets/<ns>/shaders/bhfx/particle/<name>.fsh) are checked between
+// bhfx's particle _header.glsl and _footer.glsl (found on the include roots), and particle/*.vsh as they are.
 //
 // glslangValidator is looked up in this order: -PglslangValidator=<path>, the GLSLANG_VALIDATOR environment variable,
 // the shared copy at <repo>/../tools/glslang/bin (ironspell_more/tools, next to bhfx and BHSpells), VULKAN_SDK, PATH.
@@ -91,6 +92,16 @@ tasks.register('checkShaders') {
             }
             return includeCache[key]
         }
+        // any resource on the include roots, e.g. bhfx's particle header from the bhfx jar
+        def readResource = { String rel ->
+            for (def tree : includeTrees) {
+                def match = tree.matching { include rel }.files
+                if (!match.isEmpty()) {
+                    return match.iterator().next().getText('UTF-8')
+                }
+            }
+            return null
+        }
         def includePattern = ~/^\s*#include\s+"([^"]+)"\s*$/
 
         def expand
@@ -122,6 +133,48 @@ tasks.register('checkShaders') {
         outDir.mkdirs()
         def failures = []
         int checked = 0
+        def runGlslang = { String label, File src, File original ->
+            def log = new ByteArrayOutputStream()
+            def result = project.exec {
+                commandLine glslang.absolutePath, src.absolutePath
+                standardOutput = log
+                errorOutput = log
+                ignoreExitValue = true
+            }
+            checked++
+            if (result.exitValue != 0) {
+                failures << "${label} (${original})\n${log.toString('UTF-8').trim()}".toString()
+            }
+        }
+        def particleHeader = null
+        def particleFooter = null
+        glslShaderRoots().each { root ->
+            fileTree(root) { include 'assets/*/shaders/bhfx/particle/*.fsh' }.each { File fsh ->
+                if (particleHeader == null) {
+                    particleHeader = readResource('assets/bhfx/shaders/bhfx/particle/_header.glsl')
+                    particleFooter = readResource('assets/bhfx/shaders/bhfx/particle/_footer.glsl')
+                    if (particleHeader == null || particleFooter == null) {
+                        throw new GradleException('checkShaders: bhfx particle _header.glsl/_footer.glsl not found on glslIncludeRoots')
+                    }
+                }
+                def ns = fsh.parentFile.parentFile.parentFile.parentFile.name
+                def name = fsh.name.replaceAll(/\.fsh$/, '')
+                def label = "${ns}:particle/${name}".toString()
+                def source = new StringBuilder(particleHeader).append('\n')
+                expand(fsh.getText('UTF-8'), ns, label, source, new HashSet<String>())
+                source.append('#line 1\n').append(particleFooter)
+                def frag = new File(outDir, "${ns}_particle_${name}.frag")
+                frag.setText(source.toString(), 'UTF-8')
+                runGlslang(label, frag, fsh)
+            }
+            fileTree(root) { include 'assets/*/shaders/bhfx/particle/*.vsh' }.each { File vsh ->
+                def ns = vsh.parentFile.parentFile.parentFile.parentFile.name
+                def name = vsh.name.replaceAll(/\.vsh$/, '')
+                def vert = new File(outDir, "${ns}_particle_${name}.vert")
+                vert.setText(vsh.getText('UTF-8'), 'UTF-8')
+                runGlslang("${ns}:particle/${name}.vsh".toString(), vert, vsh)
+            }
+        }
         glslShaderRoots().each { root ->
             fileTree(root) { include 'assets/*/shaders/bhfx/*.fsh' }.each { File fsh ->
                 def ns = fsh.parentFile.parentFile.parentFile.name
@@ -131,17 +184,7 @@ tasks.register('checkShaders') {
                 expand(fsh.getText('UTF-8'), ns, label, source, new HashSet<String>())
                 def frag = new File(outDir, "${ns}_${name}.frag")
                 frag.setText(source.toString(), 'UTF-8')
-                def log = new ByteArrayOutputStream()
-                def result = project.exec {
-                    commandLine glslang.absolutePath, frag.absolutePath
-                    standardOutput = log
-                    errorOutput = log
-                    ignoreExitValue = true
-                }
-                checked++
-                if (result.exitValue != 0) {
-                    failures << "${label} (${fsh})\n${log.toString('UTF-8').trim()}".toString()
-                }
+                runGlslang(label, frag, fsh)
             }
         }
         if (!failures.isEmpty()) {

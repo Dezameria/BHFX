@@ -1,6 +1,7 @@
 package net.deizyn.bhfx.api.client;
 
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.ApiStatus;
 
 /** Uniform setter for one pass. Names the shader does not declare are ignored. */
 public interface Uniforms {
@@ -24,4 +25,11 @@ public interface Uniforms {
 
     /** A float array: uploaded as vec4[] when the length is a multiple of 4, else as float[]. */
     Uniforms floats(String name, float[] values);
+
+    /**
+     * Binds a texture to a {@code uniform sampler2D name;}. Reads zero until the file has loaded (see
+     * {@link FxTexture}). Up to 10 textures per pass or particle material.
+     */
+    @ApiStatus.Experimental
+    Uniforms texture(String name, FxTexture texture);
 }

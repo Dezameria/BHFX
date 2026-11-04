@@ -4,12 +4,12 @@ A library mod for Forge 1.20.1 that adds post-processing effects and depth-aware
 It is an **extra layer**: mods that use it keep their main visuals from Effekseer/GeckoLib and still work without bhfx.
 
 - Full API plan: [`docs/API_PLAN.md`](docs/API_PLAN.md); changes per version: [`CHANGELOG.md`](CHANGELOG.md)
-- Version: **0.3.8** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
+- Version: **0.3.9** (API reviewed for 1.0, see `docs/API_PLAN.md` section 0.1). The network protocol is `2`, which is not compatible with 0.2.
 
 ## Build / use
 
 ```bash
-./gradlew.bat build                 # jar at build/libs/bhfx-0.3.8.jar, also copied to ../BHSpells/libs
+./gradlew.bat build                 # jar at build/libs/bhfx-0.3.9.jar, also copied to ../BHSpells/libs
 ./gradlew.bat publishToMavenLocal   # makes it available from mavenLocal()
 ./gradlew.bat runClient             # testing
 ./gradlew.bat checkShaders          # check shaders with glslang (also part of build), see docs/shaders.md
@@ -18,8 +18,8 @@ It is an **extra layer**: mods that use it keep their main visuals from Effeksee
 On the BHSpells side (soft dependency, see `docs/API_PLAN.md` section 6.0, and [`docs/integrations/bhspells.md`](docs/integrations/bhspells.md) for how the jar is resolved from `libs/`):
 ```gradle
 dependencies {
-    compileOnly fg.deobf("net.deizyn:bhfx:0.3.8")
-    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.8")   // dev only, to run them together
+    compileOnly fg.deobf("net.deizyn:bhfx:0.3.9")
+    runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.9")   // dev only, to run them together
 }
 ```
 
@@ -51,6 +51,9 @@ Command-friendly effects (they play on their own and use the common param names 
 | Effect | Params (default) | Example |
 | :--- | :--- | :--- |
 | `bhfx:test` | `radius` (8) | `/bhfx test bhfx:test {radius:12}`: warning ring → light beam hidden by terrain, bloom, impact frame, ripple, zoom blur, flash, shake, cooling ground |
+| `bhfx:test_flow` | `radius` (3) | `/bhfx test bhfx:test_flow at ^ ^ ^8 {duration:30}` on hilly ground: turbulence, over-life curves, ribbons, ground snapping and the built-in materials (0.3.9) — drifting smoke and embers, three helix ribbons, a comet with a ribbon tail, and every 2.5 s a dust ring and scorch marks on the terrain, a flipbook puff and sparks |
+| `bhfx:test_vortex` | `radius` (2.5) | `/bhfx test bhfx:test_vortex at ^ ^ ^7 {duration:30}`: emitters and orbits (0.3.9) — a whirlwind of dust and embers streamed from a disc and a cylinder, a tilted black hole whose ring of streaks spirals in every 2.5 s with a ring burst and a cone fountain, and a comet whose trail is streamed per frame |
+| `bhfx:test_particles` | `radius` (2.5) | `/bhfx test bhfx:test_particles at ^ ^ ^6 {duration:30}`: GPU particles and textures (0.3.9) — embers (colour ramp), lit smoke (packed noise), heat haze (distortion), and every 2.5 s sparks, a flipbook puff and a ground ring |
 | `bhfx:test_tracker` | — (60 s) | `/bhfx_play fx bhfx:test_tracker {range:16}`: stand outside the range, walk in; the HUD age must keep counting, not restart from 0 |
 
 More examples:

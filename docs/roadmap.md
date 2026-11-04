@@ -46,8 +46,28 @@ Suggested order: 1 → 2 → 3 can be done locally right away (3 done, 2 mostly 
 
 ## Backlog (not scheduled)
 
+- Shader particles and textures (2026-11-04 assessment in [`worklog.md`](worklog.md)):
+  - [x] 2026-11-04 Texture uniform (`Uniforms.texture`, `FxTexture`): off-thread decode, R8 + channel packing, mipmaps, ramps. 0.3.9, not tested in game.
+  - [x] 2026-11-04 Particle renderer v1 (`Fx.createParticles`, `PassList.particles`): instanced, analytic motion, pass-style material, in the chain with depth test and soft fade. 0.3.9, not tested in game.
+  - [x] 2026-11-04 DISTORT particles (RG16F target + `particle_resolve`). Emissive needs no buffer: HDR particle light already feeds the bloom prefilter.
+  - [x] 2026-11-04 Flipbooks (`flipbook` in `particle.glsl`). Particles already draw at effect resolution (the same dynamic resolution as passes), so a separate half-res buffer was not added.
+  - [x] 2026-11-04 Resolution-step hitches: held upward steps instead of allocate-at-cap (see [`decisions.md`](decisions.md)).
+  - [x] 2026-11-04 Emitter shapes (`FxEmitter`, `FxParticles.emit`), rate streams (`FxParticles.stream`) and analytic orbit / pull round a batch axis. 0.3.9, not tested in game.
+  - [ ] In-game test of all of the above ([`testing.md`](testing.md)), then `/bhfx bench bhfx:test_particles` numbers.
+  - [x] 2026-11-04 Turbulence, over-life curves (colour keys / ramp, alpha, size), ribbons (`Facing.RIBBON`, `FxParticles.ribbon()`, streams), `Shape.onGround`, built-in materials `DOT` / `STREAK` / `SPRITE` / `RIBBON`. 0.3.9, not tested in game.
+  - [ ] Presets for repeated pieces (opening sequence, ground rings), from the 2026-11-04 "what else" list.
+  - [ ] BHSpells: move `ConquerorHakiFx` spawn loops onto `emit` where it reads simpler (optional).
+  - [ ] First BHSpells spell on particles (e.g. Fiery Dance embers + heat haze).
+- Particle optimization plan (agreed 2026-11-04, **on hold until the `test_flow` / `test_vortex` checklists in [`testing.md`](testing.md) pass**, so bugs from the new features and from the optimization don't mix). Release as 0.3.10 (a new version also avoids the stale same-version jar, [`bugs.md`](bugs.md) 2026-11-04). Before and after: `/bhfx bench` on `bhfx:test_flow`, `bhfx:test_vortex`, `bhfx:test_particles` and `bhspells:conqueror_haki`, numbers into `testing.md`.
+  - [ ] 1. Draw only the live window. Now every batch draws `filled` instances (`ParticleRenderer`, = capacity once the ring wraps) and dead slots still run the vertex shader. Track write times, draw only the newest K slots that can still be alive (max life + max delay), pass the start slot as a uniform (no base instance in GL 3.3). The particle budget in `PostRenderer` counts that K, not `filled`. Internal only, no API change, no visual change. Risks: `delay()` births out of write order (window must include max delay); ribbon links stay inside the window. JUnit for the window with delays and wrap.
+  - [ ] 4. `/bhfx stats`: peak alive vs capacity per batch, to size capacities in bhfx and BHSpells. Display only.
+  - [ ] 2. Quality / distance LOD for `emit` and `Stream` counts (e.g. LOW ×0.5, fewer far away). Changes looks: evenly counted shapes change spacing, streamed ribbons get coarser. Needs a per-batch / per-emit opt-out; default **off** so existing BHSpells effects don't change.
+  - [ ] 3. Max on-screen size and near-camera fade per batch, for fill rate (big ALPHA smoke). Changes looks of effects round the player (aura, `attach @s`, first person); default **off**.
+  - Not planned now: evaluate-once pre-pass (positions computed 4× per particle, 8× for ribbons; worth it at tens of thousands), half-float packing (112 → ~64 bytes; position/time precision risk), a half-res buffer (particles already draw at effect resolution), ALPHA sorting, compute shaders (GL 4.3, not on macOS), persistent mapped buffers.
+  - [ ] Later, only when an effect needs it: mesh particles; GPU simulation by texture ping-pong (no compute: GL 3.2 / macOS 4.1); particle sorting for ALPHA; a dev-only overdraw view.
+
 - Shader pack mode: while a pack is on, keep screen-only effects (flash, vignette, ripple, impact, bloom, pulses) and skip only depth-based world passes, instead of the all-or-nothing `offWithShaderpack`. Only needed if world-space parts look wrong with a pack (2026-10-17: the user reports effects visible with Complementary forced on).
 
 - `AaaParticlesBridge` (`ctx.effek(...)`): when there is a real use case.
-- `Uniforms.texture(name, ResourceLocation)` as `@ApiStatus.Experimental` (removed in 0.3.2): only when a real effect needs a texture lookup, e.g. a black-hole accretion disk or a colour-ramp trail (from the 2026-11-02 ArcaneVortex assessment in [`worklog.md`](worklog.md)).
+- ~~`Uniforms.texture(name, ResourceLocation)`~~ done 2026-11-04 as `Uniforms.texture(name, FxTexture)` (0.3.9).
 - BHSpells spells that would suit bhfx next: Indigo Lightning, Fiery Dance, Venomous Blossomfall (LONG/CONTINUOUS with all the hooks), and long-lasting zone spells (to test the tracker with long effects).

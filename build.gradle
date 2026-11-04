@@ -24,6 +24,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            // Mods pulled in with fg.deobf (Carpet) ship SRG refmaps; remap them to dev names or their mixins fail
+            // ("Critical injection failure ... m_91320_") and the client never starts.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             mods {
                 "${mod_id}" {
                     source sourceSets.main
@@ -114,6 +118,11 @@ publishing {
     }
 }
 
+// publish the reobfuscated jar, as in BHSpells/libs (reobfJar rewrites the jar in place)
+tasks.withType(PublishToMavenLocal).configureEach {
+    dependsOn 'reobfJar'
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
@@ -123,19 +132,39 @@ ext.glslShaderRoots = { -> [file('src/main/resources')] }
 ext.glslIncludeRoots = { -> [file('src/main/resources')] }
 apply from: 'gradle/glsl-check.gradle'
 
-// BHSpells builds against bhfx from its libs/ folder (flatDir, checked before mavenLocal), so friends who clone it can
-// build without this repo. After every build, replace the bhfx jar there with this one (reobfuscated, not -sources).
+// BHSpells builds against bhfx from its libs/ folder (flatDir), so friends who clone it can build without this repo.
+// After every build, replace the bhfx jar there with this one (reobfuscated, not -sources). BHSpells also lists
+// mavenLocal, and Gradle prefers a repository with a pom over flatDir, so a stale ~/.m2 copy of the same version would
+// win (docs/bugs.md, 2026-11-04): publish there too.
 def bhspellsLibs = file('../BHSpells/libs')
 tasks.register('copyToBHSpells', Copy) {
     group = 'distribution'
-    description = 'Copies the built bhfx jar into ../BHSpells/libs, replacing older bhfx jars.'
-    dependsOn 'reobfJar'
+    description = 'Copies the built bhfx jar into ../BHSpells/libs and mavenLocal, replacing older bhfx jars.'
+    dependsOn 'reobfJar', 'publishToMavenLocal'
     onlyIf { bhspellsLibs.isDirectory() }
     doFirst {
         project.delete(fileTree(bhspellsLibs) { include "${mod_id}-*.jar" })
     }
     from(tasks.named('jar').flatMap { it.archiveFile })
     into bhspellsLibs
+    // ForgeGradle keeps its first fg.deobf copy of a version, so a rebuilt jar with the same version would never
+    // reach BHSpells' runClient (docs/bugs.md, 2026-11-04). Drop that copy; a running client may still hold it.
+    doLast {
+        def deobf = new File(gradle.gradleUserHomeDir,
+                "caches/forge_gradle/deobf_dependencies/${mod_group_id.replace('.', '/')}/${mod_id}")
+        def stale = deobf.listFiles({ File f -> f.isDirectory() && f.name.startsWith("${mod_version}_") } as FileFilter)
+        stale?.each { File dir ->
+            try {
+                project.delete(dir)
+            } catch (Exception ignored) {
+            }
+            if (dir.exists()) {
+                logger.warn("bhfx: could not clear ${dir}; close BHSpells' client and delete it, or runClient keeps the old jar")
+            } else {
+                logger.lifecycle("bhfx: cleared ForgeGradle's deobf copy ${dir.name}")
+            }
+        }
+    }
 }
 tasks.named('build') {
     finalizedBy 'copyToBHSpells'

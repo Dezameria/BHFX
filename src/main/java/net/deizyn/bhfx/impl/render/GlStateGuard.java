@@ -3,6 +3,7 @@ package net.deizyn.bhfx.impl.render;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL33;
@@ -37,6 +38,13 @@ final class GlStateGuard {
     private int touchedUnits;
     private int unpackBuffer;
     private boolean active;
+    private boolean blendTouched;
+    private int blendSrcRgb;
+    private int blendDstRgb;
+    private int blendSrcAlpha;
+    private int blendDstAlpha;
+    private int blendEqRgb;
+    private int blendEqAlpha;
 
     void capture() {
         drawFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
@@ -61,6 +69,7 @@ final class GlStateGuard {
         scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
         depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         touchedUnits = 0;
+        blendTouched = false;
         active = true;
         if (unpackBuffer != 0) {
             // texture allocation with a bound unpack buffer would read from it
@@ -82,11 +91,29 @@ final class GlStateGuard {
         }
     }
 
+    /** Call before changing the blend function or equation (particles); restored exactly, as Minecraft caches them. */
+    void touchBlend() {
+        if (blendTouched) {
+            return;
+        }
+        blendTouched = true;
+        blendSrcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
+        blendDstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
+        blendSrcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
+        blendDstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        blendEqRgb = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB);
+        blendEqAlpha = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);
+    }
+
     void restore() {
         if (!active) {
             return;
         }
         active = false;
+        if (blendTouched) {
+            GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
+            GL20.glBlendEquationSeparate(blendEqRgb, blendEqAlpha);
+        }
         toggle(GL11.GL_DEPTH_TEST, depthTest);
         toggle(GL11.GL_BLEND, blend);
         toggle(GL11.GL_CULL_FACE, cull);

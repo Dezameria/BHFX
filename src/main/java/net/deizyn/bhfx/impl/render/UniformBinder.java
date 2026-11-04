@@ -1,15 +1,57 @@
 package net.deizyn.bhfx.impl.render;
 
 import net.minecraft.world.phys.Vec3;
+import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.client.FxTexture;
 import net.deizyn.bhfx.api.client.Uniforms;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /** {@link Uniforms} for the pass being drawn. */
 final class UniformBinder implements Uniforms {
+    /** Units 0..5 are bhfx's own (scene, depth, aux, bloom, particle data); effect textures take the rest. */
+    static final int FIRST_TEXTURE_UNIT = 6;
+    static final int LAST_TEXTURE_UNIT = 15;
+
+    private final GlStateGuard guard;
+    private final FxTextures textures;
+    private final Set<String> warned = new HashSet<>();
     private ShaderProgram program;
+    private int nextUnit;
+    private long now;
+
+    UniformBinder(GlStateGuard guard, FxTextures textures) {
+        this.guard = guard;
+        this.textures = textures;
+    }
 
     void begin(ShaderProgram program) {
         this.program = program;
+        this.nextUnit = FIRST_TEXTURE_UNIT;
+        this.now = System.nanoTime();
+    }
+
+    @Override
+    public Uniforms texture(String name, FxTexture texture) {
+        int loc = program.location(name);
+        if (loc < 0 || texture == null) {
+            return this;
+        }
+        if (nextUnit > LAST_TEXTURE_UNIT) {
+            if (warned.add(name)) {
+                BHFxMod.LOGGER.warn("bhfx: more than {} textures in one pass; {} is not bound",
+                        LAST_TEXTURE_UNIT - FIRST_TEXTURE_UNIT + 1, name);
+            }
+            return this;
+        }
+        int unit = nextUnit++;
+        guard.touchUnit(unit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textures.get(texture, now));
+        GL20.glUniform1i(loc, unit);
+        return this;
     }
 
     @Override

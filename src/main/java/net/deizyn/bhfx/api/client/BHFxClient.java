@@ -6,6 +6,7 @@ import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.client.ClientFxManager;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Optional;
 
@@ -58,6 +59,21 @@ public final class BHFxClient {
     /** True when effects are enabled and post-processing is working on this client. */
     public static boolean postAvailable() {
         return ClientFxManager.postAvailable();
+    }
+
+    /**
+     * Start loading a texture now (decoded off the render thread), so it is ready by the time a pass first samples it,
+     * e.g. from {@code onStart} or right after registering effects. Cheap to call again.
+     */
+    @ApiStatus.Experimental
+    public static void preload(FxTexture texture) {
+        ClientFxManager.preloadTexture(texture);
+    }
+
+    /** Whether a texture has loaded and is on the GPU (until then samplers read zero). */
+    @ApiStatus.Experimental
+    public static boolean textureReady(FxTexture texture) {
+        return ClientFxManager.textureReady(texture);
     }
 
     /**
