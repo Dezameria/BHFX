@@ -19,7 +19,7 @@ Daily work log, newest at the top. Format:
 - bhfx: `BHFxConfig` — `maxActiveFx` 32 → 96, new `guaranteedRadius` 48; `ClientConfigMigration` step 4 moves a file still at 32 to 96.
 - docs: `decisions.md`, `shaders.md`, `bugs.md`, `README.md`, phase 1 checklist in `testing.md`.
 - result: `gradlew build` passes, 98 JUnit tests (9 new), glslang OK. Not run in game. The stale ForgeGradle deobf cache of 0.3.9 was deleted after the game closed; the next `runClient` remaps the phase 1 jar.
-- next: the phase 1 checklist; then phase 2 (pool, live window) or the far draw distance step.
+- next: the "Usable first" steps U1–U3 in [`roadmap.md`](roadmap.md) (in-game round, fixes, release 0.3.10); the rest of the scale plan waits. Committed as `1ec0427` on `feature/scale-phase0`.
 
 ## 2026-11-07 — Phase 0 first in-game round
 - Read the user's `BHSpells/run/logs/latest.log` (04:18–04:23). Results and before numbers in [`testing.md`](testing.md): client burst of 70 cost 7.55 ms of constructors in one tick; GPU avg 1.75 / max 7.05 ms; server burst 64 of 70 (6 refused by `maxStartsPerTick`), ~86 B per start.
