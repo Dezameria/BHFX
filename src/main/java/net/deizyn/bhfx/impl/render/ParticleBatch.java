@@ -371,6 +371,27 @@ public final class ParticleBatch implements FxParticles {
         return new RibbonImpl();
     }
 
+    /** Most particles alive at one {@link #samplePeakAlive} sample, for sizing capacities. */
+    private int peakAlive;
+
+    /** Count the living particles now (walks every filled slot) and keep the highest count. */
+    public int samplePeakAlive() {
+        int n = alive();
+        if (n > peakAlive) {
+            peakAlive = n;
+        }
+        return n;
+    }
+
+    public int peakAlive() {
+        return peakAlive;
+    }
+
+    /** The Java-side copy of the slots; the GPU buffer is the same size once the batch is drawn. */
+    public long heapBytes() {
+        return (long) capacity * FLOATS * 4;
+    }
+
     @Override
     public int alive() {
         float now = now();

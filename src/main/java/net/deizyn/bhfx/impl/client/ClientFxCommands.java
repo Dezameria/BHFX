@@ -7,6 +7,8 @@ import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.api.client.LocalFxHandle;
 import net.deizyn.bhfx.impl.FxCommandArgs;
 import net.deizyn.bhfx.impl.FxCommands;
+import net.deizyn.bhfx.impl.FxStress;
+import net.deizyn.bhfx.api.FxSpawn;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.CommandSourceStack;
@@ -20,7 +22,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * /bhfx test &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [{params}] and /bhfx stop [&lt;entities&gt;] [finish]:
@@ -45,6 +50,88 @@ final class ClientFxCommands {
 
     static void clear() {
         STARTED.clear();
+        STRESS.clear();
+    }
+
+    // ------------------------------------------------------------------ stress
+
+    /** A running /bhfx stress and who asked for it. */
+    private record StressRun(FxStress plan, CommandSourceStack source) {
+    }
+
+    private static final List<StressRun> STRESS = new ArrayList<>();
+
+    static LiteralArgumentBuilder<CommandSourceStack> stress() {
+        return FxCommands.stress(ClientFxManager::registeredIds, ClientFxCommands::stress);
+    }
+
+    private static int stress(CommandContext<CommandSourceStack> ctx, int count, double radius, int seconds, String typed) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) {
+            return 0;
+        }
+        if (!ClientFxManager.enabled()) {
+            ctx.getSource().sendFailure(Component.literal("bhfx stress: bhfx is off"));
+            return 0;
+        }
+        Collection<ResourceLocation> ids;
+        try {
+            ids = typed != null ? FxStress.parseIds(typed) : ClientFxManager.registeredIds();
+        } catch (IllegalArgumentException e) {
+            ctx.getSource().sendFailure(Component.literal("bhfx stress: not an effect id: " + e.getMessage()));
+            return 0;
+        }
+        Set<ResourceLocation> known = ClientFxManager.registeredIds();
+        for (ResourceLocation id : ids) {
+            if (!known.contains(id)) {
+                ctx.getSource().sendFailure(Component.literal("bhfx stress: " + id + " is not a registered effect"));
+                return 0;
+            }
+        }
+        if (ids.isEmpty()) {
+            ctx.getSource().sendFailure(Component.literal("bhfx stress: no effects registered"));
+            return 0;
+        }
+        FxStress plan = new FxStress(ids, mc.player.position(), radius, count, seconds, mc.level.random.nextLong());
+        StressRun run = new StressRun(plan, ctx.getSource());
+        ClientFxManager.resetCounters();
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx stress: " + plan.describe()
+                + " (only you see them). /bhfx stop ends them; /bhfx stats shows the counters."), false);
+        if (!step(run)) { // with no spread everything starts now, like a real burst
+            STRESS.add(run);
+        }
+        return plan.count();
+    }
+
+    /** Client tick. */
+    static void tick() {
+        if (!STRESS.isEmpty()) {
+            STRESS.removeIf(ClientFxCommands::step);
+        }
+    }
+
+    /** Start what is due now; true when the run is finished (and reported). */
+    private static boolean step(StressRun run) {
+        FxStress plan = run.plan();
+        int due = plan.due();
+        for (int i = 0; i < due; i++) {
+            ResourceLocation fx = plan.id(plan.startedCount() - due + i);
+            Vec3 at = plan.nextPoint();
+            LocalFxHandle handle = ClientFxManager.startLocal(fx, FxSpawn.at(at).target(at));
+            if (handle.isNone()) {
+                plan.refused();
+            } else {
+                STARTED.add(handle, fx, null);
+            }
+        }
+        if (!plan.done()) {
+            return false;
+        }
+        int ok = plan.count() - plan.refusedCount();
+        run.source().sendSuccess(() -> Component.literal("bhfx stress: started " + ok + " of " + plan.count()
+                + (plan.refusedCount() > 0 ? " (" + plan.refusedCount() + " could not start)" : "")
+                + ", " + ClientFxManager.counterLine()), false);
+        return true;
     }
 
     private static int play(CommandContext<CommandSourceStack> ctx, FxCommands.Shape shape) throws CommandSyntaxException {

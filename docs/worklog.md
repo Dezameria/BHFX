@@ -11,6 +11,23 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-07 — Scale plan phase 0: stress commands and counters
+- bhfx: `impl/FxStress` (new) — one stress run: count, ids in turn, all at once or spread over seconds, random points on a disc, `parseIds`. `impl/FxCommands.stress` — shared grammar `stress <count> [radius] [seconds] [fx ...]`.
+- bhfx: `impl/client/ClientFxCommands` — `/bhfx stress` (local effects, registered in the `/bhfx stop` list, ticked from `ClientEvents`). `ClientFxManager` — counters: peak running, evicted by `maxActiveFx`, failed, unregistered, busiest tick's starts and constructor time, slowest constructor; particle batches, slots and heap, biggest batches' peak alive / capacity, batches never above 25%; peaks sampled once a second; shown in `/bhfx stats`, reset on world change and by `/bhfx stress`. `ParticleBatch.samplePeakAlive/peakAlive/heapBytes`, `Fx.bhfxParticleBatches` (internal).
+- bhfx: `impl/net/NetMeter` (new) — `/bhfx_play net [seconds]`: per-player bytes (encoded message + 12 B, before Minecraft framing and compression), packets and starts, plus starts refused by `maxStartsPerTick` / `maxActivePerCaster`; no work unless running. `BHFxNetwork.sendTo/sendToDimension` replace `send`; `ServerFx` uses them and reports drops. `ServerFxEvents` — `/bhfx_play stress` and `/bhfx_play net`.
+- bhfx: `README.md` commands table.
+- result: `gradlew build` passes, 89 JUnit tests (13 new: `FxStressTest`, `NetMeterTest`), glslang OK. Not run in game. Version unchanged (0.3.9); the rebuilt jar has the same name as the old one, see the stale-jar note in [`bugs.md`](bugs.md) before testing in BHSpells.
+- next: the phase 0 checklist in [`testing.md`](testing.md), then phase 1.
+
+## 2026-11-06 — Assessment: ~70 players with different effects at once
+- No code changed. Read `BHFxConfig` limits, `ClientFxManager.add`, `ParticleRenderer`, `ParticleBatch`, `ServerFx` (limits, outbox, tracker), `S2CFxStartBatch`, `FxParam`.
+- bhfx memory is bounded on both sides: client `maxActiveFx` 32 (oldest evicted), render targets ~45–68 MB fixed, particles 112 B per slot per side with a per-frame slot cap; server keeps a small record per effect, `maxStartsPerTick` 64 per dimension, `maxActivePerCaster` 16, params ≤ 32 KB, 16 starts per batch packet.
+- Weak spots for this scale: eviction is oldest first (your own effect can be dropped for a stranger's); every batch allocates a new `float[]` and GL buffer, so many starts in one tick allocate together; dead slots still draw; one global start cap per dimension can be used up by one caster; a join or respawn into many persistent effects sends them all in one tick.
+- Outside bhfx (not part of this plan): BHSpells sends vanilla particles from the server one point at a time in loops (217 `sendParticles` calls in 69 files, e.g. `TigershadeTerrabreakSpell` ~800 packets per viewer per impact). This is the likelier cause of disconnects with many players.
+- result: estimate from code only, nothing measured.
+- next: scale plan in [`roadmap.md`](roadmap.md), starting with phase 0 (measure).
+- Later the same day: side effects of each phase reviewed and added to the plan. The user then set a requirement: everyone in range sees the same effects, with even detail loss under load, and nothing blinks or vanishes when walking closer. Phase 1 was rewritten around this (light records, guaranteed radius, distance-only choice with hysteresis, fades). Checked: the seed comes from the server (`ServerFx` line 124), but `Fx.random()` is one sequence, so an effect built late matches only in shape.
+
 ## 2026-11-05 — bhfx `runClient` fixed (Carpet refmap)
 - bhfx: `build.gradle` — run configs remap mixin refmaps (`mixin.env.remapRefMap`, `refMapRemappingFile`), so Carpet's mixins apply in dev (see [`bugs.md`](bugs.md)).
 - result: `runClient` reaches the title screen; no world joined or effect tested yet.

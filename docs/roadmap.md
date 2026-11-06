@@ -39,6 +39,39 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 
 Suggested order: 1 → 2 → 3 can be done locally right away (3 done, 2 mostly done on 2026-10-17). 4–5 need time in game and a friend; do them together with the multiplayer test.
 
+## Scale plan: ~70 players with different effects at once (proposed 2026-11-06, not started)
+
+Goal: about 70 players casting different effects at the same time, with no client or server running out of memory, no long CPU hitch and no network flood from bhfx. bhfx only; the existing BHSpells effects stay as they are (their server `sendParticles` loops are a separate BHSpells problem, found 2026-11-06). Assessment in [`worklog.md`](worklog.md) 2026-11-06. Merges the particle optimization plan below; that plan's hold (the `test_flow` / `test_vortex` checklists) still applies to phase 2.
+
+Done when (measured with the phase 0 tool): 70 different effects starting within one second give no frame over 50 ms; client heap and VRAM stop growing (same numbers after a 10-minute loop, back to "post idle" 30 s after the end); bhfx GPU stays within `gpuBudgetMs`; bhfx traffic per player stays bounded (target to set from the phase 0 numbers).
+
+- [ ] **Phase 0, measure first.** Code done 2026-11-07 (build + JUnit, not run in game): `/bhfx stress`, `/bhfx_play stress`, `/bhfx_play net`, new `/bhfx stats` lines (see [`testing.md`](testing.md)). Left: run it in game and record the before numbers. Planned text: Dev command `/bhfx stress <count> [ids…]`: starts N effects round the player from fake caster ids, at random spots, staggered or all in one tick. `/bhfx status` gains peak alive vs capacity per batch (old item 4 below), effects refused or evicted, particle slots allocated. A server-side counter of bhfx bytes and starts sent per player per second. Record before numbers in [`testing.md`](testing.md).
+Requirement (user, 2026-11-06): everyone in range sees the same effects. Under load, lower the detail of all effects evenly instead of dropping some. Nothing may blink or vanish when you walk closer or turn round. Equal detail on every machine is not required.
+
+- [ ] **Phase 1, show every effect in range, steadily.**
+  - [ ] Keep a light record of every effect the client was told about (start data, current params from `S2CFxUpdate`, stop state), apart from the constructed `Fx`. The cap on records is far higher than on constructed effects. An effect is built from its record at its current age when it is shown, so walking closer brings back an effect that was not built.
+  - [ ] Guaranteed radius (config, e.g. 48 blocks): every effect inside it is always built and drawn. Under load, all of them lose detail evenly (resolution steps as now, then a particle count scale shared by all, then shorter far draw distances), never one effect dropped. Past the radius, the budget is shared by distance.
+  - [ ] Choose which effects are shown by distance from the local player (own effects and effects aimed at the player first), not by view direction, so turning the camera never swaps effects. Hysteresis: an effect stays shown until it is clearly past the radius plus a margin, held at least ~2 s. Off-screen effects keep their place.
+  - [ ] Fade instead of popping when an effect enters or leaves the shown set: particles by an alpha multiplier in the vertex shader; passes by a `Presence` uniform that new shaders may read (old shaders ignore it and just appear, without blinking).
+  - [ ] Order the particle slot budget and `maxPassesPerFrame` by the same shown set (now: latest-ordered, then farthest), and raise `maxActiveFx` (32) to fit the radius; passes inside the radius use `PassOptions.within` bounds so many of them stay cheap.
+  - Same look on every client: `Fx` already takes time only from `age()` and randomness from `random()` with the server's seed (`ServerFx` line 124). But `random()` is one sequence, so an effect built late draws different numbers from one built at tick 0: same shape, different single particles. For an exact match: an opt-in `random(tick)` keyed by seed and tick. Particles born before a late build are missing until their lifetime would have ended.
+  - [ ] Spread effect construction: at most N `Fx` constructed per frame (own and nearby effects exempt); the rest wait in a queue and catch up with the start age already in `S2CFxStart`. Stops a tick with 64 starts from allocating every batch in one frame.
+  - Side effects to handle (reviewed 2026-11-06):
+    - Rank before constructing. `ClientFxManager.add` runs `factory.create` before the cap check, so a refused effect still allocates its batches. BHSpells `BhfxClientBridge.comboFor` plays again on every cue when bhfx refused, so a refused far combo would construct on every cue.
+    - An evicted or refused effect never comes back today: the server marks it as sent (`Tracking.Reach`). The record above fixes this on the client, with no resend.
+    - A queued start that waits longer than the effect's duration is dropped. A stop for a queued start removes it from the queue. Catch-up only sets the age; it does not run the missed ticks (that would bring the CPU spike back), so spawns from those ticks are lost.
+- [ ] **Phase 2, memory without spikes (after the hold above).**
+  - [ ] Pool particle batch storage (`ParticleBatch.data` and its GL buffer in `ParticleRenderer.bind`) by power-of-two capacity, reuse across effects, cap the pool, free after idle. Now every batch allocates a new `float[]` and a new buffer on its first draw. A reused slot must start empty (`filled` 0, full upload), or the last effect's particles flash for a frame. The ring keeps the capacity the effect asked for, not the rounded size, so trail lengths don't change. Held memory then drops to idle a little later than now.
+  - [ ] A ceiling on particle slots allocated across all effects; past it, new batches are refused or get a smaller capacity, and `/bhfx status` says so.
+  - [ ] Old item 1 below: draw only the live window, not every `filled` slot.
+- [ ] **Phase 3, opt-in LOD for new effects (new API, existing effects untouched).** `ctx.lod()` / `frame.lod()` tier from distance, owner and quality (`FULL` / `REDUCED` / `MINIMAL`), and an opt-in count scale for `emit` / `stream` (old item 2 below). The default is off, so effects that never ask look the same.
+- [ ] **Phase 4, server fairness.**
+  - [ ] Replace the single `maxStartsPerTick` per dimension with a per-caster rate (token bucket), so one caster can't use up everyone's starts. Keep a global safety cap.
+  - [ ] Per-player send budget in `ServerFx.flush`: what doesn't fit waits for the next tick, nearest first, so joins, respawns and teleports into many persistent effects don't send everything at once.
+  - Side effects to handle (reviewed 2026-11-06): one cast that starts several effects in the same tick needs a burst big enough for it; mobs (`casterId` < 0) need their own bucket; a start still waiting in the outbox when its stop or update is sent must be dropped or sent first (now `flush` runs before every stop and update); keep `maxStartsPerTick` as the global cap so old server configs still load.
+- [ ] **Phase 5, retest** with `/bhfx stress` and the same numbers as phase 0, then a real multiplayer round. Release as a new version (not the same version number, [`bugs.md`](bugs.md) 2026-11-04).
+- Not needed at this scale (checked 2026-11-06): the server tracker scan (`ServerFx`, every 10 ticks, about 1,120 effects × 70 players), the packet size limits (params ≤ 32 KB, 16 starts per batch packet), the client per-frame paths (shared contexts, no allocation per frame except `PassListImpl` entries).
+
 ## Waiting on the user
 
 - Where to distribute bhfx: only your own modpack, or Modrinth/CurseForge.

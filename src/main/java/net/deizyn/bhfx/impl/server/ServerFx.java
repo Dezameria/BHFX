@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.PacketDistributor;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.Audience;
 import net.deizyn.bhfx.api.FxHandle;
@@ -18,6 +17,7 @@ import net.deizyn.bhfx.api.ScreenPulse;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.BHFxConfig;
 import net.deizyn.bhfx.impl.net.BHFxNetwork;
+import net.deizyn.bhfx.impl.net.NetMeter;
 import net.deizyn.bhfx.impl.net.S2CFxStart;
 import net.deizyn.bhfx.impl.net.S2CFxStartBatch;
 import net.deizyn.bhfx.impl.net.S2CFxStop;
@@ -146,7 +146,7 @@ public final class ServerFx {
         double r2 = r * r;
         for (ServerPlayer player : level.players()) {
             if (player.position().distanceToSqr(at) <= r2) {
-                BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), packet);
+                BHFxNetwork.sendTo(player, packet);
             }
         }
     }
@@ -155,7 +155,7 @@ public final class ServerFx {
         if (!enabled() || pulse == null || pulse.isEmpty() || !takeStart(player.serverLevel(), "a screen pulse")) {
             return;
         }
-        BHFxNetwork.send(PacketDistributor.PLAYER.with(() -> player), new S2CScreenPulse(null, 0f, pulse));
+        BHFxNetwork.sendTo(player, new S2CScreenPulse(null, 0f, pulse));
     }
 
     /** Count one start against this tick's per-dimension limit; false (and a muted warning) when it is used up. */
@@ -167,6 +167,7 @@ public final class ServerFx {
             counter[1] = 0;
         }
         if (counter[1] >= BHFxConfig.MAX_STARTS_PER_TICK.get()) {
+            NetMeter.dropped(false);
             warnLimit("too many starts this tick in " + level.dimension().location() + "; dropped " + what);
             return false;
         }
@@ -184,6 +185,7 @@ public final class ServerFx {
                 }
             }
             if (owned >= BHFxConfig.MAX_ACTIVE_PER_CASTER.get()) {
+                NetMeter.dropped(true);
                 warnLimit("caster " + caster + " already owns " + owned + " effects; dropped " + fxId);
                 return false;
             }
@@ -233,15 +235,14 @@ public final class ServerFx {
             if (box.player.hasDisconnected()) {
                 continue;
             }
-            PacketDistributor.PacketTarget target = PacketDistributor.PLAYER.with(() -> box.player);
             List<S2CFxStart> starts = box.starts;
             if (starts.size() == 1) {
-                BHFxNetwork.send(target, starts.get(0));
+                BHFxNetwork.sendTo(box.player, starts.get(0));
                 continue;
             }
             for (int i = 0; i < starts.size(); i += S2CFxStartBatch.MAX) {
                 List<S2CFxStart> part = starts.subList(i, Math.min(starts.size(), i + S2CFxStartBatch.MAX));
-                BHFxNetwork.send(target, part.size() == 1 ? part.get(0) : new S2CFxStartBatch(new ArrayList<>(part)));
+                BHFxNetwork.sendTo(box.player, part.size() == 1 ? part.get(0) : new S2CFxStartBatch(new ArrayList<>(part)));
             }
         }
         OUTBOX.clear();
@@ -259,7 +260,7 @@ public final class ServerFx {
         // Stop packets are tiny and unknown ids are ignored client-side, so send to the whole dimension:
         // the effect may follow an entity far from where it started.
         flush();
-        BHFxNetwork.send(PacketDistributor.DIMENSION.with(handle::dimension), new S2CFxStop(handle.id(), mode));
+        BHFxNetwork.sendToDimension(handle.dimension(), new S2CFxStop(handle.id(), mode));
     }
 
     public static void stop(FxKey key, StopMode mode) {
@@ -289,7 +290,7 @@ public final class ServerFx {
         a.params = a.params.merge(changed);
         S2CFxUpdate packet = new S2CFxUpdate(a.id, changed);
         flush();
-        BHFxNetwork.send(PacketDistributor.DIMENSION.with(handle::dimension), packet);
+        BHFxNetwork.sendToDimension(handle.dimension(), packet);
     }
 
     public static boolean isAlive(FxHandle handle) {

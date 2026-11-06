@@ -1,5 +1,8 @@
 package net.deizyn.bhfx.impl.net;
 
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
@@ -36,7 +39,15 @@ public final class BHFxNetwork {
                 .encoder(S2CScreenPulse::encode).decoder(S2CScreenPulse::decode).consumerMainThread(S2CScreenPulse::handle).add();
     }
 
-    public static <M> void send(PacketDistributor.PacketTarget target, M message) {
-        CHANNEL.send(target, message);
+    /** Send to one player (counted by {@link NetMeter} while it runs). */
+    public static void sendTo(ServerPlayer player, Object message) {
+        NetMeter.toPlayer(player, message);
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), message);
+    }
+
+    /** Send to every player in a dimension (counted by {@link NetMeter} while it runs). */
+    public static void sendToDimension(ResourceKey<Level> dimension, Object message) {
+        NetMeter.toDimension(dimension, message);
+        CHANNEL.send(PacketDistributor.DIMENSION.with(() -> dimension), message);
     }
 }

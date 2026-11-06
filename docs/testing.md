@@ -6,6 +6,16 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### Scale plan phase 0: stress and counters (2026-11-07, build + JUnit only)
+- ✅ 2026-11-07 `gradlew build`: 89 JUnit tests pass, 13 new (`FxStressTest` 9, `NetMeterTest` 4); glslang OK. Not run in game.
+- ⏳ In the BHSpells dev client (single player):
+  1. `/bhfx stress 70` (all registered effects, 32 blocks, one tick): the chat reports "started N of 70" and a counter line; with `maxActiveFx` 32, "38 evicted" is expected (oldest first, today's rule). No crash, no bhfx error in the log.
+  2. `/bhfx stats` right after: the Effects, Starts and Particles lines appear; the busiest tick shows ~70 starts and its constructor ms; the biggest batches show peak / capacity.
+  3. `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles`: starts spread over 10 s, about 7 per second; `/bhfx stop` ends them.
+  4. `/bhfx_play net 10`, then `/bhfx_play stress 70`: the stress line reports refusals by the rate limit (64 starts per dimension per tick, so ~6 refused); the net report after 10 s shows KB/s, starts/s and "6 by maxStartsPerTick".
+  5. `/bhfx_play stress 70 32 5 bhfx:test_flow bhfx:test_vortex` with `/bhfx_play net 10`: no refusals; record KB/s and starts/s here.
+  6. Record the before numbers for the scale plan ([`roadmap.md`](roadmap.md)): frame time (F3 or `/bhfx stats`), GPU ms, heap from F3 before / during / 30 s after, particle slots, busiest tick constructor ms.
+
 ### 0.3.9 textures and GPU particles (2026-11-04, build + JUnit + glslang only)
 - ✅ 2026-11-04 loads and runs: BHSpells `runClient` (started by Claude after the user reported "runClient fails"; not reproduced, no error text given) reached the menu with bhfx 0.3.9; warmup "28 shader(s) in 647 ms", none broken (the 6 particle materials included); `bhfx:test_particles` played 7 times; no bhfx error, GL error from bhfx or crash in `latest.log`; normal shutdown. 2026-11-04 the user reports it works, no per-item details; the items below stay open until checked one by one.
 - ⏳ How it looks (items below). In the BHSpells dev client (it now runs bhfx 0.3.9 from `libs/`):

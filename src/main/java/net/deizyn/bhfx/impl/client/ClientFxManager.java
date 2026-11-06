@@ -83,6 +83,20 @@ public final class ClientFxManager {
     @Nullable
     private static ClientLevel lastLevel;
 
+    // counters for /bhfx stats and /bhfx stress (reset on world change and by /bhfx stress)
+    private static int peakActive;
+    private static int evicted;
+    private static int failed;
+    private static int unregistered;
+    private static int startsThisTick;
+    private static long constructNanosThisTick;
+    private static int busiestTickStarts;
+    private static long busiestTickConstructNanos;
+    private static long longestConstructNanos;
+    @Nullable
+    private static ResourceLocation longestConstructId;
+    private static int sampleClock;
+
     private static final FxSettings SETTINGS = new FxSettings() {
         @Override
         public Quality quality() {
@@ -256,23 +270,36 @@ public final class ClientFxManager {
         }
         FxFactory factory = FACTORIES.get(init.id());
         if (factory == null) {
+            unregistered++;
             if (WARNED.add(init.id())) {
                 BHFxMod.LOGGER.warn("bhfx effect {} is not registered on this client; ignoring it", init.id());
             }
             return false;
         }
         Fx fx;
+        long t0 = System.nanoTime();
         try {
             fx = factory.create(init);
         } catch (RuntimeException e) {
+            failed++;
             BHFxMod.LOGGER.error("bhfx effect {} failed to construct", init.id(), e);
             return false;
+        } finally {
+            long dt = System.nanoTime() - t0;
+            startsThisTick++;
+            constructNanosThisTick += dt;
+            if (dt > longestConstructNanos) {
+                longestConstructNanos = dt;
+                longestConstructId = init.id();
+            }
         }
         int max = BHFxConfig.MAX_ACTIVE_FX.get();
         while (ACTIVE.size() >= max) {
+            evicted++;
             remove(ACTIVE.remove(0));
         }
         ACTIVE.add(new Entry(fx, init.handleId()));
+        peakActive = Math.max(peakActive, ACTIVE.size());
         return true;
     }
 
@@ -380,6 +407,42 @@ public final class ClientFxManager {
         PULSES.clear();
         trauma = 0f;
         frameShake = 0f;
+        resetCounters();
+    }
+
+    /** Zero the counters shown by /bhfx stats (world change, and the start of /bhfx stress). */
+    static void resetCounters() {
+        peakActive = ACTIVE.size();
+        evicted = failed = unregistered = 0;
+        startsThisTick = busiestTickStarts = 0;
+        constructNanosThisTick = busiestTickConstructNanos = longestConstructNanos = 0L;
+        longestConstructId = null;
+    }
+
+    /** Close the starts of the tick that just ended into the "busiest tick" counters. */
+    private static void rollStartCounters() {
+        if (startsThisTick > busiestTickStarts
+                || (startsThisTick == busiestTickStarts && constructNanosThisTick > busiestTickConstructNanos)) {
+            busiestTickStarts = startsThisTick;
+            busiestTickConstructNanos = constructNanosThisTick;
+        }
+        startsThisTick = 0;
+        constructNanosThisTick = 0L;
+    }
+
+    /** Once a second: count living particles in every batch (walks the filled slots, so not every frame). */
+    private static void samplePeaks() {
+        for (Entry e : ACTIVE) {
+            for (ParticleBatch b : e.fx.bhfxParticleBatches()) {
+                b.samplePeakAlive();
+            }
+        }
+    }
+
+    /** One line: running effects and what was refused or evicted. */
+    static String counterLine() {
+        return String.format("%d fx running (peak %d, maxActiveFx %d), %d evicted, %d failed, %d unregistered",
+                ACTIVE.size(), peakActive, BHFxConfig.MAX_ACTIVE_FX.get(), evicted, failed, unregistered);
     }
 
     private static void remove(Entry e) {
@@ -403,6 +466,7 @@ public final class ClientFxManager {
     // ------------------------------------------------------------------ tick
 
     static void tick(Minecraft mc) {
+        rollStartCounters();
         ClientLevel level = mc.level;
         if (level != lastLevel) {
             // respawn / dimension change / disconnect: the server re-sends what is still playing
@@ -435,6 +499,10 @@ public final class ClientFxManager {
         }
         long tickStart = System.nanoTime();
         ParticleBatch.clockOffset(1f);
+        if (++sampleClock >= 20) {
+            sampleClock = 0;
+            samplePeaks();
+        }
 
         Iterator<Entry> it = ACTIVE.iterator();
         while (it.hasNext()) {
@@ -660,7 +728,57 @@ public final class ClientFxManager {
                 Math.round(renderer.resolutionShare() * 100))
                 : "  GPU memory: none held";
         lines.add(held + ", quality " + effectiveQuality());
+        lines.add("  Effects: " + counterLine());
+        lines.add(String.format("  Starts: busiest tick %d start(s), %.2f ms constructing; slowest constructor %.2f ms%s",
+                Math.max(busiestTickStarts, startsThisTick),
+                Math.max(busiestTickConstructNanos, constructNanosThisTick) / 1e6, longestConstructNanos / 1e6,
+                longestConstructId != null ? " (" + longestConstructId + ")" : ""));
+        particleLines(lines);
         return lines;
+    }
+
+    private record BatchRow(ResourceLocation fx, ResourceLocation material, int peak, int capacity) {
+    }
+
+    /** Particle slots held by the running effects, and the batches whose capacity is far from what they use. */
+    private static void particleLines(List<String> lines) {
+        List<BatchRow> rows = new ArrayList<>();
+        long slots = 0;
+        long bytes = 0;
+        for (Entry e : ACTIVE) {
+            for (ParticleBatch b : e.fx.bhfxParticleBatches()) {
+                if (b.closed()) {
+                    continue;
+                }
+                b.samplePeakAlive();
+                slots += b.capacity();
+                bytes += b.heapBytes();
+                rows.add(new BatchRow(e.fx.init().id(), b.material(), b.peakAlive(), b.capacity()));
+            }
+        }
+        if (rows.isEmpty()) {
+            lines.add("  Particles: no batches");
+            return;
+        }
+        lines.add(String.format("  Particles: %d batch(es), %d slot(s) allocated, ~%.1f MB heap (the same on the GPU once drawn)",
+                rows.size(), slots, bytes / 1048576.0));
+        rows.sort((a, b) -> Integer.compare(b.capacity(), a.capacity()));
+        StringBuilder sb = new StringBuilder("  Biggest (peak alive / capacity):");
+        for (int i = 0; i < Math.min(5, rows.size()); i++) {
+            BatchRow r = rows.get(i);
+            sb.append(i == 0 ? " " : "; ").append(r.fx().getPath()).append('/').append(r.material().getPath())
+                    .append(' ').append(r.peak()).append('/').append(r.capacity());
+        }
+        lines.add(sb.toString());
+        int oversized = 0;
+        for (BatchRow r : rows) {
+            if (r.capacity() >= 256 && r.peak() * 4 < r.capacity()) {
+                oversized++;
+            }
+        }
+        if (oversized > 0) {
+            lines.add("  " + oversized + " batch(es) never above 25% of their capacity (could be made smaller)");
+        }
     }
 
     /** Start /bhfx bench. Returns an error message, or null when it started. */

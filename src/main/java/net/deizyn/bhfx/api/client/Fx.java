@@ -241,6 +241,12 @@ public abstract class Fx {
         return random;
     }
 
+    /** The particle batches this effect made, for bhfx's own counters. */
+    @ApiStatus.Internal
+    public final java.util.List<ParticleBatch> bhfxParticleBatches() {
+        return particleBatches != null ? particleBatches : java.util.List.of();
+    }
+
     @ApiStatus.Internal
     public final void bhfxRemoved() {
         try {

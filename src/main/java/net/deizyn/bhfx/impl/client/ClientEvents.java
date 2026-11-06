@@ -35,6 +35,7 @@ public final class ClientEvents {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             ClientFxManager.tick(Minecraft.getInstance());
+            ClientFxCommands.tick();
             MirrorRenderer.tick();
         }
     }
@@ -126,6 +127,7 @@ public final class ClientEvents {
                                                 IntegerArgumentType.getInteger(ctx, "seconds"))))))
                 .then(ClientFxCommands.test())
                 .then(ClientFxCommands.stop())
+                .then(ClientFxCommands.stress())
                 .then(Commands.literal("reload").executes(ctx -> {
                     ClientFxManager.reloadShaders();
                     ctx.getSource().sendSuccess(() -> Component.literal("bhfx: shaders will recompile on next use"), false);

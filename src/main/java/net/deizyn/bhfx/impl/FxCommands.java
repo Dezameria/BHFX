@@ -1,5 +1,8 @@
 package net.deizyn.bhfx.impl;
 
+import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
@@ -12,6 +15,7 @@ import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.StopMode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
@@ -27,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * The shared grammar of /bhfx test (client, only you see it) and /bhfx_play fx (server, everyone in range):
@@ -81,6 +86,45 @@ public final class FxCommands {
                 .then(Commands.argument("who", EntityArgument.entities())
                         .executes(ctx -> stop.run(ctx, true, StopMode.CANCEL))
                         .then(Commands.literal("finish").executes(ctx -> stop.run(ctx, true, StopMode.FINISH))));
+    }
+
+    @FunctionalInterface
+    public interface Stress {
+        /** {@code ids} is the typed text after the numbers, or null for "every registered effect". */
+        int run(CommandContext<CommandSourceStack> ctx, int count, double radius, int seconds, @Nullable String ids)
+                throws CommandSyntaxException;
+    }
+
+    /** Default radius of stress, in blocks. */
+    public static final double STRESS_RADIUS = 32.0;
+
+    /**
+     * stress &lt;count&gt; [&lt;radius&gt; [&lt;seconds&gt; [&lt;fx&gt; ...]]]: {@code count} effects round the runner, all at
+     * once (seconds 0) or spread over the seconds, taking the listed ids (or every registered one) in turn.
+     */
+    public static LiteralArgumentBuilder<CommandSourceStack> stress(@Nullable Supplier<Collection<ResourceLocation>> known,
+                                                                   Stress stress) {
+        var fx = Commands.argument("fx", StringArgumentType.greedyString())
+                .executes(ctx -> stress.run(ctx, IntegerArgumentType.getInteger(ctx, "count"),
+                        DoubleArgumentType.getDouble(ctx, "radius"), IntegerArgumentType.getInteger(ctx, "seconds"),
+                        StringArgumentType.getString(ctx, "fx")));
+        if (known != null) {
+            fx.suggests((ctx, builder) -> {
+                String remaining = builder.getRemaining();
+                int last = Math.max(remaining.lastIndexOf(' '), remaining.lastIndexOf(',')) + 1;
+                return SharedSuggestionProvider.suggestResource(known.get(), builder.createOffset(builder.getStart() + last));
+            });
+        }
+        return Commands.literal("stress").then(Commands.argument("count", IntegerArgumentType.integer(1, FxStress.MAX_COUNT))
+                .executes(ctx -> stress.run(ctx, IntegerArgumentType.getInteger(ctx, "count"), STRESS_RADIUS, 0, null))
+                .then(Commands.argument("radius", DoubleArgumentType.doubleArg(0.0, FxStress.MAX_RADIUS))
+                        .executes(ctx -> stress.run(ctx, IntegerArgumentType.getInteger(ctx, "count"),
+                                DoubleArgumentType.getDouble(ctx, "radius"), 0, null))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(0, FxStress.MAX_SECONDS))
+                                .executes(ctx -> stress.run(ctx, IntegerArgumentType.getInteger(ctx, "count"),
+                                        DoubleArgumentType.getDouble(ctx, "radius"),
+                                        IntegerArgumentType.getInteger(ctx, "seconds"), null))
+                                .then(fx))));
     }
 
     private static <T extends ArgumentBuilder<CommandSourceStack, T>> T tail(T node, Shape shape, boolean audience, Play play) {

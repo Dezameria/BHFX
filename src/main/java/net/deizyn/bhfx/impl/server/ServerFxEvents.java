@@ -1,5 +1,6 @@
 package net.deizyn.bhfx.impl.server;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -21,6 +22,8 @@ import net.deizyn.bhfx.api.FxHandle;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.impl.FxCommandArgs;
 import net.deizyn.bhfx.impl.FxCommands;
+import net.deizyn.bhfx.impl.FxStress;
+import net.deizyn.bhfx.impl.net.NetMeter;
 import net.deizyn.bhfx.api.Audience;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
@@ -29,7 +32,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -54,7 +60,9 @@ public final class ServerFxEvents {
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
+            tickStress();
             ServerFx.flush();
+            NetMeter.tick(ServerFx.activeCount());
         }
     }
 
@@ -86,6 +94,8 @@ public final class ServerFxEvents {
     public static void onServerStopped(ServerStoppedEvent event) {
         ServerFx.clearAll();
         PLAYED.clear();
+        STRESS.clear();
+        NetMeter.cancel();
     }
 
     /** Effects started by /bhfx_play, so /bhfx_play stop can end them. */
@@ -105,7 +115,83 @@ public final class ServerFxEvents {
                 .requires(source -> source.hasPermission(2))
                 .then(FxCommands.stop(ServerFxEvents::stopPlayed))
                 .then(Commands.literal("pulse").executes(ServerFxEvents::pulse))
+                .then(FxCommands.stress(ServerFxEvents::knownIds, ServerFxEvents::stress))
+                .then(Commands.literal("net").executes(ctx -> net(ctx, 10))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 120))
+                                .executes(ctx -> net(ctx, IntegerArgumentType.getInteger(ctx, "seconds")))))
                 .then(Commands.literal("fx").then(FxCommands.play(ServerFxEvents::suggestFx, true, ServerFxEvents::play))));
+    }
+
+    /** A running /bhfx_play stress and who asked for it. */
+    private record StressRun(FxStress plan, ServerLevel level, CommandSourceStack source) {
+    }
+
+    private static final List<StressRun> STRESS = new ArrayList<>();
+
+    /** Effect ids this server can name: only an integrated server knows them (from its client). */
+    private static Collection<ResourceLocation> knownIds() {
+        return FMLEnvironment.dist.isClient() ? ClientFxManager.registeredIds() : Set.of();
+    }
+
+    private static int stress(CommandContext<CommandSourceStack> ctx, int count, double radius, int seconds,
+                              @Nullable String typed) {
+        CommandSourceStack source = ctx.getSource();
+        if (!BHFx.available(source.getLevel())) {
+            source.sendFailure(Component.literal("bhfx is disabled in bhfx-server.toml"));
+            return 0;
+        }
+        Collection<ResourceLocation> ids;
+        try {
+            ids = typed != null ? FxStress.parseIds(typed) : knownIds();
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal("bhfx stress: not an effect id: " + e.getMessage()));
+            return 0;
+        }
+        if (ids.isEmpty()) {
+            source.sendFailure(Component.literal("bhfx stress: name the effects (a dedicated server can't list them), "
+                    + "e.g. /bhfx_play stress 70 32 0 bhfx:test_flow bhfx:test_vortex"));
+            return 0;
+        }
+        FxStress plan = new FxStress(ids, source.getPosition(), radius, count, seconds, source.getLevel().random.nextLong());
+        StressRun run = new StressRun(plan, source.getLevel(), source);
+        source.sendSuccess(() -> Component.literal("bhfx stress: " + plan.describe()
+                + ", seen by players in range. /bhfx_play stop ends them; /bhfx_play net measures the traffic."), true);
+        // with no spread everything starts in this tick, like a real burst
+        if (!step(run)) {
+            STRESS.add(run);
+        }
+        return plan.count();
+    }
+
+    private static void tickStress() {
+        STRESS.removeIf(ServerFxEvents::step);
+    }
+
+    /** Start what is due now; true when the run is finished (and reported). */
+    private static boolean step(StressRun run) {
+        FxStress plan = run.plan();
+        int due = plan.due();
+        for (int i = 0; i < due; i++) {
+            ResourceLocation fx = plan.id(plan.startedCount() - due + i);
+            Vec3 at = plan.nextPoint();
+            if (!start(run.level(), fx, FxSpawn.at(at).target(at), null)) {
+                plan.refused();
+            }
+        }
+        if (!plan.done()) {
+            return false;
+        }
+        int ok = plan.count() - plan.refusedCount();
+        run.source().sendSuccess(() -> Component.literal("bhfx stress: started " + ok + " of " + plan.count()
+                + (plan.refusedCount() > 0 ? " (" + plan.refusedCount() + " refused by the rate limits)" : "")), false);
+        return true;
+    }
+
+    private static int net(CommandContext<CommandSourceStack> ctx, int seconds) {
+        NetMeter.start(seconds, ctx.getSource());
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx net: counting what bhfx sends to each player for "
+                + seconds + " s"), false);
+        return 1;
     }
 
     private static CompletableFuture<Suggestions> suggestFx(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
