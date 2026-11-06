@@ -70,8 +70,9 @@ final class ParticleRenderer {
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
     }
 
-    void draw(ParticleBatch b) {
-        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, b.filled);
+    /** Draw {@code instances} instances (all filled slots, or fewer when the frame's particles are thinned). */
+    void draw(ParticleBatch b, int instances) {
+        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, Math.min(instances, b.filled));
     }
 
     private void upload(ParticleBatch b) {

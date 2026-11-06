@@ -39,6 +39,7 @@ public final class BHFxConfig {
     public static final ForgeConfigSpec.BooleanValue AUTO_DOWNGRADE;
     public static final ForgeConfigSpec.BooleanValue BLOOM;
     public static final ForgeConfigSpec.IntValue MAX_ACTIVE_FX;
+    public static final ForgeConfigSpec.IntValue GUARANTEED_RADIUS;
     public static final ForgeConfigSpec.IntValue MAX_PASSES_PER_FRAME;
     public static final ForgeConfigSpec.DoubleValue CULL_DISTANCE;
     public static final ForgeConfigSpec.DoubleValue FLASH_SCALE;
@@ -105,8 +106,12 @@ public final class BHFxConfig {
                 .define("offWithShaderpack", false);
         c.pop();
         c.push("limits");
-        MAX_ACTIVE_FX = c.comment("Most effects alive at once; the oldest is removed beyond this.")
-                .defineInRange("maxActiveFx", 32, 1, 256);
+        MAX_ACTIVE_FX = c.comment("Most effects built and drawn at once. Every effect sent to you is remembered; past this",
+                        "the farthest are not built (they fade out), and appear again when you come closer.")
+                .defineInRange("maxActiveFx", 96, 1, 256);
+        GUARANTEED_RADIUS = c.comment("Every effect within this many blocks of you is built and drawn, before anything farther.",
+                        "When too many are close, all of them lose detail evenly instead of some disappearing.")
+                .defineInRange("guaranteedRadius", 48, 0, 256);
         MAX_PASSES_PER_FRAME = c.comment("Most shader passes per frame; the farthest / last-ordered passes are skipped beyond this. Particle batches don't count.")
                 .defineInRange("maxPassesPerFrame", 8, 1, 32);
         CULL_DISTANCE = c.comment("Effects farther than this from the camera keep ticking but draw nothing.")

@@ -11,6 +11,21 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-07 — Scale plan phase 1: known vs built effects, even particle thinning
+- bhfx: `impl/client/FxSelection` (new, pure) — pinned → within `guaranteedRadius` → by distance up to `maxActiveFx`; 8-block margin and 2 s hold for shown effects; distance from the player only.
+- bhfx: `ClientFxManager` — `Entry` is now a known effect with an optional `Fx`: start data, merged params, age from the client tick it arrived, learned default duration (`DEFAULT_TICKS`), distance, pinned. `add` builds at once when pinned, within 16 blocks, or within the 2 ms constructor budget of the tick; `select()` every tick builds the chosen ones nearest first and fades out the rest (10 ticks), freeing them; unbuilt entries expire by duration or a lost followed entity; a stop for an unbuilt entry just forgets it; updates merge into the stored params. Built on time (≤ 2 ticks) = as sent; later = at its age now, fading in. Up to 1024 known (farthest unbuilt forgotten). Counters: known / built / hidden / built late. `startLocal(…, mayHide)` for `/bhfx stress`.
+- bhfx: `PostRenderer` — particle stride: when visible non-ribbon batches want more slots than the quality cap, every batch draws one slot in N (rises at once, falls after 30 frames); ribbons unthinned; `/bhfx status` says "particles thinned to 1 in N". `Presence` uniform for passes that declare it; `PMode.w` presence for particles. `ParticleRenderer.draw(b, instances)`. `PassListImpl.Entry.presence`.
+- bhfx: shaders — `particle/vertex.vsh` slot = instance × `PRing.z`; `particle/_footer.glsl` `soft *= PMode.w`.
+- bhfx: `BHFxConfig` — `maxActiveFx` 32 → 96, new `guaranteedRadius` 48; `ClientConfigMigration` step 4 moves a file still at 32 to 96.
+- docs: `decisions.md`, `shaders.md`, `bugs.md`, `README.md`, phase 1 checklist in `testing.md`.
+- result: `gradlew build` passes, 98 JUnit tests (9 new), glslang OK. Not run in game. The stale ForgeGradle deobf cache of 0.3.9 was deleted after the game closed; the next `runClient` remaps the phase 1 jar.
+- next: the phase 1 checklist; then phase 2 (pool, live window) or the far draw distance step.
+
+## 2026-11-07 — Phase 0 first in-game round
+- Read the user's `BHSpells/run/logs/latest.log` (04:18–04:23). Results and before numbers in [`testing.md`](testing.md): client burst of 70 cost 7.55 ms of constructors in one tick; GPU avg 1.75 / max 7.05 ms; server burst 64 of 70 (6 refused by `maxStartsPerTick`), ~86 B per start.
+- The user saw flicker in the spread run of three particle effects; likely the per-frame particle slot budget skipping whole batches plus evictions (added to [`bugs.md`](bugs.md) Open).
+- result: no code changed. Open: the spread server run, F3 heap / frame time, `/bhfx status` during a run and 30 s after.
+
 ## 2026-11-07 — Scale plan phase 0: stress commands and counters
 - bhfx: `impl/FxStress` (new) — one stress run: count, ids in turn, all at once or spread over seconds, random points on a disc, `parseIds`. `impl/FxCommands.stress` — shared grammar `stress <count> [radius] [seconds] [fx ...]`.
 - bhfx: `impl/client/ClientFxCommands` — `/bhfx stress` (local effects, registered in the `/bhfx stop` list, ticked from `ClientEvents`). `ClientFxManager` — counters: peak running, evicted by `maxActiveFx`, failed, unregistered, busiest tick's starts and constructor time, slowest constructor; particle batches, slots and heap, biggest batches' peak alive / capacity, batches never above 25%; peaks sampled once a second; shown in `/bhfx stats`, reset on world change and by `/bhfx stress`. `ParticleBatch.samplePeakAlive/peakAlive/heapBytes`, `Fx.bhfxParticleBatches` (internal).

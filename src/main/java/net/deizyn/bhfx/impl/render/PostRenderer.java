@@ -120,6 +120,11 @@ public final class PostRenderer {
     private int lastPassCount;
     private int lastSkippedCount;
     private int lastParticleCount;
+    /** Every non-ribbon batch draws one slot in this many when the frame wants more slots than the cap (1 = all). */
+    private int particleStride = 1;
+    private int strideLowFrames;
+    /** Frames the wanted stride must stay lower before the stride drops, so it doesn't swing frame to frame. */
+    private static final int STRIDE_SETTLE_FRAMES = 30;
     private double lastGpuSample = -1;
     private boolean disabled;
     private String disabledReason = "";
@@ -196,6 +201,7 @@ public final class PostRenderer {
                 + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)"
                 + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "")
                 + (lastParticleCount > 0 ? ", " + lastParticleCount + " particle slot(s)" : "")
+                + (particleStride > 1 ? ", particles thinned to 1 in " + particleStride : "")
                 + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "");
     }
 
@@ -291,6 +297,8 @@ public final class PostRenderer {
             boolean bounds = BHFxConfig.PASS_BOUNDS.get();
             int particleBudget = particleCap(quality);
             int particleSlots = 0;
+            updateParticleStride(passes, particleBudget);
+            int ribbonDrawn = 0;
             for (int index = 0; index < passes.size(); index++) {
                 PassListImpl.Entry pass = passes.get(index);
                 if (pass.particles() != null) {
@@ -304,8 +312,9 @@ public final class PostRenderer {
                     for (int j = index; j < end; j++) {
                         PassListImpl.Entry e = passes.get(j);
                         ParticleBatch b = e.particles();
-                        if (b.closed() || b.filled > particleBudget - particleSlots
-                                || shaders.getParticle(e.shader()) == null) {
+                        boolean ribbon = b.facing == FxParticles.Facing.RIBBON;
+                        if (b.closed() || shaders.getParticle(e.shader()) == null
+                                || (ribbon && ribbonDrawn + b.filled > particleBudget)) {
                             skipped++;
                             continue;
                         }
@@ -317,7 +326,10 @@ public final class PostRenderer {
                             skipped++;
                             continue;
                         }
-                        particleSlots += b.filled;
+                        particleSlots += instances(b);
+                        if (ribbon) {
+                            ribbonDrawn += b.filled;
+                        }
                         particleGroup.add(e);
                         distort |= b.blend == FxParticles.Blend.DISTORT;
                     }
@@ -412,6 +424,7 @@ public final class PostRenderer {
                     }
                     continue;
                 }
+                binder.f1("Presence", pass.presence());
                 if (scissor) {
                     int x0 = Math.max(0, (int) Math.floor(rect.minU() * fxW) - RECT_PAD);
                     int y0 = Math.max(0, (int) Math.floor(rect.minV() * fxH) - RECT_PAD);
@@ -655,11 +668,11 @@ public final class PostRenderer {
         binder.f1("PTime", e.time());
         binder.f4("PMotion", b.gx, b.gy, b.gz, b.drag);
         binder.f4("PShape", b.facing.ordinal(), b.stretch, b.pivot, 0f);
-        binder.f4("PMode", b.blend.ordinal(), b.softness, b.distortion, 0f);
+        binder.f4("PMode", b.blend.ordinal(), b.softness, b.distortion, e.presence());
         binder.f3("POrbit", b.orbitX(), b.orbitY(), b.orbitZ());
         binder.f3("POrbitAxis", b.oax, b.oay, b.oaz);
         binder.f4("PTurb", b.turbAmp, b.turbFreq, b.turbScale, 0f);
-        binder.f4("PRing", b.capacityValue(), b.filled, 0f, 0f);
+        binder.f4("PRing", b.capacityValue(), b.filled, strideOf(b), 0f);
         float colourMode = b.colorKeyCount;
         if (b.ramp != null) {
             // binding is what uploads a decoded texture (FxTextures.get); until then the 1x1 fallback is bound unused
@@ -688,8 +701,59 @@ public final class PostRenderer {
             particles.unbind();
             return;
         }
-        particles.draw(b);
+        particles.draw(b, instances(b));
         particles.unbind();
+    }
+
+    /**
+     * Pick this frame's particle stride: when the visible non-ribbon batches want more slots than the cap leaves after
+     * ribbons, every batch draws one slot in {@code stride} (an even thinning of all effects, the same slots each frame)
+     * instead of whole batches being skipped. Goes up at once, comes down only after it settled.
+     */
+    private void updateParticleStride(List<PassListImpl.Entry> passes, int budget) {
+        long wanted = 0;
+        int ribbons = 0;
+        for (PassListImpl.Entry e : passes) {
+            ParticleBatch b = e.particles();
+            if (b == null || b.closed()) {
+                continue;
+            }
+            ScreenRect r = e.radius() > 0
+                    ? ScreenRect.ofSphere(viewProj, e.bx(), e.by(), e.bz(), e.radius(), rectScratch)
+                    : ScreenRect.ofSphere(viewProj, b.ox - camera.x, b.oy - camera.y, b.oz - camera.z, b.cullRadius(), rectScratch);
+            if (r.empty()) {
+                continue;
+            }
+            if (b.facing == FxParticles.Facing.RIBBON) {
+                ribbons += b.filled;
+            } else {
+                wanted += b.filled;
+            }
+        }
+        long room = Math.max(1, budget - Math.min(ribbons, budget));
+        int need = (int) Math.max(1, Math.min(64, (wanted + room - 1) / room));
+        if (need >= particleStride) {
+            particleStride = need;
+            strideLowFrames = 0;
+        } else if (++strideLowFrames >= STRIDE_SETTLE_FRAMES) {
+            particleStride = need;
+            strideLowFrames = 0;
+        }
+    }
+
+    private int strideOf(ParticleBatch b) {
+        return b.facing == FxParticles.Facing.RIBBON ? 1 : particleStride;
+    }
+
+    /** Instances drawn for a batch: every slot for ribbons, one in {@link #particleStride} for the rest. */
+    private int instances(ParticleBatch b) {
+        int stride = strideOf(b);
+        return (b.filled + stride - 1) / stride;
+    }
+
+    /** Current particle stride, for /bhfx status. */
+    public int particleStride() {
+        return particleStride;
     }
 
     /** Most particle slots drawn per frame at this quality. */

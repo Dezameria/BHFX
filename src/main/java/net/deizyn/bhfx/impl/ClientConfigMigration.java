@@ -9,7 +9,7 @@ import net.deizyn.bhfx.impl.BHFxConfig.Quality;
  */
 public final class ClientConfigMigration {
     /** Raise when adding a step to {@link #run()}. */
-    static final int CURRENT = 3;
+    static final int CURRENT = 4;
 
     private ClientConfigMigration() {
     }
@@ -44,6 +44,10 @@ public final class ClientConfigMigration {
             if (BHFxConfig.MIRROR_MAX_PLANES.get() == 4) {
                 BHFxConfig.MIRROR_MAX_PLANES.set(6);
             }
+        }
+        // 4 (scale plan phase 1): maxActiveFx 32 -> 96; effects past it are no longer dropped but come back when closer
+        if (version < 4 && BHFxConfig.MAX_ACTIVE_FX.get() == 32) {
+            BHFxConfig.MAX_ACTIVE_FX.set(96);
         }
         BHFxConfig.SETTINGS_VERSION.set(CURRENT);
         BHFxConfig.CLIENT_SPEC.save();

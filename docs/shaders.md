@@ -37,6 +37,10 @@ Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`gl
 - **Catches**: syntax errors, type mismatches, missing functions or variables, wrong parameters, names clashing with includes, missing include files, features GLSL 1.50 doesn't have.
 - **Doesn't catch**: wrong-looking output, uniform names that don't match the Java side (the shader silently gets 0), driver-specific bugs, slowness (use `/bhfx stats`, `/bhfx bench`), undefined behavior such as `smoothstep` with reversed edges.
 
+## Uniforms bhfx sets on its own (2026-11-07)
+- Pass shaders: `uniform float Presence;` if the shader declares it, 0..1: the effect fading in (built late, far away) or out (hidden past `maxActiveFx`). Multiply the pass's contribution by it. Not in the prepended header (declare it yourself).
+- Particle vertex shader: `PRing.z` = stride (instance i draws slot i × stride when the frame thins particles; ribbons always 1). Particle footer: `PMode.w` = presence, folded into `soft`, so every material fades with no change.
+
 ## Pitfalls found
 
 - **`smoothstep(a, b, x)` with `a > b`**: GLSL leaves the result undefined. Most drivers compute it anyway, but it isn't guaranteed. Use `1.0 - smoothstep(b, a, x)` instead (found in `annihilation_charge.fsh`, 2026-10-17).

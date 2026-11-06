@@ -21,7 +21,8 @@ public final class PassListImpl implements PassList {
      * bounds given, the batch's own sphere is used). {@code particles} is set for a particle batch, drawn at {@code time}.
      */
     public record Entry(ResourceLocation shader, int order, int seq, double distance, Consumer<Uniforms> setup,
-                        double bx, double by, double bz, double radius, @Nullable ParticleBatch particles, float time) {
+                        double bx, double by, double bz, double radius, @Nullable ParticleBatch particles, float time,
+                        float presence) {
     }
 
     private static final Comparator<Entry> DRAW_ORDER = Comparator.comparingInt(Entry::order).thenComparingInt(Entry::seq);
@@ -31,16 +32,23 @@ public final class PassListImpl implements PassList {
     private final List<Entry> entries = new ArrayList<>();
     private final List<Entry> kept = new ArrayList<>();
     private double distance;
+    private float presence = 1f;
     private Vec3 camera = Vec3.ZERO;
 
     /** Start a frame; bounds are stored relative to {@code camera}. */
     void clear(Vec3 camera) {
         entries.clear();
         this.camera = camera;
+        this.presence = 1f;
     }
 
     void currentDistance(double distance) {
         this.distance = distance;
+    }
+
+    /** How much of the current effect shows (0..1): it fades in when built late and out when hidden. */
+    void currentPresence(float presence) {
+        this.presence = presence;
     }
 
     boolean isEmpty() {
@@ -56,11 +64,11 @@ public final class PassListImpl implements PassList {
     public void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup) {
         PassOptions.Bounds b = options.bounds();
         if (b == null) {
-            entries.add(new Entry(shader, options.order(), entries.size(), distance, setup, 0, 0, 0, 0, null, 0f));
+            entries.add(new Entry(shader, options.order(), entries.size(), distance, setup, 0, 0, 0, 0, null, 0f, presence));
         } else {
             Vec3 c = b.center();
             entries.add(new Entry(shader, options.order(), entries.size(), distance, setup,
-                    c.x - camera.x, c.y - camera.y, c.z - camera.z, b.radius(), null, 0f));
+                    c.x - camera.x, c.y - camera.y, c.z - camera.z, b.radius(), null, 0f, presence));
         }
     }
 
@@ -85,7 +93,7 @@ public final class PassListImpl implements PassList {
             radius = b.radius();
         }
         entries.add(new Entry(batch.material(), options.order(), entries.size(), distance, setup, bx, by, bz, radius,
-                batch, now));
+                batch, now, presence));
     }
 
     /**

@@ -117,7 +117,7 @@ final class ClientFxCommands {
         for (int i = 0; i < due; i++) {
             ResourceLocation fx = plan.id(plan.startedCount() - due + i);
             Vec3 at = plan.nextPoint();
-            LocalFxHandle handle = ClientFxManager.startLocal(fx, FxSpawn.at(at).target(at));
+            LocalFxHandle handle = ClientFxManager.startLocal(fx, FxSpawn.at(at).target(at), true);
             if (handle.isNone()) {
                 plan.refused();
             } else {

@@ -6,6 +6,12 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 - 2026-10-22 (minor, display only): `/bhfx status` keeps showing the last measured GPU time after every effect has stopped (e.g. "0 fx, 0 pass(es) … 4.38 ms GPU" for ~40 s until the post idles). Seen in the Mingyue Eclipse log 2026-10-22 00:02:48–00:04:09. Not fixed.
 
+- 2026-11-07 (open, scale plan phase 1/2): effects flicker under `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles` (user, 2026-11-07 round). Likely causes, both by design today:
+  - The particle slot budget (`PostRenderer.particleCap`, MEDIUM 16,384) is spent in draw order, and a batch that doesn't fit is skipped whole. Three of these effects already use 13,184 slots (2026-11-04), so 32 of them need far more than the cap; which batches fit changes as `filled` grows and as effects are evicted and added.
+  - `maxActiveFx` 32 evicts the oldest effect for every new start (38 evictions in this run), so running effects vanish mid-play.
+  - Not confirmed with `/bhfx status` ("particle slot(s)", "skipped") during the run.
+  - Fix in code 2026-11-07 (phase 1, not re-tested): particles are thinned evenly (one slot in N for every batch) instead of whole batches being skipped, and effects past `maxActiveFx` (now 96) fade out and come back instead of being dropped ([`decisions.md`](decisions.md) 2026-11-07).
+
 ## Fixed
 
 ### 2026-11-05 — bhfx's own `runClient` never started (fixed, checked in game)

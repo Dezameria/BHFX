@@ -40,17 +40,72 @@ public final class ClientFxManager {
     private static final long RELEASE_AFTER_NANOS = 30_000_000_000L;
     private static final int MAX_PULSES = 16;
 
+    /** Ticks a late-built effect takes to fade in, and a hidden one to fade out. */
+    private static final int FADE_TICKS = 10;
+    /** A shown effect stays at least this long (2 s), and keeps its place until this far past an edge. */
+    private static final int HOLD_TICKS = 40;
+    private static final double MARGIN = 8.0;
+    /** Effects this close to the player are built at once, outside the per-tick construction budget. */
+    private static final double BUILD_NOW_DISTANCE = 16.0;
+    /** Constructor time per tick for everything else; the rest waits for the next tick. */
+    private static final long BUILD_BUDGET_NANOS = 2_000_000L;
+    /** Built within this many ticks of arriving = on time (keeps onStart); later = caught up to its age. */
+    private static final int LATE_TICKS = 2;
+    /** Most effects known at once (built or not); past it the farthest unbuilt one is forgotten. */
+    private static final int MAX_KNOWN = 1024;
+
+    /**
+     * One effect this client knows about (scale plan phase 1). It has an {@link Fx} only while {@link FxSelection}
+     * shows it; when shown again later it is built anew at its current age from the stored start data and params.
+     */
     private static final class Entry {
-        final Fx fx;
+        final FxInit init;
         final int handleId;
+        /** Client tick it arrived; its age now is {@code init.startAge + clientTicks - receivedAt}. */
+        final long receivedAt;
+        FxParams params;
+        @Nullable
+        Fx fx;
         boolean followSeen;
         boolean broken;
+        boolean stopping;
+        long shownSince;
+        /** 0..1, drawn as Presence; {@link #fadeStep} per tick (+ appearing, - being hidden, 0 steady). */
+        float presence = 1f;
+        float fadeStep;
+        /** Lifetime in ticks if known (UNTIL_STOPPED = only a stop ends it). */
+        int duration;
+        double distance;
+        boolean pinned;
+        /** A local effect nobody holds (/bhfx stress): it may be hidden like a server one. */
+        boolean mayHide;
 
-        Entry(Fx fx, int handleId) {
-            this.fx = fx;
-            this.handleId = handleId;
+        Entry(FxInit init, long receivedAt) {
+            this.init = init;
+            this.handleId = init.handleId();
+            this.receivedAt = receivedAt;
+            this.params = init.params();
+            this.duration = init.duration() == FxSpawn.DEFAULT_DURATION
+                    ? DEFAULT_TICKS.getOrDefault(init.id(), 200) : init.duration();
+        }
+
+        int ageNow() {
+            return (int) Math.min(Integer.MAX_VALUE, Math.max(0, init.startAge()) + (clientTicks - receivedAt));
+        }
+
+        boolean local() {
+            return handleId < 0;
+        }
+
+        float presenceAt(float partial) {
+            return Math.max(0f, Math.min(1f, presence + fadeStep * partial));
         }
     }
+
+    /** Default lifetimes learned from built effects, for effects not built yet that rely on them. */
+    private static final Map<ResourceLocation, Integer> DEFAULT_TICKS = new HashMap<>();
+    private static final List<FxSelection.Candidate> CANDIDATES = new ArrayList<>();
+    private static long clientTicks;
 
     private static final Map<ResourceLocation, FxFactory> FACTORIES = new HashMap<>();
     private static final Set<ResourceLocation> WARNED = new HashSet<>();
@@ -86,6 +141,8 @@ public final class ClientFxManager {
     // counters for /bhfx stats and /bhfx stress (reset on world change and by /bhfx stress)
     private static int peakActive;
     private static int evicted;
+    private static int builtLate;
+    private static int forgotten;
     private static int failed;
     private static int unregistered;
     private static int startsThisTick;
@@ -215,7 +272,7 @@ public final class ClientFxManager {
         if (!enabled()) {
             return "Effects off";
         }
-        StringBuilder sb = new StringBuilder("Now: ").append(ACTIVE.size()).append(" fx, quality ").append(effectiveQuality());
+        StringBuilder sb = new StringBuilder("Now: ").append(builtCount()).append(" fx, quality ").append(effectiveQuality());
         if (renderer != null && renderer.allocated()) {
             double ms = renderer.averageGpuMs();
             sb.append(", effects at ").append(renderer.effectSize())
@@ -242,11 +299,19 @@ public final class ClientFxManager {
 
     static void start(FxInit init) {
         if (enabled()) {
-            add(init);
+            add(init, false);
         }
     }
 
     public static LocalFxHandle startLocal(ResourceLocation fxId, FxSpawn spawn) {
+        return startLocal(fxId, spawn, false);
+    }
+
+    /**
+     * {@code mayHide}: nobody holds this effect's {@link Fx} (e.g. /bhfx stress), so the selection may hide and rebuild
+     * it like a server effect. Local effects started through the API are always built (callers may keep their Fx).
+     */
+    static LocalFxHandle startLocal(ResourceLocation fxId, FxSpawn spawn, boolean mayHide) {
         if (!enabled() || Minecraft.getInstance().level == null) {
             return LocalFxHandle.NONE;
         }
@@ -257,33 +322,71 @@ public final class ClientFxManager {
         long seed = spawn.seed() != null ? spawn.seed() : RandomSource.create().nextLong();
         FxInit init = new FxInit(fxId, id, spawn.origin(), spawn.target(), spawn.casterId(), spawn.followId(),
                 spawn.follow(), seed, spawn.duration(), 0, spawn.builtParams());
-        return add(init) ? new LocalFxHandle(id) : LocalFxHandle.NONE;
+        Entry e = add(init, mayHide);
+        return e != null && (e.fx != null || mayHide) ? new LocalFxHandle(id) : LocalFxHandle.NONE;
     }
 
-    private static boolean add(FxInit init) {
+    /**
+     * Remember a new effect and build it now when it is pinned, close, or fits this tick's construction budget and the
+     * cap; otherwise the next selection decides. Local effects are always built at once and never hidden, because
+     * callers may hold their {@link Fx} (BHFxClient.fx).
+     */
+    @Nullable
+    private static Entry add(FxInit init, boolean mayHide) {
         if (init.handleId() > 0) {
             for (Entry e : ACTIVE) {
                 if (e.handleId == init.handleId()) {
-                    return false; // already playing (the server re-sent it after we came back into range)
+                    return null; // already known (the server re-sent it after we came back into range)
                 }
             }
         }
-        FxFactory factory = FACTORIES.get(init.id());
-        if (factory == null) {
+        if (!FACTORIES.containsKey(init.id())) {
             unregistered++;
             if (WARNED.add(init.id())) {
                 BHFxMod.LOGGER.warn("bhfx effect {} is not registered on this client; ignoring it", init.id());
             }
-            return false;
+            return null;
+        }
+        Entry e = new Entry(init, clientTicks);
+        e.mayHide = mayHide;
+        measure(Minecraft.getInstance(), e);
+        ACTIVE.add(e);
+        boolean inner = e.distance <= BHFxConfig.GUARANTEED_RADIUS.get();
+        if (e.pinned || e.distance <= BUILD_NOW_DISTANCE || (constructNanosThisTick < BUILD_BUDGET_NANOS
+                && (inner || builtCount() < BHFxConfig.MAX_ACTIVE_FX.get()))) {
+            build(e);
+        }
+        if (e.broken) {
+            ACTIVE.remove(e);
+            return null;
+        }
+        forgetIfTooMany();
+        return e;
+    }
+
+    /** Construct the effect of {@code e} at its age now (or as sent, when on time). Sets broken when it throws. */
+    private static void build(Entry e) {
+        FxFactory factory = FACTORIES.get(e.init.id());
+        if (factory == null) {
+            e.broken = true;
+            return;
+        }
+        int late = (int) (clientTicks - e.receivedAt);
+        boolean onTime = late <= LATE_TICKS;
+        FxInit init = e.init;
+        if (!onTime || e.params != init.params()) {
+            init = new FxInit(init.id(), init.handleId(), init.origin(), init.target(), init.casterId(), init.followId(),
+                    init.follow(), init.seed(), init.duration(), onTime ? init.startAge() : e.ageNow(), e.params);
         }
         Fx fx;
         long t0 = System.nanoTime();
         try {
             fx = factory.create(init);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException ex) {
             failed++;
-            BHFxMod.LOGGER.error("bhfx effect {} failed to construct", init.id(), e);
-            return false;
+            e.broken = true;
+            BHFxMod.LOGGER.error("bhfx effect {} failed to construct", init.id(), ex);
+            return;
         } finally {
             long dt = System.nanoTime() - t0;
             startsThisTick++;
@@ -293,14 +396,71 @@ public final class ClientFxManager {
                 longestConstructId = init.id();
             }
         }
-        int max = BHFxConfig.MAX_ACTIVE_FX.get();
-        while (ACTIVE.size() >= max) {
-            evicted++;
-            remove(ACTIVE.remove(0));
+        e.fx = fx;
+        e.shownSince = clientTicks;
+        if (e.init.duration() == FxSpawn.DEFAULT_DURATION) {
+            DEFAULT_TICKS.put(e.init.id(), fx.duration());
         }
-        ACTIVE.add(new Entry(fx, init.handleId()));
-        peakActive = Math.max(peakActive, ACTIVE.size());
-        return true;
+        e.duration = fx.duration();
+        if (onTime) {
+            e.presence = 1f;
+            e.fadeStep = 0f;
+        } else {
+            builtLate++;
+            e.presence = 0f;
+            e.fadeStep = 1f / FADE_TICKS;
+        }
+        peakActive = Math.max(peakActive, builtCount());
+    }
+
+    /** Free the built effect; the entry stays known and can be built again. */
+    private static void unbuild(Entry e) {
+        remove(e);
+        e.fx = null;
+        e.presence = 1f;
+        e.fadeStep = 0f;
+    }
+
+    private static int builtCount() {
+        int n = 0;
+        for (Entry e : ACTIVE) {
+            if (e.fx != null) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Past {@link #MAX_KNOWN}, forget the farthest effects that are not built and not pinned. */
+    private static void forgetIfTooMany() {
+        while (ACTIVE.size() > MAX_KNOWN) {
+            Entry far = null;
+            for (Entry e : ACTIVE) {
+                if (e.fx == null && !e.pinned && (far == null || e.distance > far.distance)) {
+                    far = e;
+                }
+            }
+            if (far == null) {
+                return;
+            }
+            ACTIVE.remove(far);
+            forgotten++;
+        }
+    }
+
+    /** Where the effect is now (its followed entity, else its origin), its distance from the player, and pinned. */
+    private static void measure(Minecraft mc, Entry e) {
+        ClientLevel level = mc.level;
+        Entity follow = level != null && e.init.followId() >= 0 ? level.getEntity(e.init.followId()) : null;
+        Vec3 at = follow != null && !follow.isRemoved() ? follow.position() : e.init.origin();
+        if (mc.player == null) {
+            e.distance = 0.0;
+            e.pinned = e.local() && !e.mayHide;
+            return;
+        }
+        int me = mc.player.getId();
+        e.distance = mc.player.position().distanceTo(at);
+        e.pinned = (e.local() && !e.mayHide) || e.init.casterId() == me || e.init.followId() == me;
     }
 
     static void stop(int handleId, StopMode mode) {
@@ -310,7 +470,12 @@ public final class ClientFxManager {
         }
         for (Entry e : ACTIVE) {
             if (e.handleId == handleId) {
-                e.fx.bhfxStop(TICK.bind(level, e.fx, followed(level, e.fx)), mode);
+                if (e.fx == null) {
+                    ACTIVE.remove(e); // not built here: nothing to end
+                } else {
+                    e.stopping = true;
+                    e.fx.bhfxStop(TICK.bind(level, e.fx, followed(level, e.fx)), mode);
+                }
                 return;
             }
         }
@@ -319,6 +484,10 @@ public final class ClientFxManager {
     static void update(int handleId, FxParams changed) {
         for (Entry e : ACTIVE) {
             if (e.handleId == handleId) {
+                e.params = e.params.merge(changed);
+                if (e.fx == null) {
+                    return;
+                }
                 try {
                     e.fx.bhfxParams(changed);
                 } catch (RuntimeException ex) {
@@ -360,7 +529,7 @@ public final class ClientFxManager {
         }
         for (Entry e : ACTIVE) {
             if (e.handleId == handle.id()) {
-                return type.isInstance(e.fx) ? Optional.of(type.cast(e.fx)) : Optional.empty();
+                return e.fx != null && type.isInstance(e.fx) ? Optional.of(type.cast(e.fx)) : Optional.empty();
             }
         }
         return Optional.empty();
@@ -412,8 +581,8 @@ public final class ClientFxManager {
 
     /** Zero the counters shown by /bhfx stats (world change, and the start of /bhfx stress). */
     static void resetCounters() {
-        peakActive = ACTIVE.size();
-        evicted = failed = unregistered = 0;
+        peakActive = builtCount();
+        evicted = failed = unregistered = builtLate = forgotten = 0;
         startsThisTick = busiestTickStarts = 0;
         constructNanosThisTick = busiestTickConstructNanos = longestConstructNanos = 0L;
         longestConstructId = null;
@@ -433,19 +602,27 @@ public final class ClientFxManager {
     /** Once a second: count living particles in every batch (walks the filled slots, so not every frame). */
     private static void samplePeaks() {
         for (Entry e : ACTIVE) {
-            for (ParticleBatch b : e.fx.bhfxParticleBatches()) {
-                b.samplePeakAlive();
+            if (e.fx != null) {
+                for (ParticleBatch b : e.fx.bhfxParticleBatches()) {
+                    b.samplePeakAlive();
+                }
             }
         }
     }
 
     /** One line: running effects and what was refused or evicted. */
     static String counterLine() {
-        return String.format("%d fx running (peak %d, maxActiveFx %d), %d evicted, %d failed, %d unregistered",
-                ACTIVE.size(), peakActive, BHFxConfig.MAX_ACTIVE_FX.get(), evicted, failed, unregistered);
+        return String.format("%d fx known, %d built (peak %d, maxActiveFx %d, radius %d), %d hidden, %d built late, "
+                        + "%d failed, %d unregistered%s",
+                ACTIVE.size(), builtCount(), peakActive, BHFxConfig.MAX_ACTIVE_FX.get(),
+                BHFxConfig.GUARANTEED_RADIUS.get(), evicted, builtLate, failed, unregistered,
+                forgotten > 0 ? ", " + forgotten + " forgotten" : "");
     }
 
     private static void remove(Entry e) {
+        if (e.fx == null) {
+            return;
+        }
         try {
             e.fx.bhfxRemoved();
         } catch (RuntimeException ex) {
@@ -467,6 +644,7 @@ public final class ClientFxManager {
 
     static void tick(Minecraft mc) {
         rollStartCounters();
+        clientTicks++;
         ClientLevel level = mc.level;
         if (level != lastLevel) {
             // respawn / dimension change / disconnect: the server re-sends what is still playing
@@ -507,6 +685,18 @@ public final class ClientFxManager {
         Iterator<Entry> it = ACTIVE.iterator();
         while (it.hasNext()) {
             Entry e = it.next();
+            measure(mc, e);
+            if (e.fx == null) {
+                // known but not built: it only has to notice when it ends
+                Entity follow = e.init.followId() >= 0 ? level.getEntity(e.init.followId()) : null;
+                boolean present = follow != null && !follow.isRemoved();
+                e.followSeen |= present;
+                boolean lost = e.init.followId() >= 0 && e.followSeen && !present;
+                if (lost || (e.duration >= 0 && e.ageNow() > e.duration)) {
+                    it.remove();
+                }
+                continue;
+            }
             Entity follow = followed(level, e.fx);
             if (e.fx.init().followId() >= 0) {
                 if (follow != null) {
@@ -525,11 +715,59 @@ public final class ClientFxManager {
             if (e.broken || e.fx.bhfxFinished()) {
                 it.remove();
                 remove(e);
+                continue;
+            }
+            if (e.fadeStep != 0f) {
+                e.presence += e.fadeStep;
+                if (e.presence >= 1f) {
+                    e.presence = 1f;
+                    e.fadeStep = 0f;
+                } else if (e.presence <= 0f) {
+                    unbuild(e); // faded out: free it, keep knowing it
+                }
             }
         }
+        select();
         long now = System.nanoTime();
         STATS.tick(now, now - tickStart);
         releaseIfIdle();
+    }
+
+    /**
+     * Decide which known effects are built ({@link FxSelection}), fade out the ones no longer chosen, and build the
+     * chosen ones nearest first: close ones at once, the rest within this tick's construction budget.
+     */
+    private static void select() {
+        if (ACTIVE.isEmpty()) {
+            return;
+        }
+        CANDIDATES.clear();
+        for (Entry e : ACTIVE) {
+            boolean shown = e.fx != null && e.fadeStep >= 0f;
+            // local effects are never hidden (callers hold their Fx); effects playing their ending finish where they are
+            boolean pinned = e.pinned || (e.fx != null && e.stopping);
+            CANDIDATES.add(new FxSelection.Candidate(e, pinned, e.distance, shown, e.shownSince));
+        }
+        FxSelection.choose(CANDIDATES, new FxSelection.Rules(BHFxConfig.GUARANTEED_RADIUS.get(), MARGIN,
+                BHFxConfig.MAX_ACTIVE_FX.get(), BHFxConfig.CULL_DISTANCE.get(), HOLD_TICKS), clientTicks);
+        CANDIDATES.sort((a, b) -> Double.compare(((Entry) a.key()).distance, ((Entry) b.key()).distance));
+        for (FxSelection.Candidate c : CANDIDATES) {
+            Entry e = (Entry) c.key();
+            if (c.show()) {
+                if (e.fx == null) {
+                    if (e.distance <= BUILD_NOW_DISTANCE || constructNanosThisTick < BUILD_BUDGET_NANOS) {
+                        build(e);
+                    }
+                } else if (e.fadeStep < 0f) {
+                    e.fadeStep = 1f / FADE_TICKS; // chosen again while fading out: come back
+                }
+            } else if (e.fx != null && e.fadeStep >= 0f) {
+                evicted++;
+                e.fadeStep = -1f / FADE_TICKS;
+            }
+        }
+        ACTIVE.removeIf(e -> e.broken);
+        CANDIDATES.clear();
     }
 
     /** Give the effect targets back to the GPU after 30 s without post-processing. */
@@ -577,7 +815,7 @@ public final class ClientFxManager {
         double gpu = renderFrame(camera, partial);
         BENCH.gpu(gpu);
         long end = System.nanoTime();
-        STATS.frame(end, end - start, gpu, ACTIVE.size(), lastPassCount);
+        STATS.frame(end, end - start, gpu, builtCount(), lastPassCount);
     }
 
     /** Returns a GPU measurement that finished this frame, or -1. */
@@ -592,7 +830,7 @@ public final class ClientFxManager {
         SCREEN.reset();
         double cullCap = BHFxConfig.CULL_DISTANCE.get();
         for (Entry e : ACTIVE) {
-            if (e.broken) {
+            if (e.broken || e.fx == null) {
                 continue;
             }
             FRAME.bind(e.fx, followed(level, e.fx));
@@ -601,6 +839,7 @@ public final class ClientFxManager {
                 continue;
             }
             PASSES.currentDistance(distance);
+            PASSES.currentPresence(e.presenceAt(partial));
             try {
                 e.fx.bhfxFrame(FRAME, PASSES, SCREEN, CAMERA.bindFor(isLocalCaster(mc, e.fx)));
             } catch (RuntimeException ex) {
@@ -660,7 +899,7 @@ public final class ClientFxManager {
             out.add("[bhfx] off");
             return;
         }
-        out.add("[bhfx] " + ACTIVE.size() + " fx, " + lastPassCount + " pass, " + effectiveQuality()
+        out.add("[bhfx] " + builtCount() + "/" + ACTIVE.size() + " fx, " + lastPassCount + " pass, " + effectiveQuality()
                 + (ShaderpackDetector.blocksPost() ? ", post off (shader pack)" : "")
                 + (renderer != null ? ", " + renderer.describe() : "")
                 + (WARMUP.running() ? ", " + WARMUP.describe() : ""));
@@ -675,7 +914,7 @@ public final class ClientFxManager {
             return;
         }
         for (Entry e : ACTIVE) {
-            if (!e.broken) {
+            if (!e.broken && e.fx != null) {
                 e.fx.bhfxHud(graphics, FRAME.bind(e.fx, followed(level, e.fx)));
             }
         }
@@ -710,7 +949,8 @@ public final class ClientFxManager {
         } else if (ShaderpackDetector.packActive()) {
             sb.append(", shader pack active (post forced on)");
         }
-        sb.append(", ").append(ACTIVE.size()).append(" fx, ").append(lastPassCount).append(" pass(es) last frame");
+        sb.append(", ").append(builtCount()).append(" fx built of ").append(ACTIVE.size()).append(" known, ")
+                .append(lastPassCount).append(" pass(es) last frame");
         if (renderer != null) {
             sb.append(", ").append(renderer.describe());
         }
@@ -746,6 +986,9 @@ public final class ClientFxManager {
         long slots = 0;
         long bytes = 0;
         for (Entry e : ACTIVE) {
+            if (e.fx == null) {
+                continue;
+            }
             for (ParticleBatch b : e.fx.bhfxParticleBatches()) {
                 if (b.closed()) {
                     continue;

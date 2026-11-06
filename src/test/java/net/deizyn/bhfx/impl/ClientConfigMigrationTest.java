@@ -28,6 +28,8 @@ class ClientConfigMigrationTest {
         assertFalse(BHFxConfig.OFF_WITH_SHADERPACK.getDefault());
         assertEquals(16, BHFxConfig.MIRROR_DISTANCE.getDefault());
         assertEquals(6, BHFxConfig.MIRROR_MAX_PLANES.getDefault());
-        assertEquals(3, ClientConfigMigration.CURRENT);
+        assertEquals(96, BHFxConfig.MAX_ACTIVE_FX.getDefault());
+        assertEquals(48, BHFxConfig.GUARANTEED_RADIUS.getDefault());
+        assertEquals(4, ClientConfigMigration.CURRENT);
     }
 }

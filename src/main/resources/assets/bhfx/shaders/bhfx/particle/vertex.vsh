@@ -26,7 +26,7 @@ uniform vec4 PMode;     // blend (0 add, 1 alpha, 2 distort), softness, distorti
 uniform vec3 POrbit;    // orbit axis passes through here (from the batch origin)
 uniform vec3 POrbitAxis; // unit orbit axis
 uniform vec4 PTurb;     // turbulence amplitude (blocks), frequency (Hz), pattern scale (waves per block), unused
-uniform vec4 PRing;     // capacity, slots filled, unused, unused
+uniform vec4 PRing;     // capacity, slots filled, stride (instance i draws slot i * stride; 0 or 1 = every slot), unused
 uniform vec4 PCurves;   // colour keys (0 off, 1..4; -1 = ramp texture), alpha keys, size keys, unused
 uniform vec3 PColorKey0;
 uniform vec3 PColorKey1;
@@ -273,7 +273,8 @@ void bhfxRibbon(int slot, vec2 corner) {
 }
 
 void main() {
-    int slot = gl_InstanceID;
+    // thinned frames draw one slot in PRing.z, the same slots every frame; ribbons always get 1 (they link to every point)
+    int slot = gl_InstanceID * max(1, int(PRing.z + 0.5));
     vec2 corner = vec2((gl_VertexID & 1) != 0 ? 1.0 : -1.0, (gl_VertexID & 2) != 0 ? 1.0 : -1.0);
     if (PShape.x > 3.5) {
         bhfxRibbon(slot, corner);

@@ -6,9 +6,27 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### Scale plan phase 1: known vs built effects, even thinning (2026-11-07, build + JUnit only)
+- ✅ 2026-11-07 `gradlew build`: 98 JUnit tests pass (9 new in `FxSelectionTest`; `ClientConfigMigrationTest` checks the new defaults), glslang OK. Not run in game.
+- Before testing: the stale 0.3.9 deobf cache was deleted 2026-11-07 after the game closed; the phase 1 jar (sha1 `29b3625f…`) is in `BHSpells/libs/` and `~/.m2`. Just run BHSpells `runClient`. The log shows `maxActiveFx` 32 moved to 96 once (config migration 4) unless it was changed by hand.
+- ⏳ In the BHSpells dev client (single player, MEDIUM):
+  1. `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles` (the run that flickered 2026-11-07): no flicker while standing still or turning the camera. `/bhfx status` during it shows "particles thinned to 1 in N" (N well above 1: 70 of these want roughly 300,000 slots against 16,384); effects look thinner, evenly, and N does not jump back and forth.
+  2. `/bhfx stats` during it: "70 fx known, 70 built ..., 0 hidden"; the busiest tick's constructor ms.
+  3. `/bhfx stress 120 100 0 bhfx:test_flow bhfx:test_vortex bhfx:test_particles`, stand at the centre: 120 known, 96 built, ~24 hidden (the farthest). Walk 50 blocks to one side: effects ahead fade in (0.5 s), effects behind fade out; nothing near you blinks. Turn the camera around: nothing changes.
+  4. `/bhfx stress 70` (all registered, one tick): busiest tick constructor ms compared with 7.55 ms before (it should be lower: only close ones and 2 ms of others in the first tick, the rest over the next ticks).
+  5. Spells still work: Heavenly Combo, Annihilation Arrow charge, Conqueror Haki, Dawn Rend (local effects stay built, cues still arrive).
+  6. Two clients (`run-client2`, LAN): `/bhfx_play stress 70 32 5 bhfx:test_flow bhfx:test_vortex`; both see the same effects; walking away and back brings them back at their current age.
+
 ### Scale plan phase 0: stress and counters (2026-11-07, build + JUnit only)
 - ✅ 2026-11-07 `gradlew build`: 89 JUnit tests pass, 13 new (`FxStressTest` 9, `NetMeterTest` 4); glslang OK. Not run in game.
-- ⏳ In the BHSpells dev client (single player):
+- 2026-11-07 first in-game round (user, BHSpells `runClient` 04:18–04:23, MEDIUM, single player; log `BHSpells/run/logs/latest.log`). No bhfx exception, no crash; warmup "43 shader(s) in 176 ms". Before numbers:
+  - ✅ 1. `/bhfx stress 70` (25 kinds, one tick): "started 70 of 70, 32 fx running, 38 evicted, 0 failed". Busiest tick 70 starts, **7.55 ms** constructing in total; slowest constructor 5.32 ms (`bhfx:test_flow`, the first one built).
+  - ✅ 2. `/bhfx stats` 12 s later: up to 26 fx and 9 passes drawn; render CPU avg 0.56 / max 5.97 ms; **GPU avg 1.75 / max 7.05 ms**; tick CPU avg 0.16 / max 3.58 ms; ~46 MB GPU memory; effect resolution 100% (63% 10 s later). "Particles: no batches" by then (only 4 long effects without particles were left).
+  - ❌ 3. `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles` (run twice): 70 of 70 started over 10 s, 38 evicted; **the user saw some effects flicker**. See [`bugs.md`](bugs.md) Open 2026-11-07. No `/bhfx stats` or `/bhfx status` was taken during this run.
+  - ✅ 4. `/bhfx_play stress 70`: "started 64 of 70 (6 refused by the rate limits)"; the net report: **0.55 KB/s, 0.4 packets/s, 6.4 starts/s** for 1 player, "6 by maxStartsPerTick", 64 running. That is ~86 B per start in 4 batch packets (the 2026-11-06 estimate was 150–250 B).
+  - ⏳ 4b. The spread server run (`/bhfx_play stress 70 32 5 ...` with `/bhfx_play net 10`) was not run.
+  - ⏳ 6. F3 frame time and heap, `/bhfx status` during the run, and "post idle" 30 s after: not in the log (`/bhfx status` was never run).
+- ⏳ Still to do in the BHSpells dev client (single player):
   1. `/bhfx stress 70` (all registered effects, 32 blocks, one tick): the chat reports "started N of 70" and a counter line; with `maxActiveFx` 32, "38 evicted" is expected (oldest first, today's rule). No crash, no bhfx error in the log.
   2. `/bhfx stats` right after: the Effects, Starts and Particles lines appear; the busiest tick shows ~70 starts and its constructor ms; the biggest batches show peak / capacity.
   3. `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles`: starts spread over 10 s, about 7 per second; `/bhfx stop` ends them.
