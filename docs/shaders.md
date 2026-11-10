@@ -53,3 +53,7 @@ Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`gl
 - **Two sampler types on one unit**: a `samplerBuffer` left on unit 0 next to the `sampler2D` there is an invalid operation at draw time. Always set `PData` (unit 5), also in warmup (2026-11-04).
 - **Reserved words**: `half` (also `input`, `output`, `filter`, `sample`, ...) is reserved in GLSL 1.50 and fails to compile as a variable name (`particle/vertex.vsh`, 2026-11-04).
 - **Particle materials and `discard`**: run `material()` before discarding, since its `texture()` calls need derivatives (same rule as the `texture()` in a branch item above).
+
+## Noise round a circle (2026-11-10)
+- Noise indexed by an angle from `atan` must repeat once per turn, or it shows a seam line where `atan` wraps (BHSpells `formation_array.fsh` curtain, seen in game). Use noise of `(cos a, sin a)` or a value noise whose x wraps every N cells (`loopNoise` in that shader).
+- Texture gradients for polar coordinates: don't take `dFdx`/`dFdy` of an atan angle, not even the min-of-`u`/`fract(u + 0.5)` trick (fine in a browser, a dashed seam line on some in-game drivers). Work them out from the continuous coordinates: `d(angle in turns)/dq = (-q.y, q.x) / (|q|^2 * 2pi)`, then `dot(dFdx(q), that)` and `dot(dFdy(q), that)` for `textureGrad` (BHSpells `formation_array.fsh`, 2026-11-10).

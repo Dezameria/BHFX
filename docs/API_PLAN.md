@@ -523,6 +523,14 @@ seconds, blocks, blocks/s. Draw with `PassList.particles(batch[, options, setup]
   instance i draws the segment previous → i, each end turned by its point's backward tangent, so segments share edges.
   A link is valid while the previous point is alive, has the same id and is not newer (an overwritten slot is newer).
   `p.age` runs along the ribbon, `p.uv.y` across.
+  - **Along** (2026-11-07): `p.along` is a smooth per-point value (axis.y): blocks along the chain from its first point by
+    default (a trail's texture stays put in the world), or `ParticleSpawn.along(v)` (e.g. 0..1 on an arc drawn at
+    once, so one texture stretches over it). `p.data` stays per segment (`flat`).
+  - **Planes** (2026-11-07): `FxParticles.ribbonNormal(x, y, z)` (batch, uniform `PRibbonNormal`; 0 = turn to the
+    camera) or `ParticleSpawn.normal(x, y, z)` (per point, octahedral in axis.z / axis.w + 3; axis.w = 0 = none) lays
+    the strip in the plane of that normal: side = dir × normal. The normal turns with an orbiting point. Where the strip
+    runs along the normal it falls back to the camera. `p.facing` = |strip normal · to eye| (1 face-on, 0 edge-on;
+    1 for camera-facing and other facings). `along` / `normal` are ignored outside `RIBBON` batches.
 - **Ground**: `Shape.onGround(search[, lift])` moves each emitted point to the nearest block collision or fluid surface below it
   (or up out of the block it is in), within `search`; CPU block lookups at emit time; points with none stay.
 - **Storage**: a ring of `capacity` slots, 112 bytes (7 texels) each, in a buffer texture (GL 3.1, no instanced attributes). A new

@@ -6,6 +6,16 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### Scoped stop (2026-11-10, build + JUnit only)
+- ✅ 2026-11-10 `gradlew build`: `FxCommandsStopTest` 6 and `FxCommandArgsTest` 7 pass. Not run in game.
+- ⏳ In the BHSpells dev client:
+  1. `/bhfx test bhfx:test {hold:true}` twice at different spots, plus `/bhfx test bhfx:test_flow {hold:true}`: `/bhfx stop fx bhfx:test` (tab suggests the playing ids) fades only the two `bhfx:test`, chat says "stopped 2 test effect(s) of bhfx:test".
+  2. Two effects 30 blocks apart: stand by one, `/bhfx stop near 10` stops only that one.
+  3. `/bhfx test bhfx:test attach @s {hold:true}`, walk 30 blocks, `/bhfx stop near 5` still stops it (measured from where you are now, not where it started).
+  4. `/bhfx test bhfx:test {hold:true,name:a}` and `/bhfx test bhfx:test_flow {hold:true,name:a}` and one unnamed: `/bhfx stop name a` (suggests `a`) stops the two named ones; `{name:"two words"}` is refused.
+  5. `... finish` on each scope plays the full ending; `/bhfx stop` alone still stops everything.
+  6. `/bhfx_play stop near 10` / `fx` / `name` do the same for `/bhfx_play fx`.
+
 ### Scale plan phase 1: known vs built effects, even thinning (2026-11-07, build + JUnit only)
 - ✅ 2026-11-07 `gradlew build`: 98 JUnit tests pass (9 new in `FxSelectionTest`; `ClientConfigMigrationTest` checks the new defaults), glslang OK. Not run in game.
 - Before testing: the stale 0.3.9 deobf cache was deleted 2026-11-07 after the game closed; the phase 1 jar (sha1 `29b3625f…`) is in `BHSpells/libs/` and `~/.m2`. Just run BHSpells `runClient`. The log shows `maxActiveFx` 32 moved to 96 once (config migration 4) unless it was changed by hand.
@@ -47,6 +57,8 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
   8. With a shader pack (post forced on): same look; world occlusion lines up.
   9. `/bhfx bench bhfx:test_particles 20`: record the GPU ms here.
   10. Resolution steps: with a heavy effect plus this one, F3 shows the effect size dropping at once and rising one step every ~2 s.
+- ⏳ 2026-11-10 `bhspells:ink_spread` (build + glslang only): `/bhfx test bhspells:ink_spread at ~ ~ ~ {radius:48}` spreads from that spot (not following you), holds, washes away and ends; from outside only the pool is ink, walking in turns the whole view to ink, walking out eases back to colour; `{hold:true}` stays until `/bhfx stop`, then washes away; sounds at burst / front near you / passing over you / washing away; `bhspells:formation_array` ink still behaves as before.
+- ⏳ 2026-11-10 `bhspells:formation_array` (build + glslang + browser preview only). `/bhfx test bhspells:formation_array attach @s`, first and third person, then from 20+ blocks: five layers open in turn and counter-rotate, words readable (light half / ink half), no seam line where the rings wrap, no shimmer far away, the rim curtain does not wash the screen white from inside. Round 9: no ink with the array any more; rings emerge slowly one by one (1.2 s apart, 1.8 s each), `{ring_delay:2, ring_fade:3}` and `{ring_delay:0}` change it. Round 7: `{radius:120}` from the middle and from outside — every sound audible at the right beat (bells per ring, ink front creeping up and washing over you), layers stay flat, motes visible round you; seam line gone (round 6). Round 4 (round 3 seen in game): rings appear whole one by one every 0.9 s rim → yin-yang with a flash, cells blink slowly, light fades over the array, not too bright; ink dyes outward from 4.6 s over 14 s with no patches, then washes away by ~29 s while the array stays, whole view ink and paper at the end, not too busy on real block textures, not black at night. Checklist: `BHSpells/docs/bhfx/formation_array.md`.
 - ⏳ 2026-11-04 `bhspells:dawn_rend` (BHSpells showcase, every technique at once; build + glslang only). `/bhfx test bhspells:dawn_rend at ^ ^ ^6`, then `attach @s`: fire spreads over the ground, ribbon flames and motes into the hand, at 1.6 s five claw strokes drawn up into the sky with slash impact frames, the tears open onto a violet starry sky with burning lips and bent edges, cracks, furrows on the ground, embers falling and light shafts, then the tears seal (4.5–6 s) and the fire dies (7.5 s). Log: warmup counts the 3 new shaders, no broken material. `/bhfx bench bhspells:dawn_rend 20` GPU ms. Details: `BHSpells/docs/bhfx/dawn_rend.md`.
 - 2026-11-04 first in-game round (user, BHSpells `runClient` 21:33–22:05, MEDIUM, flat world + a dirt pillar with water; log `BHSpells/run/logs/latest.log`, 3 screenshots in chat):
   - ✅ warmup "37 shader(s) in 1255 ms", none broken, no bhfx exception or bhfx GL error (the many "GL ERROR 65539: Invalid key 0" lines come with chat commands: GLFW key input, not bhfx). The grandsigil "not drawn a frame in 6–20 s" dumps mostly show the frame limiter / event wait (window in the background), not bhfx.
@@ -57,6 +69,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
   - Bench (camera still, 20 s, 119 fps cap so frame cost ~0): bhfx GPU `test_flow` 0.90 ms, `test_vortex` 1.01 ms, `test_particles` 0.57 ms (+0.46 ms/frame, 97 fps scene), `bhspells:conqueror_haki` 0.76 ms. `/bhfx status`: 2,936–3,920 particle slots, ~45 MB.
 - 2026-11-04 second round (user, after the ramp / seed / orbit-frame fixes): ✅ ramp colours (comet tail, embers, puff); ✅ comet and helices smooth (comet head a bit square; helix start shaky); ✅ `test_flow` attached embers trail; ✅ `test_vortex` attached whirlwind follows; ✅ `test_flow` sparks; ✅ off-screen skip. ❌ `test_flow` attached helices swing and split into sheets when walking; ❌ vortex hole ring stays where it was spawned; ❌ water: points land under water and can't be seen. Fixed same day (`bugs.md`), not re-tested.
 - 2026-11-04 third round (user): ✅ attached `test_flow` helices smooth, no sheets, steady start; ✅ `test_vortex` hole ring follows; ✅ dust and scorch on the water surface; ✅ comet head soft. ❌ several effects at once: some parts still vanish → pass-cap fix (`bugs.md`).
+- ⏳ 2026-11-07 ribbons along curves (build + 17 `ParticleBatchTest` cases + glslang only). Clear the deobf cache first (same 0.3.9 version). `/bhfx test bhfx:test_swirl at ^ ^ ^5 {duration:30}` on flat ground; then `attach @s` and walk:
+  1. Every 0.9 s a gust: three white wind arcs flat on the ground spin and spread out; seen from low down they thin to lines (not cards turned to you); from above they are full bands.
+  2. Each arc's streaks run along the curve (texture stretched over the arc, not repeated per segment, no steps at joints); the arc sweeps in from its thin tail to its full head and leaves.
+  3. Three tilted rings round the body at different heights and tilts, spinning; their tilt turns as they spin (precession), no flipping or cracks.
+  4. Two curls above, rising and tightening, always turned to you.
+  5. Attached and walking: everything stays round you; no white sheets, no NaN flashes.
+  6. Other ribbons unchanged: `bhfx:test_flow` helices and comet look as before.
 - ⏳ 2026-11-04 fourth round: `test_flow`, `test_vortex` and `test_particles` together, walk round them and move closer / farther: every part of all three stays, no flicker; `/bhfx status` still shows the slot count.
 - ✅ 2026-11-04 (third round) attached `test_flow` + walk/sprint: helices smooth round you, no sheets, steady at their start; `test_vortex` attached: the hole ring above follows; `test_flow` by a pool: dust and scorch lie on the water surface; comet head soft.
 - ✅ 2026-11-04 (second round) re-test after the ramp / ribbon seed / orbit-frame fixes: comet tail white → orange → red, embers white-yellow → red, puff orange; comet and helices smooth curves (no kinks); `attach @s` + walk: helices and whirlwind stay round you without swinging; embers and smoke trail behind.
@@ -157,6 +176,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## BHSpells spells that use bhfx
 
+### ⏳ `bhspells:anime_shockwave` round 4 (2026-11-10, `compileJava` + glslcheck only; replaces the round 3 list)
+- [ ] `{hold:true}`: walls are smooth crescents of wind with no seams or slices, also while they fray away.
+- [ ] Arcs differ: short/long, spiralling, arched, leaning differently; at several heights; steady, no pulses.
+- [ ] Bright line sits towards the wall's upper edge (if low, flip `v` in `power_wave.fsh`).
+- [ ] `/bhfx stop finish`: rings show the streaky band all round (no gap), expand; nothing cut off.
+- [ ] `/bhfx stop`: dies down, no explosion. Look from the side, above and inside.
+
 ### bhfx 0.3.8 fog uniforms (2026-11-03, build + glslang only)
 - ⏳ `FogColor` / `FogRange` hold the terrain fog. Checked through `solar_eclipse`: with the sky replaced, far terrain fades into the new sky with no pale band. Try render distance 8 and 24, rain, underwater (water fog) and lava, and Embeddium on/off.
 
@@ -219,6 +245,26 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
   - (10) From radius+80 away you see only the dark footprint, with no sky darkening.
   - (11) `/bhfx stats` with `hold:true` at radius 32 and 120.
 - ⏳ Multiplayer: two clients see the same strike points and times; a client that joins mid-effect is in the right phase.
+
+### Lunebris surge (`bhspells:lunebris_surge`, 2026-11-10)
+- ✅ 2026-11-10 round 1 seen in game by the user: fine apart from the body flames, the upward lashes and the doubled ground ink (fixed in round 2).
+- ✅ 2026-11-10 round 2 seen in game by the user (round 3 feedback: two bursts of the same kind, flame size, smoke fade, size param).
+- ✅ 2026-11-10 round 3 seen in game by the user (round 4 feedback: smoke flame, all-round ink, long spires, roar).
+- ✅ 2026-11-10 round 4 seen in game by the user (round 5 feedback: lashes round the body, not the pillar; only one smoke on the body).
+- ✅ 2026-11-10 round 5 seen in game by the user (round 6 feedback: the lines still odd → rays of dark light).
+- ⏳ Round 8: the ink spreads round the body (no tall column), lingers and fades out; no hard edge at its bounds; readable view when the caster is inside it; GPU cost OK up close.
+- ⏳ Round 7: the big rays (12 long, 1.6 wide) do not black out the view near the caster.
+- ⏳ Round 6 (`compileJava` + glslcheck only): the rays shine out every way from the chest, all at once at the release, then flicker; no pop when a ray changes angle; not cut by their bounds; hidden in first person; GPU cost OK with the camera close.
+- ⏳ Round 5 checks still open: the pillar is back; no smoke puffs on the body, the smoke flame reads clearly and appears with the core flame; the ground smoke ring is still there.
+- ⏳ Round 4 checks still open: the smoke flame stays on the body behind the core flame without clipping; the roar waves bend the air from the mouth (facing the look), sounds play, the rumble is strong but not sickening.
+- ⏳ Round 3 checks still open: exactly one burst at the release (no second lash/smoke burst, one air ring); later flares are fire only; smoke fades out instead of breaking into holes; `{scale:0.5}` and `{scale:2}` resize the flame, pillar, lashes and smoke without clipping.
+- ⏳ Round 2 checks still open: one body-sized flame (no gaps or clipping on its sides when it flares, invisible in first person, follows the caster smoothly through dash/updraft); big upward lashes; yin ripples over the ground arrive with the aura's floor as one wave, bend the ground, no ink smear.
+- ⏳ In BHSpells `runClient`:
+  1. `/bhfx test bhspells:lunebris_surge attach @s`: lashes fly in and the chest knot grows for ~1.6 s, then the release (pillar, dome rolling to 20 blocks, lashes and smoke ring outward), then black flames and spurts on the body for 8 s. No grey sheets / white screen (NaN), no rectangle cut on the dome or pillar.
+  2. Cast Lunebris: the release lands on the banner plant together with `lunebris_aura`'s ink frames; screen not too dark with both on.
+  3. Cancel the windup: the gathered darkness fades without bursting.
+  4. Dash / updraft: the flames trail behind the caster without breaking into sheets.
+  5. Viewed from a second player and from ~40 blocks; `/bhfx stats` particle counts and GPU ms.
 
 ### Pass screen bounds in BHSpells (2026-11-02, `compileJava` only)
 - ✅ 2026-11-02 the horizontal-line bug (see `bugs.md`) is gone on `lunebris_aura` after the `sceneAt` fix (user, BHSpells `runClient`, MEDIUM quality). The rest of the checklist below is still open.

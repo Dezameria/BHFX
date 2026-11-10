@@ -12,6 +12,8 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
   - Not confirmed with `/bhfx status` ("particle slot(s)", "skipped") during the run.
   - Fix in code 2026-11-07 (phase 1, not re-tested): particles are thinned evenly (one slot in N for every batch) instead of whole batches being skipped, and effects past `maxActiveFx` (now 96) fade out and come back instead of being dropped ([`decisions.md`](decisions.md) 2026-11-07).
 
+- 2026-11-10: RIBBON materials see a different `p.seed` (and `p.seconds`) on every segment: `pLife` is `flat`, taken from one end point. Anything keyed on them (noise offsets, dissolve) jumps at each segment, so a strip breaks into slices as it fades (seen in BHSpells `anime_shockwave`, screenshot). Use `p.along`, `p.corner`, `p.age` (interpolated) and per-ribbon constants in `p.data` instead. bhfx's own `test_swirl.fsh` offsets its noise by `p.seed` and has the same flaw. Possible fix in bhfx: a per-ribbon seed, or document it in the particle header.
+
 ## Fixed
 
 ### 2026-11-05 — bhfx's own `runClient` never started (fixed, checked in game)

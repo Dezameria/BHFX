@@ -4,6 +4,25 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.10 — 2026-11-10 (protocol 2)
+- **Changed**: the client remembers every effect it is sent and builds only the ones it shows. Every effect within
+  `guaranteedRadius` (new client setting, default 48 blocks) is always built; past that, the nearest ones up to
+  `maxActiveFx` (default 32 → 96; a config file still at 32 is moved to 96 once). Choice by distance from you only,
+  with a margin and a 2 s hold, so turning the camera or walking a little never swaps effects. A hidden effect fades
+  out and is freed; walking closer builds it again at its current age and fades it in. Server unchanged.
+- **Changed**: under load, particles are thinned evenly over all batches (one slot in N; ribbons are not thinned)
+  instead of whole batches being skipped. `/bhfx status` shows "particles thinned to 1 in N".
+- **Added**: passes may declare `uniform float Presence;` (0..1) and multiply their output by it to fade in and out
+  with the above; particles fade on their own.
+- **Added** (Experimental): ribbons laid in a plane and stretched along a curve: `FxParticles.ribbonNormal`,
+  `ParticleSpawn.along`, `ParticleSpawn.normal`; material fields `p.along` (smooth along the whole ribbon) and
+  `p.facing` (1 face-on, 0 edge-on). Test effect `bhfx:test_swirl`.
+- **Added**: `/bhfx stress` and `/bhfx_play stress` (load tests), `/bhfx_play net` (traffic per player), and load
+  counters in `/bhfx stats` (effects known / built / hidden, busiest tick, particle batches and capacity use).
+- **Added**: `/bhfx stop` and `/bhfx_play stop` take a scope: `fx <id>`, `near <radius>` or `name <name>` (start
+  with `{name:a}`; several effects may share a name).
+- A new version number also means BHSpells' dev client loads the new jar (ForgeGradle kept the first 0.3.9 copy).
+
 ## 0.3.9 — 2026-11-04 (protocol 2)
 - **Added** (Experimental): textures. `Uniforms.texture(name, FxTexture)` binds an image to a `sampler2D` in a pass
   or particle material (up to 10). `FxTexture.of(file)`, `FxTexture.packed(r, g, b, a)` (four grayscale masks in one

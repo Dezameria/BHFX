@@ -3,6 +3,12 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-07 — Ribbon along / plane data in the unused axis texel
+- **Ribbon points keep `along` in axis.y and their own normal (octahedral) in axis.z / axis.w + 3**, since a ribbon never uses the AXIS axis: memory per slot stays 112 bytes. axis.w = 0 means "no normal of its own" (the encoded y is offset by 3 so 0 can't be a real value); the batch normal is a uniform. Reason: per-point normals let one batch hold rings at different tilts (and twist a strip), without a new texel.
+- **`along` defaults to distance in blocks**, not a 0..1 fraction: a streamed trail doesn't know its final length, and a distance keeps a trail's texture fixed in the world. Arcs drawn at once set 0..1 themselves.
+- **The normal turns with the point's orbit**, like its velocity: a tilted ring spinning round the batch axis precesses as a rigid body would; a normal along the orbit axis is unchanged.
+- **`p.facing` instead of a normal in the material**: one smooth value covers the common uses (fade or thicken edge-on strips) without another varying vector.
+
 ## 2026-11-07 — Known effects vs built effects; even particle thinning (scale plan phase 1)
 - **The client remembers every effect it is sent** (start data, merged params, stop) and builds an `Fx` only for the ones `FxSelection` shows; a hidden one fades out and is freed, and is built again at its current age when chosen again. Replaces "drop the oldest past `maxActiveFx`" (2026-11-06 user requirement: everyone in range sees the same effects, nothing blinks or vanishes when walking closer). The server needs no change and resends nothing.
 - **Selection by distance from the player only** (not the view direction), pinned first (local API effects, your own, effects following you), then everything within `guaranteedRadius`, then the rest by distance up to `maxActiveFx`. Shown effects keep their place with an 8-block margin and a 2 s minimum hold. Reason: turning the camera must never swap effects, and an effect at an edge must not blink.
@@ -108,6 +114,9 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 ## 2026-10-17 — BHSpells declares the mods it uses directly as mandatory
 - **Decision**: mods imported outside `compat/` (15 of them) are declared `mandatory=true`, with the lower bound set to the version BHSpells is built against. `bhfx` and `epic_fight_avalon` stay optional.
 - **Reason**: before, only Forge and Minecraft were declared, so a missing mod crashed mid-game with a hard-to-read error. Declaring them makes Forge say what is missing at the loading screen. Behavior is unchanged when all mods are present.
+
+## 2026-11-10 — Scoped stop for the test commands
+- **Decision** (the user's choice of scopes): `stop` takes `fx <id>`, `near <radius>` or `name <name>` besides `<who>`; `{name:...}` at start is a label, and several effects may share it (a group to stop together) instead of a new effect replacing the old one of the same name. `near` uses the attached entity's current position, else the start point, and only the runner's dimension. A "stop the latest" scope was offered and not chosen.
 
 ## 2026-10-17 — `/bhfx test` + `/bhfx_play` replace `/bhfx_test`
 - **Decision**: one grammar for both, built once in `impl/FxCommands`: `<fx> [at <pos> | attach <who>] [to <players>] [{...}]` and `stop [<who>] [finish]`. Client `/bhfx test` plays locally (`ClientFxManager.startLocal`); server `/bhfx_play fx` uses `BHFx.start` (op 2, registered in release jars too). The `fx` keyword keeps effects apart from `stop` and `pulse` in tab completion (the user's choice); ids are suggested only where the client shares the game (single player, LAN host). Params are SNBT (`impl/FxCommandArgs`); `hold`, `seconds` and `range` are command options and are **not** passed to the effect, so they can never clash with an effect's own param names. (2026-10-20: `seconds` renamed `duration` at the user's request, still in seconds; `{seconds:..}` is refused with a hint rather than passed to the effect as a param.) Stop fades out (`CANCEL`) unless `finish`. `FxParams.get` accepts an int for a float key and a whole float for an int key.
