@@ -671,6 +671,7 @@ public final class PostRenderer {
         binder.f4("PMode", b.blend.ordinal(), b.softness, b.distortion, e.presence());
         binder.f3("POrbit", b.orbitX(), b.orbitY(), b.orbitZ());
         binder.f3("POrbitAxis", b.oax, b.oay, b.oaz);
+        binder.f3("PRibbonNormal", b.rnx, b.rny, b.rnz);
         binder.f4("PTurb", b.turbAmp, b.turbFreq, b.turbScale, 0f);
         binder.f4("PRing", b.capacityValue(), b.filled, strideOf(b), 0f);
         float colourMode = b.colorKeyCount;

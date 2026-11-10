@@ -124,6 +124,68 @@ class ParticleBatchTest {
     }
 
     @Test
+    void ribbonAlongIsDistanceUnlessSet() {
+        ParticleBatch b = new ParticleBatch(fx(), ID, 8);
+        b.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.RIBBON);
+        net.deizyn.bhfx.api.client.FxParticles.Ribbon r = b.ribbon();
+        int f = ParticleBatch.FLOATS;
+        r.spawn(0, 0, 0);
+        r.spawn(3, 4, 0);
+        assertEquals(0f, b.data[21], "a chain starts at 0");
+        assertEquals(5f, b.data[f + 21], 1e-6, "then adds the distance");
+        r.spawn(3, 4, 2).along(10f);
+        r.spawn(3, 4, 3);
+        assertEquals(10f, b.data[2 * f + 21], "set by hand");
+        assertEquals(11f, b.data[3 * f + 21], 1e-6, "goes on from the value set");
+        r.cut();
+        r.spawn(9, 9, 9);
+        assertEquals(0f, b.data[4 * f + 21], "a cut starts again at 0");
+    }
+
+    @Test
+    void ribbonNormalIsStoredOnlyInRibbonBatches() {
+        ParticleBatch b = new ParticleBatch(fx(), ID, 8);
+        b.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.RIBBON);
+        int f = ParticleBatch.FLOATS;
+        b.ribbon().spawn(0, 0, 0);
+        assertEquals(0f, b.data[23], "no normal of its own");
+        b.ribbon().spawn(0, 0, 0).normal(0, -2, 0);
+        float[] n = new float[3];
+        assertTrue(b.data[f + 23] > 1f, "flagged");
+        ParticleBatch.octDecode(b.data[f + 22], b.data[f + 23] - ParticleBatch.NORMAL_SET, n);
+        assertEquals(0f, n[0], 1e-6);
+        assertEquals(-1f, n[1], 1e-6);
+        assertEquals(0f, n[2], 1e-6);
+
+        ParticleBatch a = new ParticleBatch(fx(), ID, 8);
+        a.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.AXIS);
+        a.spawn(0, 0, 0).axis(0, 0, 1, 2f).normal(1, 0, 0).along(4f);
+        assertEquals(1f, a.data[22], "axis untouched by normal / along");
+        assertEquals(0f, a.data[21]);
+        assertEquals(2f, a.data[23]);
+
+        b.ribbonNormal(0, 5, 0);
+        assertEquals(1f, b.rny, 1e-6);
+        b.ribbonNormal(0, 0, 0);
+        assertEquals(0f, b.rny, "zero = turn to the camera");
+    }
+
+    @Test
+    void octEncodingRoundTrips() {
+        float[] e = new float[2];
+        float[] n = new float[3];
+        double[][] dirs = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, -1}, {-1, -1, -1}, {0.3, -0.2, -0.9}, {-0.7, 0.1, 0.2}};
+        for (double[] d : dirs) {
+            double l = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+            ParticleBatch.octEncode(d[0] / l, d[1] / l, d[2] / l, e);
+            ParticleBatch.octDecode(e[0], e[1], n);
+            for (int i = 0; i < 3; i++) {
+                assertEquals(d[i] / l, n[i], 1e-5);
+            }
+        }
+    }
+
+    @Test
     void streamPointsFormOneRibbonUntilReset() {
         ParticleBatch b = new ParticleBatch(fx(), ID, 64);
         b.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.RIBBON);

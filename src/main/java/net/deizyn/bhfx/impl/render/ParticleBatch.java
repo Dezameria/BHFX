@@ -18,9 +18,13 @@ import java.util.Objects;
 public final class ParticleBatch implements FxParticles {
     /**
      * pos.xyz birth | vel.xyz life | size0 size1 rot spin | rgba | data | axis.xyz length | orbit spinUp pull link.
-     * RIBBON points keep their ribbon id in axis.x and the previous point's slot + 1 in link (0 = first point).
+     * RIBBON points keep their ribbon id in axis.x, their place along the ribbon in axis.y, their own strip normal
+     * octahedral-encoded in axis.z and axis.w + {@link #NORMAL_SET} (axis.w = 0: none), and the previous point's
+     * slot + 1 in link (0 = first point).
      */
     static final int FLOATS = 28;
+    /** Added to a ribbon point's encoded normal y (-1..1) so that 0 can mean "no normal of its own". */
+    static final float NORMAL_SET = 3f;
     public static final int MAX_CAPACITY = 16384;
 
     /** Added to the owner's age to get "now": 1 while ticking (the next frame shows age + 1 + partial), partial in frames. */
@@ -42,6 +46,10 @@ public final class ParticleBatch implements FxParticles {
     float drag;
     float softness = 0.4f;
     float distortion = 0.08f;
+    /** RIBBON strip normal for the whole batch (unit), or 0 = turn to the camera. */
+    float rnx;
+    float rny;
+    float rnz;
     /** Orbit axis: through the world point (when set; else the origin), along the unit axis. */
     private boolean orbitSet;
     private double cx;
@@ -54,6 +62,7 @@ public final class ParticleBatch implements FxParticles {
     private boolean orbiting;
     private final EmitPointImpl point = new EmitPointImpl();
     private final double[] sample = new double[6];
+    private final float[] octScratch = new float[2];
     /** Where {@link FxEmitter.Shape#onGround} looks for the ground (the client world; replaced in tests). */
     static FxEmitter.GroundProbe ground = LevelGround::surface;
     private int nextRibbon = 1;
@@ -259,6 +268,54 @@ public final class ParticleBatch implements FxParticles {
             oaz = (float) (axisZ / l);
         }
         return this;
+    }
+
+    @Override
+    public FxParticles ribbonNormal(double x, double y, double z) {
+        double l = Math.sqrt(x * x + y * y + z * z);
+        if (l > 1e-9) {
+            rnx = (float) (x / l);
+            rny = (float) (y / l);
+            rnz = (float) (z / l);
+        } else {
+            rnx = rny = rnz = 0f;
+        }
+        return this;
+    }
+
+    /**
+     * Octahedral encoding of a unit vector into two values in -1..1 (the same as {@code bhfxOctDecode} in the particle
+     * vertex shader): {@code out[0]}, {@code out[1]}.
+     */
+    static void octEncode(double x, double y, double z, float[] out) {
+        double l1 = Math.abs(x) + Math.abs(y) + Math.abs(z);
+        double ex = x / l1;
+        double ey = y / l1;
+        if (z < 0) {
+            double fx = (1 - Math.abs(ey)) * (ex >= 0 ? 1 : -1);
+            double fy = (1 - Math.abs(ex)) * (ey >= 0 ? 1 : -1);
+            ex = fx;
+            ey = fy;
+        }
+        out[0] = (float) ex;
+        out[1] = (float) ey;
+    }
+
+    /** Inverse of {@link #octEncode} (unit vector into {@code out[0..2]}), for tests. */
+    static void octDecode(float ex, float ey, float[] out) {
+        double x = ex;
+        double y = ey;
+        double z = 1 - Math.abs(ex) - Math.abs(ey);
+        if (z < 0) {
+            double fx = (1 - Math.abs(ey)) * (ex >= 0 ? 1 : -1);
+            double fy = (1 - Math.abs(ex)) * (ey >= 0 ? 1 : -1);
+            x = fx;
+            y = fy;
+        }
+        double l = Math.sqrt(x * x + y * y + z * z);
+        out[0] = (float) (x / l);
+        out[1] = (float) (y / l);
+        out[2] = (float) (z / l);
     }
 
     /** The orbit centre relative to the batch origin. */
@@ -593,6 +650,37 @@ public final class ParticleBatch implements FxParticles {
          * An orbiting particle is stored relative to the orbit centre as it is now, and drawn round the centre as it
          * is then, so it moves with the axis (an aura round a walking player stays round them). Once per particle.
          */
+        @Override
+        public ParticleSpawn along(float value) {
+            if (facing == Facing.RIBBON) {
+                data[base + 21] = value;
+            }
+            return this;
+        }
+
+        @Override
+        public ParticleSpawn normal(double x, double y, double z) {
+            if (facing != Facing.RIBBON) {
+                return this;
+            }
+            double l = Math.sqrt(x * x + y * y + z * z);
+            if (l > 1e-9) {
+                float[] e = octScratch;
+                octEncode(x / l, y / l, z / l, e);
+                data[base + 22] = e[0];
+                data[base + 23] = e[1] + NORMAL_SET;
+            } else {
+                data[base + 22] = 0f;
+                data[base + 23] = 0f;
+            }
+            return this;
+        }
+
+        @Override
+        public ParticleSpawn normal(Vec3 normal) {
+            return normal(normal.x, normal.y, normal.z);
+        }
+
         private void toOrbitFrame() {
             float[] d = data;
             if (d[base + 24] != 0f || d[base + 25] != 0f || d[base + 26] != 0f) {
@@ -664,6 +752,9 @@ public final class ParticleBatch implements FxParticles {
     private final class RibbonImpl implements Ribbon {
         private int id = nextRibbon++;
         private int lastSlot = -1;
+        private double lx;
+        private double ly;
+        private double lz;
 
         @Override
         public ParticleSpawn spawn(Vec3 world) {
@@ -678,8 +769,23 @@ public final class ParticleBatch implements FxParticles {
                 int b = slot * FLOATS;
                 data[b + 20] = id;
                 data[b + 27] = lastSlot + 1;
+                // along: on from the previous point by the distance between them (the previous value may have been
+                // set by hand); a fresh chain starts at 0
+                float along = 0f;
+                if (lastSlot >= 0) {
+                    double dx = x - lx;
+                    double dy = y - ly;
+                    double dz = z - lz;
+                    along = data[lastSlot * FLOATS + 21] + (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+                }
+                data[b + 21] = along;
+                data[b + 22] = 0f;
+                data[b + 23] = 0f;
             }
             lastSlot = slot;
+            lx = x;
+            ly = y;
+            lz = z;
             return s;
         }
 

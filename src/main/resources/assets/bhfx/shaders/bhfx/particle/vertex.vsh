@@ -3,7 +3,8 @@
 // (triangle strip). The particle's data lives in a buffer texture, 7 texels per slot:
 //   0: pos.xyz (from the batch origin), birth (s)   1: vel.xyz (blocks/s), life (s)
 //   2: size at birth, size at death, rotation, spin 3: rgba (display-encoded, like the frame)   4: free data
-//   5: axis.xyz, length (AXIS facing; length 0 = 2 x size; RIBBON: x = ribbon id)
+//   5: axis.xyz, length (AXIS facing; length 0 = 2 x size; RIBBON: x = ribbon id, y = along, zw = own strip
+//      normal, octahedral, w + 3; w = 0: none)
 //   6: orbit (rad/s), spin-up (rad/s^2), pull (blocks/s), link (RIBBON: previous point's slot + 1, 0 = none)
 // Motion is analytic: p(t) = p0 + v0 (1 - e^-kt) / k + g t^2 / 2, plus a turbulence offset that is 0 at birth. An
 // orbiting particle (orbit or pull set) is stored relative to the orbit centre, moves that way in a frame turning round
@@ -11,7 +12,8 @@
 // (stopping on the axis), and is placed round the centre as it is now: it moves with the axis. Over-life curves scale size here and
 // colour / alpha into pColor, so every material gets them. Slots not alive at PTime collapse to nothing.
 // RIBBON: instance i draws the segment from its previous point to itself; each end is turned by its own point's
-// backward tangent, so neighbouring segments share their edge exactly.
+// backward tangent, so neighbouring segments share their edge exactly. The strip turns to the camera, or lies in the
+// plane of the point's normal (its own, else PRibbonNormal), which turns with an orbiting point.
 
 uniform samplerBuffer PData;
 uniform mat4 InvProj;
@@ -25,6 +27,7 @@ uniform vec4 PShape;    // facing (0 camera, 1 velocity, 2 flat, 3 axis, 4 ribbo
 uniform vec4 PMode;     // blend (0 add, 1 alpha, 2 distort), softness, distortion, unused
 uniform vec3 POrbit;    // orbit axis passes through here (from the batch origin)
 uniform vec3 POrbitAxis; // unit orbit axis
+uniform vec3 PRibbonNormal; // RIBBON: unit strip normal for the batch, 0 = turn to the camera
 uniform vec4 PTurb;     // turbulence amplitude (blocks), frequency (Hz), pattern scale (waves per block), unused
 uniform vec4 PRing;     // capacity, slots filled, stride (instance i draws slot i * stride; 0 or 1 = every slot), unused
 uniform vec4 PCurves;   // colour keys (0 off, 1..4; -1 = ramp texture), alpha keys, size keys, unused
@@ -42,6 +45,8 @@ out vec3 pPos;
 out float pViewZ;
 out vec4 pColor;
 out float pAge;
+out float pAlong;
+out float pFacing;
 flat out vec4 pData;
 flat out vec3 pLife;
 flat out vec4 pScreen;
@@ -56,7 +61,18 @@ struct Pt {
     float birth;
     float ribbon; // RIBBON: chain id
     int prev;     // RIBBON: previous point's slot, -1 = none
+    float along;  // RIBBON: place along the chain
+    vec3 normal;  // RIBBON: strip normal (unit), 0 = turn to the camera
 };
+
+// inverse of ParticleBatch.octEncode
+vec3 bhfxOctDecode(vec2 e) {
+    vec3 n = vec3(e.x, e.y, 1.0 - abs(e.x) - abs(e.y));
+    if (n.z < 0.0) {
+        n.xy = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    }
+    return normalize(n);
+}
 
 float bhfxHash(float n) {
     return fract(sin(n * 12.9898 + 78.233) * 43758.5453);
@@ -138,6 +154,8 @@ Pt bhfxPoint(int slot) {
     o.birth = 0.0;
     o.ribbon = 0.0;
     o.prev = -1;
+    o.along = 0.0;
+    o.normal = vec3(0.0);
     if (slot < 0 || slot >= int(PRing.y)) {
         return o;
     }
@@ -160,7 +178,10 @@ Pt bhfxPoint(int slot) {
     vec3 q = a0.xyz + a1.xyz * travel + 0.5 * PMotion.xyz * t * t; // from the batch origin
     vec3 vel = a1.xyz * decay + PMotion.xyz * t;
     if (PShape.x > 3.5) {
-        o.ribbon = texelFetch(PData, base + 5).x;
+        vec4 a5 = texelFetch(PData, base + 5);
+        o.ribbon = a5.x;
+        o.along = a5.y;
+        o.normal = a5.w > 1.0 ? bhfxOctDecode(vec2(a5.z, a5.w - 3.0)) : PRibbonNormal;
         o.prev = int(a6.w + 0.5) - 1;
     }
     if (PTurb.x > 0.0) {
@@ -191,6 +212,7 @@ Pt bhfxPoint(int slot) {
         float s = sin(angle);
         r = bhfxTurn(r, kx, c, s);
         vel = bhfxTurn(vel, kx, c, s) + cross(kx, r) * (a6.x + a6.y * t);
+        o.normal = bhfxTurn(o.normal, kx, c, s);
         q = POrbit + r;
     }
     o.pos = POrigin + q;
@@ -212,6 +234,8 @@ void bhfxCollapse() {
     pViewZ = 0.0;
     pColor = vec4(0.0);
     pAge = 0.0;
+    pAlong = 0.0;
+    pFacing = 0.0;
     pData = vec4(0.0);
     pLife = vec3(0.0);
     pScreen = vec4(0.0);
@@ -251,8 +275,17 @@ void bhfxRibbon(int slot, vec2 corner) {
         tangent = InvView[1].xyz;
     }
     vec3 dir = normalize(tangent);
-    vec3 side = cross(dir, normalize(Eye - self.pos));
-    side = dot(side, side) > 1e-8 ? normalize(side) : InvView[0].xyz;
+    vec3 toEye = normalize(Eye - self.pos);
+    // in the plane of the point's normal when it has one (and the strip doesn't run along it), else to the camera
+    vec3 side = cross(dir, self.normal);
+    float facing = 1.0;
+    if (dot(side, side) > 1e-4) {
+        side = normalize(side);
+        facing = abs(dot(cross(side, dir), toEye));
+    } else {
+        side = cross(dir, toEye);
+        side = dot(side, side) > 1e-8 ? normalize(side) : InvView[0].xyz;
+    }
     vec3 world = self.pos + side * (self.size * corner.y);
     gl_Position = ViewProj * vec4(world, 1.0);
 
@@ -261,6 +294,8 @@ void bhfxRibbon(int slot, vec2 corner) {
     pViewZ = gl_Position.w;
     pColor = bhfxColor(selfSlot, self.age);
     pAge = self.age;
+    pAlong = self.along;
+    pFacing = facing;
     pData = texelFetch(PData, slot * 7 + 4);
     pLife = vec3(self.age, self.t, bhfxSeed(slot, b.birth));
     if (PMode.x > 1.5) {
@@ -349,6 +384,8 @@ void main() {
     pViewZ = gl_Position.w;
     pColor = bhfxColor(slot, p.age);
     pAge = p.age;
+    pAlong = 0.0;
+    pFacing = 1.0;
     pData = texelFetch(PData, base + 4);
     pLife = vec3(p.age, t, bhfxSeed(slot, p.birth));
     if (PMode.x > 1.5) {

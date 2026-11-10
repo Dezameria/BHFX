@@ -21,6 +21,8 @@ in vec3 pPos;
 in float pViewZ;
 in vec4 pColor;
 in float pAge;
+in float pAlong;
+in float pFacing;
 flat in vec4 pData;
 flat in vec3 pLife;
 flat in vec4 pScreen;
@@ -35,4 +37,6 @@ struct Particle {
     vec4 color;    // from the spawn (as on screen; values above 1 glow)
     vec4 data;     // free values from the spawn
     vec3 pos;      // camera-relative world position of this pixel
+    float along;   // RIBBON: smooth place along the ribbon (blocks from its first point, or as set per point); else 0
+    float facing;  // RIBBON in a plane: 1 face-on .. 0 edge-on; else 1
 };

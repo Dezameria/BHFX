@@ -31,6 +31,8 @@ void main() {
     p.color = pColor;
     p.data = pData;
     p.pos = pPos;
+    p.along = pAlong;
+    p.facing = pFacing;
     vec4 c = material(p);
     if (soft <= 0.0) {
         discard;

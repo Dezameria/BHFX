@@ -65,8 +65,12 @@ public interface FxParticles {
          * {@link ParticleSpawn#size size} wide, turned to the camera: trails, sword arcs, spiralling bands. Each point
          * moves like any particle (velocity, gravity, orbit, turbulence) and dies with its life, so the tail shortens
          * as points expire; fade it with {@link #alphaOverLife}. {@code p.uv.y} runs across, {@code p.age} along
-         * (0 at the newest point); {@code p.uv.x} only within one segment. Don't set {@link ParticleSpawn#axis} on
-         * ribbon points (it holds the link).
+         * (0 at the newest point); {@code p.uv.x} only within one segment. {@code p.along} runs smoothly along the
+         * whole ribbon (blocks from its first point, or set per point with {@link ParticleSpawn#along}), so a texture
+         * can be stretched along a curve drawn all at once. With {@link #ribbonNormal} or {@link ParticleSpawn#normal}
+         * the strip lies in a plane instead (a ring on the ground, a tilted band round a body) and thins when seen
+         * edge-on; {@code p.facing} is 1 face-on, 0 edge-on. Don't set {@link ParticleSpawn#axis} on ribbon points
+         * (it holds the link).
          */
         RIBBON
     }
@@ -158,6 +162,14 @@ public interface FxParticles {
     FxParticles orbit(Vec3 centre, Vec3 axis);
 
     FxParticles orbit(double x, double y, double z, double axisX, double axisY, double axisZ);
+
+    /**
+     * {@link Facing#RIBBON}: lay every strip in the plane with this normal (any length) instead of turning it to the
+     * camera, so a ring on the ground stays flat and thins when seen from the side. (0, 0, 0) = turn to the camera
+     * (default). A point's own {@link ParticleSpawn#normal} wins. The normal turns with an orbiting point, like its
+     * velocity. Where the strip runs along the normal it falls back to facing the camera.
+     */
+    FxParticles ribbonNormal(double x, double y, double z);
 
     /**
      * Start one particle at a world position. Set its other values on the returned object right away (it is reused
@@ -252,6 +264,22 @@ public interface FxParticles {
          * black hole, or out of a vortex.
          */
         ParticleSpawn pull(float blocksPerSecond);
+
+        /**
+         * {@link Facing#RIBBON}: this point's place along its ribbon, read smoothly in the material as
+         * {@code p.along}. Default: blocks along the chain from its first point (so a trail's texture stays put in
+         * the world). Set 0..1 on an arc drawn at once to stretch one texture over it. Ignored by other facings.
+         */
+        ParticleSpawn along(float value);
+
+        /**
+         * {@link Facing#RIBBON}: the normal of the plane the strip lies in at this point (any length; (0, 0, 0) = the
+         * batch's {@link FxParticles#ribbonNormal}). Varying it along a ribbon twists the strip. Ignored by other
+         * facings.
+         */
+        ParticleSpawn normal(double x, double y, double z);
+
+        ParticleSpawn normal(Vec3 normal);
     }
 
     /**

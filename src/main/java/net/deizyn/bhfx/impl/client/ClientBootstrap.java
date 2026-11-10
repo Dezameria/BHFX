@@ -15,6 +15,7 @@ import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.client.RegisterFxEvent;
 import net.deizyn.bhfx.impl.client.test.FlowTestFx;
 import net.deizyn.bhfx.impl.client.test.ParticlesTestFx;
+import net.deizyn.bhfx.impl.client.test.SwirlTestFx;
 import net.deizyn.bhfx.impl.client.test.VortexTestFx;
 import net.deizyn.bhfx.impl.client.test.TestFx;
 import net.deizyn.bhfx.impl.client.test.TrackerTestFx;
@@ -43,6 +44,7 @@ public final class ClientBootstrap {
             ClientFxManager.register(BHFxMod.id("test_particles"), ParticlesTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_vortex"), VortexTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_flow"), FlowTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_swirl"), SwirlTestFx::new);
             ModLoader.get().postEvent(new RegisterFxEvent());
         });
     }
