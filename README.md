@@ -27,10 +27,10 @@ dependencies {
 
 | Command | Side | What it does |
 | :--- | :--- | :--- |
-| `/bhfx test <fx> [at <pos> \| attach <who>] [{...}]` | client | Plays a registered effect. Only you see it. Tab completes the effect id |
-| `/bhfx stop [<who>] [finish]` | client | Fades out what `/bhfx test` started (all, or only the effects attached to `who`). `finish` plays the full ending instead |
+| `/bhfx test <fx> [at <pos> \| attach <who>] [{...}]` | client | Plays a registered effect. Only you see it. Tab completes the effect id. `{name:a}` labels it for `stop name a` (several effects may share a name) |
+| `/bhfx stop [<who> \| fx <id> \| near <radius> \| name <name>] [finish]` | client | Fades out what `/bhfx test` started: all of it, or only the effects attached to `who`, of one effect id, within `radius` blocks of you (attached ones by where the entity is now), or with that name. `fx` and `name` tab complete what is playing. `finish` plays the full ending instead |
 | `/bhfx_play fx <fx> [at <pos> \| attach <who>] [to <players>] [{...}]` | server (op 2) | Same, but every player in range sees it, or only `to` (through `BHFx.start`). Effect ids are suggested in single player and on a LAN host; a dedicated server cannot check or suggest them (only clients know which effects are registered), so try them with `/bhfx test` first |
-| `/bhfx_play stop [<who>] [finish]` | server (op 2) | Like `/bhfx stop`, for what `/bhfx_play` started |
+| `/bhfx_play stop [<who> \| fx <id> \| near <radius> \| name <name>] [finish]` | server (op 2) | Like `/bhfx stop`, for what `/bhfx_play` started (`near` measures from where the command runs) |
 | `/bhfx_play stress <count> [radius] [seconds] [fx ...]` | server (op 2) | Load test: starts `count` effects at random spots within `radius` (default 32) of you, all in one tick (`seconds` 0) or spread over the seconds, taking the listed ids in turn (spaces or commas). Every player in range sees them. With no ids, every registered effect (single player / LAN host only; a dedicated server needs the ids). `/bhfx_play stop` ends them |
 | `/bhfx_play net [seconds]` | server (op 2) | Counts what bhfx sends to each player for `seconds` (default 10), then reports KB/s, packets/s and starts/s in total and per player, and starts refused by `maxStartsPerTick` / `maxActivePerCaster`. No cost unless running |
 | `/bhfx_play pulse` | server (op 2) | A ScreenPulse on yourself: shake, flash, red screen edges and colour fringing (players within 32 blocks see it too, weaker with distance) |

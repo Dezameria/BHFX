@@ -104,7 +104,8 @@ public final class ServerFxEvents {
     /**
      * /bhfx_play fx &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [to &lt;players&gt;] [{params}] — like the client's /bhfx test,
      * but sent to every player in range, or only to {@code to} (full vanilla selectors, including tag=).
-     * /bhfx_play stop [&lt;entities&gt;] [finish] — fades out (or plays the full ending of) what this command started.
+     * /bhfx_play stop [&lt;entities&gt; | fx &lt;id&gt; | near &lt;radius&gt; | name &lt;name&gt;] [finish] — fades out (or plays
+     * the full ending of) what this command started: all of it, or only what the scope picks.
      * /bhfx_play pulse — a screen pulse at the player. Permission level 2. Effects are registered on clients, so a
      * dedicated server can neither check nor suggest ids (try them with /bhfx test first); single player and LAN hosts
      * suggest them, because the client is in the same game.
@@ -113,7 +114,7 @@ public final class ServerFxEvents {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("bhfx_play")
                 .requires(source -> source.hasPermission(2))
-                .then(FxCommands.stop(ServerFxEvents::stopPlayed))
+                .then(FxCommands.stop(PLAYED, ServerFxEvents::stopPlayed))
                 .then(Commands.literal("pulse").executes(ServerFxEvents::pulse))
                 .then(FxCommands.stress(ServerFxEvents::knownIds, ServerFxEvents::stress))
                 .then(Commands.literal("net").executes(ctx -> net(ctx, 10))
@@ -174,7 +175,7 @@ public final class ServerFxEvents {
         for (int i = 0; i < due; i++) {
             ResourceLocation fx = plan.id(plan.startedCount() - due + i);
             Vec3 at = plan.nextPoint();
-            if (!start(run.level(), fx, FxSpawn.at(at).target(at), null)) {
+            if (!start(run.level(), fx, FxSpawn.at(at).target(at), null, at, null)) {
                 plan.refused();
             }
         }
@@ -224,7 +225,7 @@ public final class ServerFxEvents {
             int started = 0;
             for (Entity target : targets) {
                 if (target.level() instanceof ServerLevel level
-                        && start(level, fx, audience(FxCommands.spawnOn(target, args), viewers), target)) {
+                        && start(level, fx, audience(FxCommands.spawnOn(target, args), viewers), target, target.position(), args.name())) {
                     started++;
                 }
             }
@@ -241,7 +242,7 @@ public final class ServerFxEvents {
         Entity runner = source.getEntity();
         Vec3 at = shape.at() ? Vec3Argument.getVec3(ctx, "pos")
                 : runner != null ? lookTarget(runner, source.getLevel()) : source.getPosition();
-        if (!start(source.getLevel(), fx, audience(FxCommands.spawnAt(at, runner, args), viewers), null)) {
+        if (!start(source.getLevel(), fx, audience(FxCommands.spawnAt(at, runner, args), viewers), null, at, args.name())) {
             return limited(source, fx);
         }
         source.sendSuccess(() -> Component.literal(String.format("bhfx play: %s at %d %d %d, seen by %s",
@@ -249,12 +250,17 @@ public final class ServerFxEvents {
         return 1;
     }
 
-    private static boolean start(ServerLevel level, ResourceLocation fx, FxSpawn spawn, @Nullable Entity attached) {
+    private static boolean start(ServerLevel level, ResourceLocation fx, FxSpawn spawn, @Nullable Entity attached,
+                                 Vec3 at, @Nullable String name) {
         FxHandle handle = BHFx.start(level, fx, spawn);
         if (handle.isNone()) {
             return false;
         }
-        PLAYED.add(handle, fx, attached);
+        if (attached != null) {
+            PLAYED.add(handle, fx, name, attached);
+        } else {
+            PLAYED.add(handle, fx, name, at, level.dimension().location());
+        }
         return true;
     }
 
@@ -267,11 +273,13 @@ public final class ServerFxEvents {
         return 0;
     }
 
-    private static int stopPlayed(CommandContext<CommandSourceStack> ctx, boolean who, StopMode mode) throws CommandSyntaxException {
-        Collection<? extends Entity> on = who ? EntityArgument.getEntities(ctx, "who") : null;
-        int n = PLAYED.stop(on, mode);
-        ctx.getSource().sendSuccess(() -> Component.literal("bhfx: stopped " + n + " effect(s) started by /bhfx_play"
-                + (mode == StopMode.FINISH ? " (full ending)" : "")), true);
+    private static int stopPlayed(CommandContext<CommandSourceStack> ctx, FxCommands.StopBy by, StopMode mode)
+            throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        Collection<? extends Entity> on = by == FxCommands.StopBy.ENTITIES ? EntityArgument.getEntities(ctx, "who") : null;
+        int n = PLAYED.stop(FxCommands.which(ctx, by, on, source.getPosition(), source.getLevel().dimension().location()), mode);
+        source.sendSuccess(() -> Component.literal("bhfx: stopped " + n + " effect(s) started by /bhfx_play"
+                + FxCommands.describe(ctx, by) + (mode == StopMode.FINISH ? " (full ending)" : "")), true);
         return Math.max(1, n);
     }
 

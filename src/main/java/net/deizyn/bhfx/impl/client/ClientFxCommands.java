@@ -28,7 +28,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * /bhfx test &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [{params}] and /bhfx stop [&lt;entities&gt;] [finish]:
+ * /bhfx test &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [{params}] and
+ * /bhfx stop [&lt;entities&gt; | fx &lt;id&gt; | near &lt;radius&gt; | name &lt;name&gt;] [finish]:
  * plays registered effects on this client only (see {@link FxCommands}, {@link FxCommandArgs}).
  */
 final class ClientFxCommands {
@@ -45,7 +46,7 @@ final class ClientFxCommands {
     }
 
     static LiteralArgumentBuilder<CommandSourceStack> stop() {
-        return FxCommands.stop(ClientFxCommands::stop);
+        return FxCommands.stop(STARTED, ClientFxCommands::stop);
     }
 
     static void clear() {
@@ -56,7 +57,7 @@ final class ClientFxCommands {
     // ------------------------------------------------------------------ stress
 
     /** A running /bhfx stress and who asked for it. */
-    private record StressRun(FxStress plan, CommandSourceStack source) {
+    private record StressRun(FxStress plan, CommandSourceStack source, ResourceLocation level) {
     }
 
     private static final List<StressRun> STRESS = new ArrayList<>();
@@ -93,7 +94,7 @@ final class ClientFxCommands {
             return 0;
         }
         FxStress plan = new FxStress(ids, mc.player.position(), radius, count, seconds, mc.level.random.nextLong());
-        StressRun run = new StressRun(plan, ctx.getSource());
+        StressRun run = new StressRun(plan, ctx.getSource(), mc.level.dimension().location());
         ClientFxManager.resetCounters();
         ctx.getSource().sendSuccess(() -> Component.literal("bhfx stress: " + plan.describe()
                 + " (only you see them). /bhfx stop ends them; /bhfx stats shows the counters."), false);
@@ -121,7 +122,7 @@ final class ClientFxCommands {
             if (handle.isNone()) {
                 plan.refused();
             } else {
-                STARTED.add(handle, fx, null);
+                STARTED.add(handle, fx, null, at, run.level());
             }
         }
         if (!plan.done()) {
@@ -157,7 +158,7 @@ final class ClientFxCommands {
             for (Entity target : targets) {
                 LocalFxHandle handle = ClientFxManager.startLocal(fx, FxCommands.spawnOn(target, args));
                 if (!handle.isNone()) {
-                    STARTED.add(handle, fx, target);
+                    STARTED.add(handle, fx, args.name(), target);
                     started++;
                 }
             }
@@ -174,21 +175,23 @@ final class ClientFxCommands {
         if (handle.isNone()) {
             return off(ctx, fx);
         }
-        STARTED.add(handle, fx, null);
+        STARTED.add(handle, fx, args.name(), at, mc.level.dimension().location());
         ctx.getSource().sendSuccess(() -> Component.literal(String.format("bhfx test: %s at %d %d %d (only you see it)",
                 fx, (int) Math.floor(at.x), (int) Math.floor(at.y), (int) Math.floor(at.z))), false);
         return 1;
     }
 
-    private static int stop(CommandContext<CommandSourceStack> ctx, boolean who, StopMode mode) throws CommandSyntaxException {
+    private static int stop(CommandContext<CommandSourceStack> ctx, FxCommands.StopBy by, StopMode mode)
+            throws CommandSyntaxException {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
             return 0;
         }
-        List<Entity> on = who ? ClientSelector.select(FxCommands.raw(ctx, "who"), mc.level, mc.player, mc.player.position()) : null;
-        int n = STARTED.stop(on, mode);
+        List<Entity> on = by == FxCommands.StopBy.ENTITIES
+                ? ClientSelector.select(FxCommands.raw(ctx, "who"), mc.level, mc.player, mc.player.position()) : null;
+        int n = STARTED.stop(FxCommands.which(ctx, by, on, mc.player.position(), mc.level.dimension().location()), mode);
         ctx.getSource().sendSuccess(() -> Component.literal("bhfx: stopped " + n + " test effect(s)"
-                + (mode == StopMode.FINISH ? " (full ending)" : "")), false);
+                + FxCommands.describe(ctx, by) + (mode == StopMode.FINISH ? " (full ending)" : "")), false);
         return Math.max(1, n);
     }
 

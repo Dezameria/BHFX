@@ -62,6 +62,17 @@ class FxCommandArgsTest {
     }
 
     @Test
+    void nameIsALabelNotAParam() throws CommandSyntaxException {
+        FxCommandArgs a = args("{name:a, radius:4}");
+        assertEquals("a", a.name());
+        assertFalse(a.params().has(FxParam.color("name")));
+        assertNull(args("{radius:4}").name());
+        assertThrows(CommandSyntaxException.class, () -> args("{name:3}"));
+        assertThrows(CommandSyntaxException.class, () -> args("{name:\"two words\"}"));
+        assertThrows(CommandSyntaxException.class, () -> args("{name:\"\"}"));
+    }
+
+    @Test
     void badInputIsReported() {
         assertThrows(CommandSyntaxException.class, () -> args("{hold:true, duration:3}"));
         assertThrows(CommandSyntaxException.class, () -> args("{duration:0}"));

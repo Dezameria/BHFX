@@ -18,14 +18,19 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.regex.Pattern;
+
 /**
- * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Three names are options of the command itself and never
- * reach the effect: {@code hold:true} (play until stopped), {@code duration:N} (seconds) and {@code range:N} (broadcast radius,
- * /bhfx_play only). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
+ * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Four names are options of the command itself and never
+ * reach the effect: {@code hold:true} (play until stopped), {@code duration:N} (seconds), {@code range:N} (broadcast radius,
+ * /bhfx_play only) and {@code name:a} (a label for {@code stop name a}; several effects may share one). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
  * decimals → float (an int also fills a float key), {@code "#RRGGBB"} → colour.
  */
-public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range) {
-    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null);
+public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range, @Nullable String name) {
+    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null);
+
+    /** What stop name accepts (brigadier's unquoted word). */
+    private static final Pattern LABEL = Pattern.compile("[0-9A-Za-z_.+-]{1,32}");
 
     private static final int MAX_NAME = 64;
     private static final DynamicCommandExceptionType BAD = new DynamicCommandExceptionType(
@@ -39,6 +44,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         boolean hold = false;
         Float duration = null;
         Double range = null;
+        String label = null;
         int count = 0;
         for (String name : tag.getAllKeys()) {
             Tag value = tag.get(name);
@@ -60,6 +66,12 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
                     }
                     range = (double) r;
                 }
+                case "name" -> {
+                    if (!(value instanceof StringTag s) || !LABEL.matcher(s.getAsString()).matches()) {
+                        throw BAD.create("name must be 1-32 letters, digits or _ . + -, e.g. {name:a}");
+                    }
+                    label = s.getAsString();
+                }
                 default -> {
                     if (name.isEmpty() || name.length() > MAX_NAME) {
                         throw BAD.create("param names must be 1-" + MAX_NAME + " characters");
@@ -76,7 +88,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         }
         int ticks = hold ? FxSpawn.UNTIL_STOPPED
                 : duration != null ? Math.max(1, Math.round(duration * 20f)) : FxSpawn.DEFAULT_DURATION;
-        return new FxCommandArgs(params.build(), ticks, range);
+        return new FxCommandArgs(params.build(), ticks, range, label);
     }
 
     public FxSpawn apply(FxSpawn spawn) {
