@@ -14,6 +14,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.impl.BHFxConfig;
+import net.deizyn.bhfx.impl.block.MirrorPanelBlock;
 import net.deizyn.bhfx.impl.block.MirrorTracker;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -432,7 +433,8 @@ final class MirrorRenderer {
             if (dist > range * range || !frustum.isVisible(box)) {
                 return;
             }
-            Plane plane = byPlane.computeIfAbsent(cluster.key.planeId(), id -> new Plane(id, facing, cluster.faceAt));
+            Plane plane = byPlane.computeIfAbsent(cluster.key.planeId(), id -> new Plane(id, facing, cluster.faceAt,
+                    cluster.key.panel()));
             plane.add(cluster, dist);
         });
         List<Plane> planes = new ArrayList<>(byPlane.values());
@@ -519,8 +521,11 @@ final class MirrorRenderer {
         return cam.add(imagePoint.subtract(cam).scale(t));
     }
 
+    /** Whether a mirror of this surface lies under {@code facePoint}: step back into the block that carries the face. */
     private static boolean onPlane(Plane plane, Vec3 facePoint, Vec3 normal) {
-        return MirrorTracker.hasFace(BlockPos.containing(facePoint.subtract(normal.scale(0.5))), plane.facing);
+        double back = plane.panel ? MirrorPanelBlock.THICKNESS * 0.5 : 0.5;
+        return MirrorTracker.hasFace(BlockPos.containing(facePoint.subtract(normal.scale(back))), plane.facing,
+                plane.panel);
     }
 
     private static boolean clear(ClientLevel level, Vec3 from, Vec3 to, Player player) {
@@ -618,15 +623,18 @@ final class MirrorRenderer {
         final long id;
         final Direction facing;
         final double at;
+        /** Panel fronts, not block faces (see {@link #onPlane}). */
+        final boolean panel;
         final List<MirrorTracker.Cluster> clusters = new ArrayList<>();
         AABB bounds;
         double nearest = Double.MAX_VALUE;
         List<Player> players = List.of();
 
-        Plane(long id, Direction facing, double at) {
+        Plane(long id, Direction facing, double at, boolean panel) {
             this.id = id;
             this.facing = facing;
             this.at = at;
+            this.panel = panel;
         }
 
         void add(MirrorTracker.Cluster cluster, double dist) {

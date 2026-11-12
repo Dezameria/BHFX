@@ -26,9 +26,14 @@ public final class BHFxBlocks {
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.0f).sound(SoundType.GLASS)));
     public static final RegistryObject<BlockItem> MIRROR_ITEM = ITEMS.register("mirror",
             () -> new BlockItem(MIRROR.get(), new Item.Properties()));
+    public static final RegistryObject<MirrorPanelBlock> MIRROR_PANEL = BLOCKS.register("mirror_panel",
+            () -> new MirrorPanelBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(0.5f)
+                    .sound(SoundType.GLASS).noOcclusion()));
+    public static final RegistryObject<BlockItem> MIRROR_PANEL_ITEM = ITEMS.register("mirror_panel",
+            () -> new BlockItem(MIRROR_PANEL.get(), new Item.Properties()));
     @SuppressWarnings("DataFlowIssue")
     public static final RegistryObject<BlockEntityType<MirrorBlockEntity>> MIRROR_ENTITY = BLOCK_ENTITIES.register("mirror",
-            () -> BlockEntityType.Builder.of(MirrorBlockEntity::new, MIRROR.get()).build(null));
+            () -> BlockEntityType.Builder.of(MirrorBlockEntity::new, MIRROR.get(), MIRROR_PANEL.get()).build(null));
 
     private BHFxBlocks() {
     }
@@ -43,6 +48,7 @@ public final class BHFxBlocks {
     private static void fillTabs(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
             event.accept(MIRROR_ITEM);
+            event.accept(MIRROR_PANEL_ITEM);
         }
     }
 }

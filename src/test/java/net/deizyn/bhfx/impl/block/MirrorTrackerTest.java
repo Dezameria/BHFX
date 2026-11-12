@@ -111,6 +111,67 @@ class MirrorTrackerTest {
     }
 
     @Test
+    void panelReflectsOnlyItsFrontJustOffTheWall() {
+        BlockPos east = new BlockPos(3, 64, 3);
+        BlockPos west = new BlockPos(8, 64, 3);
+        MirrorTracker.addPanel(east, Direction.EAST); // laid on a wall at x = 2
+        MirrorTracker.addPanel(west, Direction.WEST); // laid on a wall at x = 9
+        assertEquals(2, MirrorTracker.clusters().size());
+        assertTrue(MirrorTracker.hasFace(east, Direction.EAST, true));
+        assertFalse(MirrorTracker.hasFace(east, Direction.EAST)); // not a block face
+        assertFalse(MirrorTracker.hasFace(east, Direction.WEST, true));
+        for (MirrorTracker.Cluster cluster : MirrorTracker.clusters()) {
+            double expected = cluster.key.facing() == Direction.EAST ? 3 + 1 / 16.0 : 9 - 1 / 16.0;
+            assertEquals(expected, cluster.faceAt, 1e-9);
+        }
+    }
+
+    @Test
+    void panelsOnOneWallMergeIntoOneSurface() {
+        for (int x = 0; x < 4; x++) {
+            for (int y = 64; y < 67; y++) {
+                MirrorTracker.addPanel(new BlockPos(x, y, 5), Direction.NORTH);
+            }
+        }
+        assertEquals(1, MirrorTracker.clusters().size());
+        MirrorTracker.Cluster cluster = MirrorTracker.clusters().iterator().next();
+        assertArrayEquals(new int[] {0, 64, 4, 67}, cluster.rects());
+    }
+
+    @Test
+    void panelsAndBlocksOfOneLayerAreSeparateSurfaces() {
+        MirrorTracker.add(new BlockPos(0, 64, 5));
+        MirrorTracker.addPanel(new BlockPos(1, 64, 5), Direction.NORTH);
+        long blockPlane = 0;
+        long panelPlane = 0;
+        for (MirrorTracker.Cluster cluster : MirrorTracker.clusters()) {
+            if (cluster.key.facing() == Direction.NORTH) {
+                if (cluster.key.panel()) {
+                    panelPlane = cluster.key.planeId();
+                } else {
+                    blockPlane = cluster.key.planeId();
+                }
+            }
+        }
+        assertTrue(blockPlane != panelPlane);
+        // a panel beside a block hides none of the block's faces
+        assertTrue(MirrorTracker.hasFace(new BlockPos(0, 64, 5), Direction.EAST));
+    }
+
+    @Test
+    void turnedOrRemovedPanelLeavesNothingBehind() {
+        BlockPos pos = new BlockPos(0, 64, 0);
+        MirrorTracker.addPanel(pos, Direction.NORTH);
+        MirrorTracker.addPanel(pos, Direction.UP);
+        assertFalse(MirrorTracker.hasFace(pos, Direction.NORTH, true));
+        assertTrue(MirrorTracker.hasFace(pos, Direction.UP, true));
+        assertEquals(1, MirrorTracker.mirrorCount());
+        MirrorTracker.remove(pos);
+        assertTrue(MirrorTracker.isEmpty());
+        assertTrue(MirrorTracker.clusters().isEmpty());
+    }
+
+    @Test
     void negativeCoordinatesStayInTheirTile() {
         MirrorTracker.add(new BlockPos(-1, 64, 0));
         MirrorTracker.add(new BlockPos(-1, 64, 5));

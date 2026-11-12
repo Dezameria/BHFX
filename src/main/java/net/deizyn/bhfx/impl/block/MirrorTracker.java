@@ -18,7 +18,8 @@ import java.util.function.Consumer;
 
 /**
  * Mirror faces loaded in the client level. Every face of a mirror block reflects, except one that touches another
- * mirror. Faces are kept in clusters (facing, block layer along the facing axis, 16x16 tile of that plane), each with
+ * mirror; a mirror panel reflects only its front, {@link MirrorPanelBlock#THICKNESS} out from the face it is laid on.
+ * Faces are kept in clusters (facing, block layer along the facing axis, block or panel, 16x16 tile of that plane), each with
  * its faces merged into rectangles, and clusters are indexed by chunk section, so the renderer only looks at the
  * sections around the camera: a maze of tens of thousands of mirrors costs about what the nearby ones cost.
  * Lives in common code so {@link MirrorBlockEntity} can reach it without loading client classes; only the client
@@ -26,6 +27,8 @@ import java.util.function.Consumer;
  */
 public final class MirrorTracker {
     private static final Set<BlockPos> MIRRORS = new HashSet<>();
+    /** Panels by position, with the way their front faces. */
+    private static final Map<BlockPos, Direction> PANELS = new HashMap<>();
     private static final Map<Key, Cluster> CLUSTERS = new HashMap<>();
     private static final Map<Long, List<Cluster>> BY_SECTION = new HashMap<>();
 
@@ -47,7 +50,24 @@ public final class MirrorTracker {
         }
     }
 
+    /** A panel never hides or is hidden by a neighbour: only its front reflects, and it is never touching. */
+    static void addPanel(BlockPos pos, Direction facing) {
+        BlockPos at = pos.immutable();
+        Direction old = PANELS.put(at, facing);
+        if (old == facing) {
+            return;
+        }
+        if (old != null) {
+            removeFace(at, old, true);
+        }
+        addFace(at, facing, true);
+    }
+
     static void remove(BlockPos pos) {
+        Direction panel = PANELS.remove(pos);
+        if (panel != null) {
+            removeFace(pos, panel, true);
+        }
         if (!MIRRORS.remove(pos)) {
             return;
         }
@@ -62,7 +82,11 @@ public final class MirrorTracker {
     }
 
     private static void addFace(BlockPos pos, Direction facing) {
-        Key key = Key.of(pos, facing);
+        addFace(pos, facing, false);
+    }
+
+    private static void addFace(BlockPos pos, Direction facing, boolean panel) {
+        Key key = Key.of(pos, facing, panel);
         Cluster cluster = CLUSTERS.get(key);
         if (cluster == null) {
             cluster = new Cluster(key);
@@ -73,7 +97,11 @@ public final class MirrorTracker {
     }
 
     private static void removeFace(BlockPos pos, Direction facing) {
-        Key key = Key.of(pos, facing);
+        removeFace(pos, facing, false);
+    }
+
+    private static void removeFace(BlockPos pos, Direction facing, boolean panel) {
+        Key key = Key.of(pos, facing, panel);
         Cluster cluster = CLUSTERS.get(key);
         if (cluster != null && cluster.remove(pos)) {
             CLUSTERS.remove(key);
@@ -87,9 +115,14 @@ public final class MirrorTracker {
         }
     }
 
-    /** Whether the mirror at {@code pos} has a reflecting face toward {@code facing}. */
+    /** Whether the mirror block at {@code pos} has a reflecting face toward {@code facing}. */
     public static boolean hasFace(BlockPos pos, Direction facing) {
-        Cluster cluster = CLUSTERS.get(Key.of(pos, facing));
+        return hasFace(pos, facing, false);
+    }
+
+    /** Whether the mirror block ({@code panel} false) or panel at {@code pos} reflects toward {@code facing}. */
+    public static boolean hasFace(BlockPos pos, Direction facing, boolean panel) {
+        Cluster cluster = CLUSTERS.get(Key.of(pos, facing, panel));
         return cluster != null && cluster.blocks.contains(pos);
     }
 
@@ -111,11 +144,11 @@ public final class MirrorTracker {
     }
 
     public static boolean isEmpty() {
-        return MIRRORS.isEmpty();
+        return MIRRORS.isEmpty() && PANELS.isEmpty();
     }
 
     public static int mirrorCount() {
-        return MIRRORS.size();
+        return MIRRORS.size() + PANELS.size();
     }
 
     public static Collection<Cluster> clusters() {
@@ -124,20 +157,28 @@ public final class MirrorTracker {
 
     public static void clear() {
         MIRRORS.clear();
+        PANELS.clear();
         CLUSTERS.clear();
         BY_SECTION.clear();
     }
 
-    /** facing + the block layer along the facing axis + which 16x16 tile of the plane. */
-    public record Key(Direction facing, int layer, int tileU, int tileV) {
+    /**
+     * facing + the block layer along the facing axis + which 16x16 tile of the plane + whether these are panel
+     * fronts (which lie at another depth than block faces of the same layer).
+     */
+    public record Key(Direction facing, int layer, int tileU, int tileV, boolean panel) {
         static Key of(BlockPos pos, Direction facing) {
+            return of(pos, facing, false);
+        }
+
+        static Key of(BlockPos pos, Direction facing, boolean panel) {
             Direction.Axis axis = facing.getAxis();
-            return new Key(facing, pos.get(axis), u(pos, axis) >> 4, v(pos, axis) >> 4);
+            return new Key(facing, pos.get(axis), u(pos, axis) >> 4, v(pos, axis) >> 4, panel);
         }
 
         /** Same for every cluster of one flat mirror surface. */
         public long planeId() {
-            return ((long) facing.ordinal() << 32) | (layer & 0xFFFFFFFFL);
+            return (panel ? 1L << 40 : 0L) | ((long) facing.ordinal() << 32) | (layer & 0xFFFFFFFFL);
         }
 
         /** The chunk section the cluster lies in (a tile is 16x16 and one block thick). */
@@ -173,7 +214,13 @@ public final class MirrorTracker {
 
         Cluster(Key key) {
             this.key = key;
-            this.faceAt = key.facing.getAxisDirection() == Direction.AxisDirection.POSITIVE ? key.layer + 1 : key.layer;
+            boolean positive = key.facing.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+            if (key.panel) {
+                // the plate lies against the block face behind it, so its front is THICKNESS into the cell
+                this.faceAt = positive ? key.layer + MirrorPanelBlock.THICKNESS : key.layer + 1 - MirrorPanelBlock.THICKNESS;
+            } else {
+                this.faceAt = positive ? key.layer + 1 : key.layer;
+            }
         }
 
         void add(BlockPos pos) {

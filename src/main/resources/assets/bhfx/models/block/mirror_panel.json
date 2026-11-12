@@ -1,0 +1,22 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "bhfx:block/mirror_front",
+    "glass": "bhfx:block/mirror_front"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 1],
+      "faces": {
+        "south": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "north": { "uv": [0, 0, 16, 16], "texture": "#glass", "cullface": "north" },
+        "east": { "uv": [15, 0, 16, 16], "texture": "#glass", "cullface": "east" },
+        "west": { "uv": [0, 0, 1, 16], "texture": "#glass", "cullface": "west" },
+        "up": { "uv": [0, 0, 16, 1], "texture": "#glass", "cullface": "up" },
+        "down": { "uv": [0, 15, 16, 16], "texture": "#glass", "cullface": "down" }
+      }
+    }
+  ]
+}

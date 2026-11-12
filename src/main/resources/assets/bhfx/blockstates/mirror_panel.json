@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=south": { "model": "bhfx:block/mirror_panel", "uvlock": true },
+    "facing=west": { "model": "bhfx:block/mirror_panel", "y": 90, "uvlock": true },
+    "facing=north": { "model": "bhfx:block/mirror_panel", "y": 180, "uvlock": true },
+    "facing=east": { "model": "bhfx:block/mirror_panel", "y": 270, "uvlock": true },
+    "facing=up": { "model": "bhfx:block/mirror_panel", "x": 90, "uvlock": true },
+    "facing=down": { "model": "bhfx:block/mirror_panel", "x": 270, "uvlock": true }
+  }
+}
