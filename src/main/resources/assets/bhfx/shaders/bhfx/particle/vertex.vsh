@@ -6,6 +6,7 @@
 //   5: axis.xyz, length (AXIS facing; length 0 = 2 x size; RIBBON: x = ribbon id, y = along, zw = own strip
 //      normal, octahedral, w + 3; w = 0: none)
 //   6: orbit (rad/s), spin-up (rad/s^2), pull (blocks/s), link (RIBBON: previous point's slot + 1, 0 = none)
+//   TUMBLE: rotation = face normal packed (bhfxUnpackUnit, 0 = none), spin = tumble rate, link = tumble axis packed
 // Motion is analytic: p(t) = p0 + v0 (1 - e^-kt) / k + g t^2 / 2, plus a turbulence offset that is 0 at birth. An
 // orbiting particle (orbit or pull set) is stored relative to the orbit centre, moves that way in a frame turning round
 // the batch's orbit axis by w t + a t^2 / 2, pulled towards the axis along its spawn radius by pull (1 - e^-kt) / k
@@ -23,7 +24,7 @@ uniform vec3 Eye;
 uniform vec3 POrigin;   // batch origin, camera-relative
 uniform float PTime;    // batch clock, seconds
 uniform vec4 PMotion;   // gravity xyz, drag
-uniform vec4 PShape;    // facing (0 camera, 1 velocity, 2 flat, 3 axis, 4 ribbon), stretch, pivot (0 centred, 1 from the base), unused
+uniform vec4 PShape;    // facing (0 camera, 1 velocity, 2 flat, 3 axis, 4 ribbon, 5 tumble), stretch, pivot (0 centred, 1 from the base), unused
 uniform vec4 PMode;     // blend (0 add, 1 alpha, 2 distort), softness, distortion, unused
 uniform vec3 POrbit;    // orbit axis passes through here (from the batch origin)
 uniform vec3 POrbitAxis; // unit orbit axis
@@ -76,6 +77,14 @@ vec3 bhfxOctDecode(vec2 e) {
 
 float bhfxHash(float n) {
     return fract(sin(n * 12.9898 + 78.233) * 43758.5453);
+}
+
+// inverse of ParticleBatch.packUnit: both octahedral values quantised to 0..2047 in one float, 0 = none
+vec3 bhfxUnpackUnit(float code) {
+    float v = floor(code + 0.5) - 1.0;
+    float qx = floor(v / 2048.0);
+    float qy = v - qx * 2048.0;
+    return bhfxOctDecode(vec2(qx, qy) / 2047.0 * 2.0 - 1.0);
 }
 
 float bhfxSeed(int slot, float birth) {
@@ -177,7 +186,7 @@ Pt bhfxPoint(int slot) {
     float travel = k > 1e-4 ? (1.0 - decay) / k : t;
     vec3 q = a0.xyz + a1.xyz * travel + 0.5 * PMotion.xyz * t * t; // from the batch origin
     vec3 vel = a1.xyz * decay + PMotion.xyz * t;
-    if (PShape.x > 3.5) {
+    if (PShape.x > 3.5 && PShape.x < 4.5) {
         vec4 a5 = texelFetch(PData, base + 5);
         o.ribbon = a5.x;
         o.along = a5.y;
@@ -311,7 +320,7 @@ void main() {
     // thinned frames draw one slot in PRing.z, the same slots every frame; ribbons always get 1 (they link to every point)
     int slot = gl_InstanceID * max(1, int(PRing.z + 0.5));
     vec2 corner = vec2((gl_VertexID & 1) != 0 ? 1.0 : -1.0, (gl_VertexID & 2) != 0 ? 1.0 : -1.0);
-    if (PShape.x > 3.5) {
+    if (PShape.x > 3.5 && PShape.x < 4.5) {
         bhfxRibbon(slot, corner);
         return;
     }
@@ -331,7 +340,31 @@ void main() {
     vec3 ex;
     vec3 ey;
     vec3 centre = pos;
-    if (PShape.x > 2.5) {
+    float facingOut = 1.0;
+    if (PShape.x > 4.5) {
+        // TUMBLE: a pane in a real plane of the world. Long side and face normal at birth, then the whole frame turns
+        // round the tumble axis (fixed in the world, through the centre) by spin * t
+        vec4 a5 = texelFetch(PData, base + 5);
+        vec4 a6 = texelFetch(PData, base + 6);
+        vec3 u = dot(a5.xyz, a5.xyz) > 1e-8 ? normalize(a5.xyz) : vec3(1.0, 0.0, 0.0);
+        vec3 level = abs(u.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        vec3 n = a2.z > 0.5 ? bhfxUnpackUnit(a2.z) : cross(u, cross(level, u));
+        n -= u * dot(n, u);
+        n = dot(n, n) > 1e-6 ? normalize(n) : normalize(cross(u, cross(level, u)));
+        vec3 v = cross(n, u);
+        vec3 k = a6.w > 0.5 ? bhfxUnpackUnit(a6.w) : v;
+        float ang = a2.w * t;
+        float c = cos(ang);
+        float s = sin(ang);
+        u = bhfxTurn(u, k, c, s);
+        v = bhfxTurn(v, k, c, s);
+        n = bhfxTurn(n, k, c, s);
+        float halfLen = a5.w > 0.0 ? a5.w * 0.5 : size;
+        ex = u * halfLen;
+        ey = v * size;
+        centre = pos + ex * PShape.z;
+        facingOut = abs(dot(n, normalize(Eye - centre)));
+    } else if (PShape.x > 2.5) {
         // AXIS: the long side along the particle's own axis, from its base when pivot = 1; rotation tilts the quad
         // round that axis away from facing the camera (0 = faces it, pi/2 = edge-on), so bolts in every direction
         // show their angle in depth
@@ -385,7 +418,7 @@ void main() {
     pColor = bhfxColor(slot, p.age);
     pAge = p.age;
     pAlong = 0.0;
-    pFacing = 1.0;
+    pFacing = facingOut;
     pData = texelFetch(PData, base + 4);
     pLife = vec3(p.age, t, bhfxSeed(slot, p.birth));
     if (PMode.x > 1.5) {

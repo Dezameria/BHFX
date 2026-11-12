@@ -38,5 +38,5 @@ struct Particle {
     vec4 data;     // free values from the spawn
     vec3 pos;      // camera-relative world position of this pixel
     float along;   // RIBBON: smooth place along the ribbon (blocks from its first point, or as set per point); else 0
-    float facing;  // RIBBON in a plane: 1 face-on .. 0 edge-on; else 1
+    float facing;  // RIBBON in a plane and TUMBLE: 1 face-on .. 0 edge-on; else 1
 };

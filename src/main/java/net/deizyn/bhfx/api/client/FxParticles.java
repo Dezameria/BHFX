@@ -72,7 +72,18 @@ public interface FxParticles {
          * edge-on; {@code p.facing} is 1 face-on, 0 edge-on. Don't set {@link ParticleSpawn#axis} on ribbon points
          * (it holds the link).
          */
-        RIBBON
+        RIBBON,
+        /**
+         * A pane lying in a real plane of the world (not turned to the camera) that tumbles round its own axis: glass
+         * shards, leaves, cards, debris. At birth its long side is the {@link ParticleSpawn#axis axis} (length 0 =
+         * 2 x size) and its face points along the {@link ParticleSpawn#normal normal} (made square to the long side;
+         * none = square to it and level). It then turns round {@link ParticleSpawn#tumble}'s axis through its centre
+         * at that rate (no tumble axis = end over end round its short side). {@link ParticleSpawn#rotation} is not
+         * used. {@code p.uv.x} runs along the long side; {@code p.facing} is 1 face on to the camera .. 0 edge on
+         * (use it for fresnel and glints). {@link #pivot}(1) turns it round its base instead of its centre.
+         * Not turned by {@link #orbit}.
+         */
+        TUMBLE
     }
 
     /** How a particle mixes into the image. */
@@ -246,6 +257,7 @@ public interface FxParticles {
         /**
          * {@link Facing#AXIS}: the direction of the long side (any length; normalised) and the quad's full length in
          * blocks. {@link #size} stays the half-width across it. Without this, the axis is up and the length 2 × size.
+         * {@link Facing#TUMBLE}: the long side at birth (it turns with the pane after that).
          */
         ParticleSpawn axis(double x, double y, double z, float length);
 
@@ -274,12 +286,22 @@ public interface FxParticles {
 
         /**
          * {@link Facing#RIBBON}: the normal of the plane the strip lies in at this point (any length; (0, 0, 0) = the
-         * batch's {@link FxParticles#ribbonNormal}). Varying it along a ribbon twists the strip. Ignored by other
-         * facings.
+         * batch's {@link FxParticles#ribbonNormal}). Varying it along a ribbon twists the strip.
+         * {@link Facing#TUMBLE}: the way the pane's face points at birth (made square to its long side).
+         * Ignored by other facings.
          */
         ParticleSpawn normal(double x, double y, double z);
 
         ParticleSpawn normal(Vec3 normal);
+
+        /**
+         * {@link Facing#TUMBLE}: turn round this axis (any length; through the pane's centre, fixed in the world) at
+         * {@code radiansPerSecond} (negative = the other way). (0, 0, 0) = end over end round the pane's short side.
+         * Ignored by other facings.
+         */
+        ParticleSpawn tumble(double x, double y, double z, float radiansPerSecond);
+
+        ParticleSpawn tumble(Vec3 axis, float radiansPerSecond);
     }
 
     /**

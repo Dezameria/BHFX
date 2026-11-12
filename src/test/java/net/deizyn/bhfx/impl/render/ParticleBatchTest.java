@@ -186,6 +186,35 @@ class ParticleBatchTest {
     }
 
     @Test
+    void packedUnitRoundTripsAndZeroMeansNone() {
+        float[] scratch = new float[2];
+        float[] n = new float[3];
+        assertEquals(0f, ParticleBatch.packUnit(0, 0, 0, scratch));
+        double[][] dirs = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, -1}, {-1, -1, -1}, {0.3, -0.2, -0.9}, {-0.7, 0.1, 0.2}};
+        for (double[] d : dirs) {
+            float packed = ParticleBatch.packUnit(d[0] * 3, d[1] * 3, d[2] * 3, scratch);
+            assertTrue(packed >= 1f && packed < (1 << 24), "packed fits a float exactly");
+            ParticleBatch.unpackUnit(packed, n);
+            double l = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+            double dot = (n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / l;
+            assertTrue(dot > 0.9995, "within ~2 degrees: " + dot);
+        }
+    }
+
+    @Test
+    void tumbleKeepsNormalAndRateOutOfRotation() {
+        ParticleBatch b = new ParticleBatch(fx(), ID, 8);
+        b.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.TUMBLE);
+        b.spawn(0, 0, 0).normal(0, 0, 1).tumble(1, 0, 0, 3f).rotation(9f, 9f);
+        float[] n = new float[3];
+        ParticleBatch.unpackUnit(b.data[10], n);
+        assertEquals(1f, n[2], 1e-3);
+        assertEquals(3f, b.data[11]);
+        ParticleBatch.unpackUnit(b.data[27], n);
+        assertEquals(1f, n[0], 1e-3);
+    }
+
+    @Test
     void streamPointsFormOneRibbonUntilReset() {
         ParticleBatch b = new ParticleBatch(fx(), ID, 64);
         b.facing(net.deizyn.bhfx.api.client.FxParticles.Facing.RIBBON);

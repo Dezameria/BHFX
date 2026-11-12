@@ -20,7 +20,8 @@ public final class ParticleBatch implements FxParticles {
      * pos.xyz birth | vel.xyz life | size0 size1 rot spin | rgba | data | axis.xyz length | orbit spinUp pull link.
      * RIBBON points keep their ribbon id in axis.x, their place along the ribbon in axis.y, their own strip normal
      * octahedral-encoded in axis.z and axis.w + {@link #NORMAL_SET} (axis.w = 0: none), and the previous point's
-     * slot + 1 in link (0 = first point).
+     * slot + 1 in link (0 = first point). TUMBLE panes keep their face normal {@link #packUnit packed} in rot (0 =
+     * none), their tumble rate in spin and their tumble axis packed in link (0 = none).
      */
     static final int FLOATS = 28;
     /** Added to a ribbon point's encoded normal y (-1..1) so that 0 can mean "no normal of its own". */
@@ -301,6 +302,27 @@ public final class ParticleBatch implements FxParticles {
         out[1] = (float) ey;
     }
 
+    /**
+     * A unit vector in one float (as {@code bhfxUnpackUnit} in the particle vertex shader): both octahedral values
+     * quantised to 0..2047, {@code qx * 2048 + qy + 1}, so 0 means "none". Exact in a float (below 2^24).
+     */
+    static float packUnit(double x, double y, double z, float[] scratch) {
+        double l = Math.sqrt(x * x + y * y + z * z);
+        if (!(l > 1e-9)) {
+            return 0f;
+        }
+        octEncode(x / l, y / l, z / l, scratch);
+        int qx = Math.round((scratch[0] * 0.5f + 0.5f) * 2047f);
+        int qy = Math.round((scratch[1] * 0.5f + 0.5f) * 2047f);
+        return qx * 2048 + qy + 1;
+    }
+
+    /** Inverse of {@link #packUnit} (unit vector into {@code out[0..2]}), for tests. */
+    static void unpackUnit(float packed, float[] out) {
+        int v = Math.round(packed) - 1;
+        octDecode((v / 2048) / 2047f * 2f - 1f, (v % 2048) / 2047f * 2f - 1f, out);
+    }
+
     /** Inverse of {@link #octEncode} (unit vector into {@code out[0..2]}), for tests. */
     static void octDecode(float ex, float ey, float[] out) {
         double x = ex;
@@ -506,7 +528,7 @@ public final class ParticleBatch implements FxParticles {
                 }
             }
             float size = Math.max(d[b + 8], d[b + 9]) * (facing == Facing.VELOCITY ? 1f + stretch * speed : 1f);
-            if (facing == Facing.AXIS) {
+            if (facing == Facing.AXIS || facing == Facing.TUMBLE) {
                 size = Math.max(size, d[b + 23] > 0f ? d[b + 23] : size * 2f) + Math.max(d[b + 8], d[b + 9]);
             } else {
                 size *= 1f + pivot;
@@ -578,6 +600,9 @@ public final class ParticleBatch implements FxParticles {
 
         @Override
         public ParticleSpawn rotation(float radians, float spinPerSecond) {
+            if (facing == Facing.TUMBLE) {
+                return this; // rot / spin hold the face normal and tumble rate
+            }
             data[base + 10] = radians;
             data[base + 11] = spinPerSecond;
             return this;
@@ -660,6 +685,10 @@ public final class ParticleBatch implements FxParticles {
 
         @Override
         public ParticleSpawn normal(double x, double y, double z) {
+            if (facing == Facing.TUMBLE) {
+                data[base + 10] = packUnit(x, y, z, octScratch);
+                return this;
+            }
             if (facing != Facing.RIBBON) {
                 return this;
             }
@@ -679,6 +708,20 @@ public final class ParticleBatch implements FxParticles {
         @Override
         public ParticleSpawn normal(Vec3 normal) {
             return normal(normal.x, normal.y, normal.z);
+        }
+
+        @Override
+        public ParticleSpawn tumble(double x, double y, double z, float radiansPerSecond) {
+            if (facing == Facing.TUMBLE) {
+                data[base + 27] = packUnit(x, y, z, octScratch);
+                data[base + 11] = radiansPerSecond;
+            }
+            return this;
+        }
+
+        @Override
+        public ParticleSpawn tumble(Vec3 axis, float radiansPerSecond) {
+            return tumble(axis.x, axis.y, axis.z, radiansPerSecond);
         }
 
         private void toOrbitFrame() {
