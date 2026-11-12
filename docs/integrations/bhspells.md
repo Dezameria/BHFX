@@ -16,7 +16,7 @@ BHSpells (`../BHSpells`) uses bhfx as a **soft dependency**: it plays normally w
 
 Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>.fsh`.
 
-`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.10,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`, 0.3.8 for the fog uniforms `solar_eclipse` uses, 0.3.9 for particles / textures / emitters / ribbons in `conqueror_haki` and `dawn_rend`, 0.3.10 for `ribbonNormal` / `along` / `normal` in `plasma_clash`, `anime_punch` and `anime_shockwave`; raised 2026-11-10). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
+`mods.toml`: `modId="bhfx" mandatory=false versionRange="[0.3.11,0.4)"` (0.3.2 for server-wide keys, 0.3.6 for `drawingMirrorReflection`, 0.3.7 for `PassOptions.within`, 0.3.8 for the fog uniforms `solar_eclipse` uses, 0.3.9 for particles / textures / emitters / ribbons in `conqueror_haki` and `dawn_rend`, 0.3.10 for `ribbonNormal` / `along` / `normal` in `plasma_clash`, `anime_punch` and `anime_shockwave`; 0.3.11 for `TUMBLE` in `sky_shatter`; raised 2026-11-12). Re-added 2026-11-02 on `feature/deizy-integrate-1.8.0`, which had lost it.
 
 `build.gradle`: `compileOnly` + `runtimeOnly fg.deobf("net.deizyn:bhfx:0.3.2")`, resolved from **`BHSpells/libs/bhfx-0.3.2.jar`** (`flatDir`; for the same version a ~/.m2 copy wins, see below). The jar is committed in BHSpells, so a friend who clones it can build without the bhfx repo.
 - **After changing bhfx, run `./gradlew.bat build` in bhfx.** The `copyToBHSpells` task (which finalizes `build`) copies the reobfuscated jar over the one in `../BHSpells/libs` and deletes older `bhfx-*.jar` files. If you forget, BHSpells keeps using the old jar in `libs/`, even if mavenLocal is newer.
@@ -36,6 +36,7 @@ Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>
 - Keep vanilla/Iron's particles as the fallback when `ctx.postAvailable()` is false (bhfx particles are off with post).
 - First user: the standalone `bhspells:conqueror_haki` (2026-11-04, not a spell). No spell uses them yet; BHSpells builds against 0.3.9 (`build.gradle`, `libs/bhfx-0.3.9.jar`).
 - 2026-11-04 `bhspells:dawn_rend` (standalone, `DawnRendFx`): the first BHSpells user of emitters, streams, orbit / pull, turbulence, over-life curves, ribbons, `onGround` and the built-in materials, plus a reused pass (`flame_field.fsh` from another Fx) and 12 particle batches in one effect. Design notes: `BHSpells/docs/bhfx/dawn_rend.md`. Not seen in game yet.
+- 2026-11-10 `bhspells:radiant_aura` (standalone, `RadiantAuraFx`): ribbons spiralling round a body (stream per band, head moved analytically each frame, trail points orbit at a fraction of the head speed so the tail lags into an arc, radial `normal`), and materials reused across effects (`power_line`, `power_haze`, `haki_bolt` / `haki_strike` recoloured gold). Not seen in game yet.
 - Lesson: a sprite with a black core and a glowing edge needs one particle that both covers and adds light — use `#define BHFX_PREMULTIPLIED` on an ALPHA batch rather than two batches.
 
 ## Lessons from real use
@@ -66,3 +67,4 @@ Shaders live in `BHSpells/src/main/resources/assets/bhspells/shaders/bhfx/<name>
 8. A looping effect that should explode only at the end: stream in `passes()` while running, set a flag in `onStop(FINISH)` and spawn the burst from `passes()`, and give `endTicks` enough time for the longest particle life (batches are freed when the ending runs out).
 9. A RIBBON in a plane widens along `cross(tangent, point normal)`. For arcs drawn the positive way round an axis with a wall-style normal (radial, tilted), that side points down the wall, so a material wanting "up" uses `-p.corner.y` (`power_wave.fsh`, 2026-11-10).
 10. Never key a RIBBON material on `p.seed` / `p.seconds`: they are flat per segment, so the strip breaks into slices (`anime_shockwave` round 4). Lay one texture by `p.along` and put per-ribbon choices in `p.data` (2026-11-10, see `../bugs.md`).
+11. Starting another effect from inside an Fx hook must go through `Minecraft.getInstance().tell(...)`; a direct `BHFxClient.play` in `tick` crashed the client (2026-11-12, `QiBlastFx`, see [`../bugs.md`](../bugs.md)).

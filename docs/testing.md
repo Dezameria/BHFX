@@ -6,6 +6,12 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ⏳ `TUMBLE` particle facing (2026-11-12, build + JUnit + glslang only)
+1. `/bhfx test bhspells:sky_shatter`: the shards are flat panes that tumble round different axes (not turned to the camera); walking round one shows it from the side, edge on it goes thin.
+2. A shard behind a block is hidden by it; one in front of you covers what is behind and bends it.
+3. When a cell falls out, its shard fills the hole exactly (no jump, no rotation at birth).
+4. Old facings unchanged: `bhfx:test_flow`, `bhfx:test_particles`, a RIBBON effect (`bhspells:anime_punch`) and an AXIS one (`bhspells:conqueror_haki`) look as before.
+
 ### Scoped stop (2026-11-10, build + JUnit only)
 - ✅ 2026-11-10 `gradlew build`: `FxCommandsStopTest` 6 and `FxCommandArgsTest` 7 pass. Not run in game.
 - ⏳ In the BHSpells dev client:
@@ -156,6 +162,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 - ✅ 2026-10-22 bhfx `runClient`: an old-default `bhfx-client.toml` moved to Medium once (`settingsVersion = 1`, log line printed).
 - ⏳ Second launch keeps the values (no second migration); a file with hand-made values (e.g. HIGH + 8 ms) is left alone in game; `BHSpells/run` and `run-client2` move on their next launch.
 
+- ⏳ 2026-11-12 Mirror panel (`bhfx:mirror_panel`), build + unit tests only:
+  - [ ] Place on a wall, floor and ceiling: the plate lies flat on the clicked face, 1 pixel thick; hitbox matches; breaking drops the panel; recipe (3 glass panes over 3 iron nuggets → 6) works.
+  - [ ] A 5x3 wall of panels looks like one sheet (no seams or dark lines between panels) and shows one continuous reflection; walking along it, the image never breaks at panel edges.
+  - [ ] Your reflection sits on the plate (not behind the wall): stand close and touch it; F5 too; a player whose arm only just reaches the edge still shows.
+  - [ ] Back of the plate and its thin edges don't reflect; a panel laid on a mirror block's face shows correctly in front of it.
+  - [ ] With a shader pack (Complementary): reflection lines up with the plate.
+
 - ✅ 2026-11-02 Mirror block: the user reports the checklist below tested (no details recorded per item):
   - [ ] All six faces reflect (walls on both sides, floor, ceiling); faces between two mirrors don't; your reflection is the right way round and moves with you in 1st and 3rd person.
   - [ ] Maze of ~20,000 mirrors: frame time with and without players in view; chunk loading has no long hitch; `maxPlanes` / `maxReflections` / `distance` change the cost.
@@ -175,6 +188,82 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 - ✅ 2026-11-02 `bhspells:purple_flame`, the user reports tested: `/bhfx test bhspells:purple_flame` — one flame, cyan tips / violet body / pink root, colours blend without bands; floor pool only under it; embers; dies down on `/bhfx stop`; `{radius:..,height:..,color:..}` change it; `{density:0}` no embers, `{density:1}` 64; looks right from above and up close.
 
 ## BHSpells spells that use bhfx
+
+### ⏳ `bhspells:impact_frame` round 1: long white impact frame (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:impact_frame at ^ ^ ^12`: a white ball bursts out of the point; 0.2 s of flipping cels with a white flash and jolt, then the screen holds white paper / black ink with focus lines on the point (lines shift every few ticks), ~3 s, then fades. The ball itself reads pure white inside the frame.
+2. `{duration:6}` holds twice as long; `{duration:1}` is a short hit; `{hold:true}` holds until `/bhfx stop`, then fades.
+3. `{frames:false}`: only the white ball, flash and bloom (no full white-out of the screen); `{strength:0.7}` lets the real picture show through; `{radius:20, color:"#FFD27A"}` bigger, warm rim.
+4. No grey sheet / NaN, no hard circle where the pass bounds end (stand ~3 radii away and look past the ball); standing inside the ball is white but not broken.
+
+### ⏳ `bhspells:qi_blast` / `qi_beam` round 8: rings keep running, ground lasts (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_blast at ^ ^ ^30`: every ripple front on the ground and the rings of wind keep running outward (never stop and sit) and are gone within ~1.2 s each; the glowing plate, debris rings, scorch, flow and ground_beat stay for most of the run.
+2. `{ring_time:0.6}` rings gone fast; `{ring_time:3}` rings drift far out slowly; `{duration:15, ground_time:14}` the ground stays ~14 s.
+
+### ⏳ `bhspells:qi_blast` / `qi_beam` round 7: no fizz, ground_beat + impact_ring, aimed beam (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_blast at ^ ^ ^30`: no sparkling/static lines on the ground any more (cracks and rim lightning removed); impact_ring rings roll out at the blast and with each ripple, the ground beats under the dome (ground_beat) for most of the run, all blue.
+2. `/bhfx test bhspells:qi_beam` aimed at ground 100-300 blocks away, at a wall, at a mob, at water and at the sky: the beam ends exactly where the crosshair was and the blast goes off there (in the air at 1024 blocks for the sky); the flight never takes longer than ~0.8 s; the far blast is still drawn.
+3. `/bhfx stop` mid-blast: ground_beat and the rings stop too.
+
+### ⏳ `bhspells:qi_blast` / `qi_beam` round 6: nuclear dome, outer shock, ground flow (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_blast at ^ ^ ^30` from ~50 blocks: the dome shoots out to about 3/4 size, then keeps growing slowly while it fades over the rest of the run (not a stop-and-fade); a faint glassy shell and a bright ground ring race out to ~50 blocks and vanish within ~2 s.
+2. The ground under and past the dome streams outward with dark smoke streaks and lit edges (anime_shockwave's flow, stronger); fronts show radial spokes. No seam line along one direction (atan seam).
+3. `{duration:15}`: the dome creeps to full size over the longer run.
+
+### ⏳ `bhspells:qi_blast` / `qi_beam` round 5: ripples (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_blast at ^ ^ ^25`, ideally from above (fly up ~20 blocks): four ripples run out one after another (each with a thud and a jolt), the ground visibly heaves with them, the inside turns into a glowing plate with rings running out, dark debris rings stay at different radii, lightning crackles round the rim; walls of wind, aura lines and shimmer pour out for ~1.4 s.
+2. Standing inside it: the plate and heave don't white out or smear the whole screen; no grey sheet / NaN; the heave doesn't tear at block edges badly.
+3. On LOW particle quality: no batch missing (walls, rings, lines). Same with `qi_beam`.
+
+### ⏳ `bhspells:qi_beam` round 4 (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_beam` looking at ground 30–60 blocks away, first person: qi gathers at the right hand for 0.6 s, a blue beam (white core, rippling sheath, sparks peeling off) shoots out, the qi_blast goes off where it lands, the beam holds ~0.5 s then thins out. The beam near the eye does not white out the screen; the beam lights the ground under it.
+2. Third person and walking/turning during the gather: the hand end follows the body. Watched by a second player from the side: beam and blast both visible.
+3. `{width:0.8, radius:40}`, `{charge:1.2, duration:10}`; `/bhfx test bhspells:qi_blast {beam:true}` same as qi_beam.
+
+### ⏳ `bhspells:qi_blast` rounds 1–3 (2026-11-12, `compileJava` + glslcheck only)
+1. `/bhfx test bhspells:qi_blast at ^ ^ ^20`: 0.9 s gather (core grows, streaks pulled in, view drains to blue, FOV narrows, ground trembles), then the blast: impact frames, flash, no light column into the sky (removed in round 2), dome racing out to 28 blocks with a shock front on the ground, glowing cracks, blue sky; all gone by ~7 s. No white screen, no grey sheet, no rectangle cut.
+2. Stand inside the dome (`at ~ ~ ~`) and outside it (~60 blocks): haze not blinding from inside; from far it still reads, screen effects fade with distance.
+3. `{radius:48}` and `{radius:14, charge:0.5}` scale together; `{duration:13}` holds the dome, cracks and blue sky about twice as long, `{duration:4}` is short and still fades out cleanly (not cut), the hit itself the same in both; `{hold:true}` ends by itself after the default length. Shaders off / shader pack: vanilla stand-in, sound and shake only. Details: `BHSpells/docs/bhfx/qi_blast.md`.
+
+### ⏳ Lunebris range 30, real stun, `bhspells:lunebris_impact` (2026-11-11, `build` only)
+Spell side is in `BHSpells/docs/spells/aqua/lunebris.md`. In game:
+1. `/bhfx test bhspells:lunebris_impact at ~ ~ ~`: ink bursts up and lingers ~1.8 s, yin ripples and a low smoke dome spread to 9 blocks, a crown of black lashes falls back, a smoke ring rolls out, ink impact frames. No grey sheet / white screen, no rectangle cut on the dome or ink.
+2. Cast Lunebris: `lunebris_aura` and the surge at radius 30 open and read as one wave; the impact plays where the target lands.
+3. A stunned second player cannot walk, jump, attack, cast or Epic Fight dodge, and is put back if moved; the stun lifts when the combo ends.
+
+### ⏳ `bhspells:prism_flame_field` (2026-11-12, `compileJava` + glslcheck + numpy preview only)
+- `/bhfx test bhspells:prism_flame_field at ~ ~ ~ {hold:true}`: spreads from the centre like `flame_field`; separate milky white fires with grey folds and rainbow slivers on their edges; soft white pools on the floor (ground keeps its colour); white / rainbow glitter rising; no red or gold anywhere.
+- `{prism:0}` plain white; `{radius:12, height:4, density:0.8}`; frame time similar to `flame_field` at the same radius.
+- `flame_field` still pink-gold as before.
+
+### ⏳ `bhspells:blaze_aura` round 2 (2026-11-12, `compileJava` + glslcheck + numpy preview only)
+- Round 1 (inked column) was seen in game and dropped. Round 2 = `PrismFlameFx` with `Look.BLAZE`.
+- `/bhfx test bhspells:blaze_aura attach @s {hold:true}`: same charge, burst and surges as `prism_flame`, a hollow flame in yellow / orange / red with the body showing through, no ink lines or dark outlines, red-orange glow on the edges, fire-coloured strands and embers; not blown out to white up close.
+- `prism_flame` still looks as before (white + rainbow, its own sounds).
+
+### ⏳ `bhspells:prism_flame` rounds 7–8 (2026-11-11, `compileJava` + glslcheck + numpy preview only)
+- Rounds 2, 4, 5 and 6 were seen in game by the user (round 6's soft window approved). Round 7: wider by default (`radius` 1.6) and hollow, bright at the rim and dim through the middle.
+- The flame reads wider than the body on both sides, the middle is faint and not glaring; `{radius:1.15}` gives the old width.
+- Round 8 `speed`: `{speed:2}` streaks flow and strands rise / turn twice as fast, `{speed:0.5}` slow and calm; surges keep their `beat`.
+- `/bhfx test bhspells:prism_flame attach @s {hold:true}`, also with the camera close: the body shows softly through the flame with no straight edges or corners, the flame round it, above the head and at the rim stays full; crouching lowers the window; strands mostly pass beside the body, not over it.
+- The pool round the feet and the burst / surge ring lie on the ground (follow slabs and slopes, nothing floating in the air or standing up at foot height), stop at walls and drops more than ~1.5 blocks away from the feet level.
+- Still from round 4: charge, burst, surges every 1.6 s, `{height:6}`, `{beat:0}`; no dotted line above the tip; from straight above, strands not a squashed sheet. Details: `BHSpells/docs/bhfx/prism_flame.md`.
+
+### ⏳ `bhspells:radiant_aura` round 9 (2026-11-11, `compileJava` only)
+- The wind opens up as it climbs (gusts spiral outwards and widen) without leaving the body bare; `{radius:6}` widens the wind, glints, dust and crystals together, `{radius:1.5}` keeps them tight.
+
+### ⏳ `bhspells:radiant_aura` round 8 (2026-11-11, `compileJava` + glslcheck only)
+- No dark particles left: gold crystal shards rise, spin, glint and circle; `{radius:6}` spreads them wider with about as many per area, `{radius:1}` keeps them close.
+
+### ⏳ `bhspells:radiant_aura` round 7 (2026-11-11, `compileJava` only)
+- Round 7 motion: after the burst the storm builds from the feet up (feet ring, then low, middle, head within ~0.5 s); each layer reads as one tilted, wobbling ring of broken gusts turning at its own speed; gusts climb as they turn (helix); a few fly outwards; `{speed:-1}` turns the other way, `{speed:2}` faster.
+
+### ⏳ `bhspells:radiant_aura` round 6 (2026-11-11, `compileJava` + glslcheck only)
+- Round 6: the ribbons are layered translucent wind ribbons (8 gusts: needle tips, uneven thickness, curled heads, feathered trailing edge, flat tone). Check that they read as fast wind (not smoke, not 3D tubes), each flies head first (curled needle head leading the turn), the layering and feathering show at the in-game size, they draw in then fray instead of popping, and 8 big ones fly out at the burst.
+
+### ⏳ `bhspells:radiant_aura` round 1 (2026-11-10, `compileJava` + glslcheck only)
+- `/bhfx test bhspells:radiant_aura attach @s {hold:true}` in third person, then first person, then from ~15 blocks: dust drawn in for 0.5 s, one burst (flash, glints out, ground ring, air bends), then golden slashes (round 2) whirl round the body without breaking into slices; glints twinkle; crystal shards (round 8) lift off the ground and circle; gold lightning has a white-gold core (not black); ground glow and rings sit on the ground.
+- First person: ribbons passing the camera are not too busy. `/bhfx stop` fades it out; rocks finish on their own.
+- `{scale:2}` and on a big mob: everything grows together. Log: the 4 new materials compile. Details: `BHSpells/docs/bhfx/radiant_aura.md`.
 
 ### ⏳ `bhspells:anime_shockwave` round 4 (2026-11-10, `compileJava` + glslcheck only; replaces the round 3 list)
 - [ ] `{hold:true}`: walls are smooth crescents of wind with no seams or slices, also while they fray away.

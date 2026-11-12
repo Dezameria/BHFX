@@ -499,11 +499,11 @@ the first frame after; the sampler reads a 1x1 transparent black until then. Fre
 resource reload, and with the rest after 30 s without effects.
 
 **Particles.** `Fx.createParticles(material, capacity)` (≤ 16384) returns an `FxParticles` batch, freed when the effect
-ends. Per batch: `blend` (`ADD`, `ALPHA`, `DISTORT`), `facing` (`CAMERA`, `VELOCITY`, `FLAT`, `AXIS`), `stretch`,
+ends. Per batch: `blend` (`ADD`, `ALPHA`, `DISTORT`), `facing` (`CAMERA`, `VELOCITY`, `FLAT`, `AXIS`, `RIBBON`, `TUMBLE`), `stretch`,
 `pivot` (0 centred, 1 = spawn point at the quad's base), `gravity`, `drag`, `softness`, `distortion`. Per particle (`spawn(pos)` returns a reused cursor): `velocity`, `life`, `size`
 (start, end), `rotation` (+ spin), `color` (int or floats, display-encoded like the frame, not linear), `data` (4 free
 floats), `delay`, `axis(dir, length)` (AXIS: long side along dir, full length; `rotation` then tilts the quad round
-the axis away from facing the camera, 0 = faces it), `orbit(rad/s, spinUp)` and `pull(blocks/s)` (round / towards
+the axis away from facing the camera, 0 = faces it; TUMBLE: long side at birth), `normal(n)` (RIBBON strip plane; TUMBLE face at birth), `tumble(axis, rad/s)` (TUMBLE: turns round this world axis through its centre; none = end over end; `rotation` is ignored), `orbit(rad/s, spinUp)` and `pull(blocks/s)` (round / towards
 the batch's `orbit(centre, axis)`, default through the first spawn, up). Units:
 seconds, blocks, blocks/s. Draw with `PassList.particles(batch[, options, setup])`.
 - **Emitters** (`FxEmitter`): immutable shapes `point`, `sphere`, `shell`, `ring`, `disc`, `cylinder`, `cone`,

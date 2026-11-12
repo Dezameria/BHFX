@@ -11,6 +11,238 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-12 — BHSpells new `bhspells:prism_flame_field`
+- User: a field version of `prism_flame`, like `flame_field`.
+- BHSpells: `FlameFieldFx(init, prism)`; `bhspells:prism_flame_field` registered as `new FlameFieldFx(init, true)` (white / grey defaults, `prism` rainbow strength via `FieldC`, slate vignette, beacon / amethyst sounds). New `prism_flame_field.fsh` = `flame_field.fsh`'s grid, DDA, edge, ignite and LOD with prism colouring (white by heat, grey folds, pastel-rainbow slivers on each fire's outline, white-rainbow floor pools and glitter). `BhfxIds.PRISM_FLAME_FIELD`. Notes: `BHSpells/docs/bhfx/prism_flame_field.md`. `flame_field` unchanged.
+- result: `compileJava` OK, glslcheck OK, numpy preview of single fires. Not tested in game.
+- next: keep `prism_flame_field.fsh` in step with `flame_field.fsh`.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 10: big landing ripples, felt farther
+- User: bigger ripples when shards land; widen how far each piece is felt.
+- BHSpells `SkyShatterFx`: reach 12–40 (was 5–18), `RIPPLE_SECONDS` 2.2, new param `impact` (0.25–3) scaling reach and every range; jolt range (60 + 60 power), impact frames / FOV 90, `ctx.shake` (40 + 60 power), explosion volume 4 + 4 power, ear thud 120. `sky_shatter.fsh`: band follows terrain over 3 + 0.15 reach, second wave widens with reach, light band dimmed for big waves (a wave rolling past the camera washed the screen), crack mark size kept. Checked in the preview (`?land=1&pitch=-20`).
+- result: glslcheck OK. Java (rounds 8 and 10) not compiled: the client is running. Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 9: glowing ground cracks
+- User: make the texture cracks glow. `sky_shatter.fsh`: the crack cores glow for the mark's whole life (white-hot first, then a throbbing glow in `color`, over 1 so bloom catches it); darkening only beside the cracks and the scorch. Checked in the preview.
+- result: glslcheck OK. Java from round 8 still not compiled (client running). Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 8: ground crack marks from a texture
+- User: when glass hits the ground, leave a crack in the ground, from a texture.
+- BHSpells: `textures/vfx/sky_shatter/ground_crack.png` / `ground_scorch.png` (copies of `effeks/texture_remana/crack/*.png`); `SkyShatterFx` binds them (`GroundCrack`, `GroundScorch`), landings keep a random angle and stay listed 6 s (`SCAR_SECONDS`), `LANDS` 32. `sky_shatter.fsh`: per landing a `groundDecal` mark that bursts open in 0.2 s, glows white-hot, cools to dark fissures with a faint glow over scorch, fades after 6 s; procedural spoke cracks of round 7 removed; ring / hit glare lowered. Checked in the preview (`?land=1&ls=0.45&pitch=-50`).
+- result: glslcheck OK. Java **not compiled** (the user's client was running; compiling would mix classes, `bugs.md` 2026-11-12). Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 7: heavy landings
+- User: shake the screen when shards hit the ground; a real dimension-breaking impact, violent shock ripples, heavy sound.
+- BHSpells `SkyShatterFx`: landings carry `power` (shard size against the biggest), reach 5–18; `screen()` jolt from the strongest fresh landing (shake, aberration, zoom blur, flash, `screen.ripple`), glitch / negative `ImpactSequence` for heavy ones (power >= 0.7), FOV kick, `ctx.shake` by power; sounds: layered blast / glass / amethyst per tick's strongest hit, sonic boom for heavy, a thud at the ear within 64 blocks, creaks while cracking; 3–8 shards burst back up per hit. `sky_shatter.fsh`: waves push the ground image out and up (heave), narrow ring bands (shockRing's tail washed the ground white), radiating ground cracks that glow then scorch; `RIPPLE_SECONDS` 1.6. Preview got `?land=1` (three hits).
+- result: `compileJava` OK, glslcheck OK, ground look checked in the preview. Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 6: bigger, `speed`, working `hold` / `duration`, healing
+- User: make it bigger; can hold / duration be set.
+- BHSpells `SkyShatterFx`: `radius` default 64 (12–160), new `spread` (cap half angle, 66 degrees, 30–85) and `speed` (timeline, 0.25–4); default duration from speed (last fall + `LINGER` 7 s + 1.6 s heal); `fade()` treated `UNTIL_STOPPED` (−1, `hold:true`) as fully faded, so held effects drew nothing: fixed; `endTicks(FINISH)` 32 ticks. `sky_shatter.fsh`: holes close in from their edges as it heals (`shut = heal x cap x 0.22`, glowing closing edge), then the cracks fade. Checked in `preview_sky_shatter.html` (level view; heal steps with `?fade=`), preview gained `r` / `spread` / `speed` / `fade` options.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 5: the pass drew nothing (`Timing.w`), slow crack
+- User: still no cracks in the sky; wants the sky to crack slowly, break open onto another sky, and the glass to drift down like a dimension breaking.
+- Cause found with a new WebGL preview of the real shader (`BHSpells/docs/bhfx/tools/preview_sky_shatter.html`, `build_sky_shatter_preview.py`, `serve_save.py` which also saves the canvas as PNG): `sky_shatter.fsh` read fade from `Timing.w`, Java sends `Timing.y`; every pixel returned early since round 3. Fixed; `patch` renamed and added to both reserved scans.
+- Look (checked in the preview at pitch 30 and 0): cracks creep 3 s with main cracks leading and more borders appearing over time, thinner lines, lighter halo / micro cracks / start star, seams open 1 s before a fall only on lit cracks, thinner hole lip; drops 3.8 s to ~8 s, duration 15 s; shards drift down (gravity −7, drag 0.3, slow spin).
+- result: `compileJava` OK, glslcheck OK, bhfx `checkShaders` OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 4: cracks in view, longer, clearer
+- User (tested round 3): the glass falls right away, no cracks to be seen. Causes: the web was straight overhead (out of a level view), cracks had 0.7 s and the first cell fell at 1.1 s, pale cyan added on a bright day sky.
+- BHSpells `SkyShatterFx`: the cap is turned to an axis 60 degrees up towards where the caster (else the camera) looks (`setFrame`, `capWorld`; params `yaw`, `elevation`), cells unchanged; `CRACK_SPREAD` 1.4, `DROP_START` 2.4, `DROP_SPAN` 2.2, duration 230 ticks. `sky_shatter.fsh` / `particle/sky_shard.fsh`: frame from `CapA` / `CapB1` / `CapB2`; dark band beside cracks, brighter cores, faster sky dim, seams opening onto the void 0.8 s before a cell falls.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — Fix: `packed` in the particle vertex shader broke every particle material
+- User: no effect showed at all. `latest.log`: all 31 particle materials failed to compile on NVIDIA (`bhfxUnpackUnit(float packed)`, reserved word); the `sky_shatter` pass itself compiled. The test spots were y −33 / −47 / −52 (under ground): there the dome is behind the cave roof, so the pass draws nothing either, as it should (the sky is not visible).
+- bhfx: parameter renamed (`particle/vertex.vsh`); reserved-word scan added to `gradle/glsl-check.gradle` and `.claude/skills/bhfx-effect-recipes/scripts/glslcheck.py` (checked it fails on `packed`; bhfx 17 and BHSpells 55 shaders pass). `bugs.md`, `shaders.md` updated.
+- result: bhfx `build publishToMavenLocal` OK, jar in `BHSpells/libs` has the fix, deobf copy cleared. Not re-tested in game.
+
+## 2026-11-12 — Dev client crash in `SkyShatterFx` (stale classes)
+- User: the game crashed. `crash-2026-11-12_12.28.55-client.txt`: `NoSuchMethodError` for the round-2 `Landing` constructor. The client started 12:17 and BHSpells was recompiled 12:26 while it ran (old outer class + new nested record). No code change; restart `runClient`. Recorded in `bugs.md` and the `bhfx-dev-loop` skill.
+
+## 2026-11-12 — BHSpells `sky_shatter` round 3 (Voronoi web, fitted shards, ground ripples); `glass_shatter` removed
+- User: make the sky shatter the effect (sky breaking, glass falling), with a ripple when shards hit the ground; take only what it needs from `glass_shatter` and remove `glass_shatter`.
+- BHSpells `SkyShatterFx`: cells are now a Voronoi web on the dome's cap flattened to blocks from the top (seeds dense at the top, half-plane clipped 48-gon, centroid, box in the tangent plane by gnomonic projection); drops from the top outwards; big shards are TUMBLE panes in the tangent plane cut to their cell by `particle/sky_shard.fsh` (splinters keep the kite); landings record ripples (newest 16, 1.1 s) drawn by `sky_shatter.fsh` (two waves pushing the ground image out through `projectUv`, `shockRing` light) plus `screen.ripple` for the nearest, glass dust (`skirt`). `sky_shatter.fsh` cracks: uneven front with main-crack angles, per-border weights, repeating energy pulses, micro cracks. New param `shards`. Removed: `GlassShatterFx`, `glass_shatter.fsh`, `particle/glass_shard.fsh`, `BhfxIds.GLASS_SHATTER`, its note; references in both repos updated (TUMBLE stays, `sky_shatter` uses it).
+- result: `compileJava` OK, glslcheck OK. Not tested in game (checklist in `BHSpells/docs/bhfx/sky_shatter.md`).
+
+## 2026-11-12 — Version 0.3.11
+- User: bump the version first.
+- bhfx: `gradle.properties` `mod_version` 0.3.11; `CHANGELOG.md` "Unreleased" (TUMBLE, mirror panel) is now "0.3.11 — 2026-11-12 (protocol 2)". BHSpells: `build.gradle` `fg.deobf("net.deizyn:bhfx:0.3.11")`, `mods.toml` `[0.3.11,0.4)`; `copyToBHSpells` replaced `libs/bhfx-0.3.10.jar` with `bhfx-0.3.11.jar`. `release.md`, `integrations/bhspells.md`, `roadmap.md` updated.
+- result: bhfx `build publishToMavenLocal` OK, BHSpells `compileJava processResources` OK (expanded `mods.toml` has `[0.3.11,0.4)`). Not run in game. Nothing committed; the branch is still `feature/scale-phase0` (merge to `main` waits on U1/U2).
+
+## 2026-11-12 — `TUMBLE` particles; BHSpells `bhspells:glass_shatter`; `sky_shatter` shards tumble
+- User: adapt a "fantasy glass shatter" OpenGL / C++ brief (cracks, energy, 3D Voronoi shards, particles, one timeline, bloom) to bhfx.
+- bhfx: `FxParticles.Facing.TUMBLE`, `ParticleSpawn.tumble(axis, rad/s)`, `normal()` / `axis()` also for TUMBLE (`ParticleBatch`: `packUnit` / `unpackUnit`, cull size like AXIS, `rotation()` ignored); `particle/vertex.vsh`: TUMBLE branch (pane frame turned by `bhfxTurn` round the tumble axis, `pFacing` = |n . view|), ribbon checks now `3.5 < facing < 4.5`, `bhfxUnpackUnit`. `ParticleBatchTest` +2. CHANGELOG "Unreleased", decision in `decisions.md`.
+- BHSpells: new `GlassShatterFx` (`BhfxIds.GLASS_SHATTER`): Voronoi cells by half-plane clipping (dense round the impact), pass `glass_shatter.fsh` (pane, cracks along the cell borders with uneven front and main-crack angles, energy pulses, micro cracks, gather / flash / ring, debug views), material `particle/glass_shard.fsh` (cuts each TUMBLE pane to its cell, fresnel / rim / glint, noise dissolve), flyers + hovers, sparks, crystal dust where shards dissolve, ribbon trails. `SkyShatterFx` shards now TUMBLE (lie in the dome at birth) and spawn one tick earlier to match their holes. Notes: `BHSpells/docs/bhfx/glass_shatter.md`.
+- result: bhfx `build publishToMavenLocal` OK (JUnit, `checkShaders` 17 OK). BHSpells `compileJava` OK, glslcheck OK. Not tested in game (checklists in `testing.md` and the BHSpells note).
+- next: in-game round; release bhfx with TUMBLE as a new version (see `roadmap.md`).
+
+## 2026-11-12 — BHSpells new standalone `bhspells:sky_shatter` (sky breaking like glass)
+- User: a sky-shattering effect whose falling shards have real depth.
+- BHSpells: `SkyShatterFx` (registered in `BhfxClientBridge`, id `BhfxIds.SKY_SHATTER`), pass `sky_shatter.fsh` (spider-web cells on a dome of `radius` round the position, cracks spreading from the top, cells falling out onto a starry void with parallax), particle material `particle/sky_shard.fsh` (AXIS glass pane that bends `SceneSampler` behind it, rim glow, glint when face on). Java and shader build the same cells from an integer hash (`cellHash`), so each shard leaves its own hole; landing time from the heightmap with the vertex shader's drag/gravity formula, landing sparks by `delay`. Notes: `BHSpells/docs/bhfx/sky_shatter.md`.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+- lesson: a particle material can refract the world by sampling `SceneSampler` at `gl_FragCoord.xy / OutSize` plus an offset (ALPHA + `BHFX_PREMULTIPLIED`); with the per-pixel depth test this makes glass that sits in the world.
+
+## 2026-11-12 — BHSpells `impact_frame`: standalone long white impact frame
+- User: a separate impact frame with an adjustable duration, feeling like a long white explosion at the spawn point.
+- BHSpells: new `ImpactFrameFx` (`BhfxIds.IMPACT_FRAME`, `bhspells:impact_frame`) + pass `impact_frame.fsh` (white ball growing to `radius` in 0.3 s and staying, boiling rim, halo, light on the world). Screen: 0.2 s of flipped cels + strong white flash / jolt / zoom blur / FOV punch, then an ink frame (white paper, black ink, focus lines re-drawn every 3 ticks) held for the spawn's `duration` (default 3 s), fading over the last 30 %. `hold:true` holds until stopped (16-tick fade). Params: radius, color, strength, frames. Notes: `BHSpells/docs/bhfx/impact_frame.md`.
+- result: `compileJava` OK, glslcheck OK. Not tested in game (checklist in `testing.md`).
+
+## 2026-11-12 — Mirror panel (thin wall mirror that joins into one sheet)
+- User: a mirror that sticks on a wall, where panels placed side by side join into one mirror.
+- bhfx: new `MirrorPanelBlock` (`bhfx:mirror_panel`, `FACING` = clicked face, 1/16 thick plate, `THICKNESS`, no support check), shares `MirrorBlockEntity` (block entity type now lists both blocks; `setBlockState` re-files a turned panel). `MirrorTracker`: `PANELS`, `addPanel`, `Key.panel` (in `planeId`, so panel fronts and block faces of one layer are separate surfaces), panel `faceAt` = layer + 1/16 or layer + 15/16, `hasFace(pos, facing, panel)`. `MirrorRenderer`: `Plane.panel`; `onPlane` steps back half the plate thickness instead of half a block. Assets: blockstate (6 facings, uvlock), block/item model (no AO, so no dark seams), loot, recipe (3 glass panes over 3 iron nuggets → 6), lang, functional-blocks tab. `MirrorTrackerTest` +4 tests. CHANGELOG "Unreleased".
+- result: `build publishToMavenLocal` passed (tests incl. the new ones). Not tested in game (checklist in `testing.md`). `mod_version` not bumped (still 0.3.10).
+
+## 2026-11-12 — BHSpells `qi_blast` round 8: rings keep running, `ring_time` / `ground_time`
+- User: the inner rings should keep expanding until they fade, like the first; the ground should stay longer and the rings vanish faster; make both adjustable.
+- BHSpells `qi_blast.fsh`: `frontRun` (sqrt, never stops) for the ground fronts and the heave, faded by `Params3.w` = ring seconds; debris keeps the stopping `frontAt`. `QiBlastFx`: params `ring_time` (1.2) and `ground_time` (default and max = the blast's length); `ringRadius` / `ringSpeed`; rings batch drag 0.6 with lives = ring_time; outer shock and screen ripple on the same curve; plate / flow / inner / ground_beat on ground_time.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `qi_blast` round 7 crash fix
+- User: the game crashed. `crash-2026-11-12_02.26.09-client.txt`: `ConcurrentModificationException` in `ClientFxManager.tick` — `QiBlastFx.tick` started `impact_ring` / `ground_beat` with `BHFxClient.play` while bhfx iterates its effects.
+- BHSpells `QiBlastFx`: starts go through `playLater` (`Minecraft.getInstance().tell`), the cancel-stop of the children is deferred the same way. Trap recorded in `bugs.md` (open: bhfx could queue starts made during its tick).
+- result: `compileJava` OK. Not re-tested in game.
+
+## 2026-11-12 — BHSpells `qi_blast` round 7: no fizz, ground_beat + impact_ring, aimed beam
+- User: remove the fizzy stuff on the ground, add ground_beat and impact_ring, and make the beam go wherever the crosshair hits with no range limit.
+- BHSpells `qi_blast.fsh`: glowing cracks and rim lightning removed (`Params3.w` unused). `QiBlastFx`: plays `impact_ring` + `ground_beat` through `BHFxClient.play` at the blast and an `impact_ring` per later ripple, stopped on cancel (`children`, `onStop`); beam mode aims by its own ray (`aim`, `aimPoint()`, 1024 blocks, blocks + fluids + entities); the blast's visuals are drawn within max(256, 10 x radius) instead of `near`.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `qi_blast` round 6: nuclear dome, outer shock, ground flow
+- User: the ring should keep expanding like a nuclear blast and slowly vanish; the ground should spread out with anime_shockwave's feel, hard.
+- BHSpells: `QiBlastFx.domeRadius()` (was `sweptRadius`): 0.72 of the radius in the sweep, then creeping to full by 0.9 x length; shell bright at first then fading over 0.3-0.95 x length; fireball grows with it; new `Params4` (outer shock radius / strength to 1.8 x radius, ground flow). `qi_blast.fsh`: outer shock shell + ground ring, anime_shockwave's polar flow at blast size and far stronger, 24 spokes on the fronts.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `qi_blast` round 5: ripples and anime_shockwave pieces
+- User (reference: anime blast seen from above, bright plate, rings of dark debris, lightning round the rim): make it ripple hard, and use anime_shockwave's pieces on the ground and around.
+- BHSpells `qi_blast.fsh`: 4 ripples (`RIPPLE_DELAY/REACH/GAIN`, `frontAt`) each with its own front; ground heave (image re-sampled at the raised and leaned point via `projectUv`); energy plate; debris rings (`DEBRIS_AT`); rim lightning; new `Params3` (sweep, plate, swell, crackle). `QiBlastFx`: same ripple tables, `ripple()` per later ripple (rings, shell, line burst, sound, shake), `surge()` for 1.4 s with `wallArc()` (`power_wave`), `power_line` and `power_haze` batches; screen ripple follows the newest ripple; rings capacity 1024.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `qi_blast` round 4: laser mode `bhspells:qi_beam`
+- User: fire it as a laser from yourself, a blue qi beam that explodes where it lands.
+- BHSpells: `QiBlastFx` beam mode (`beam` param, new id `BhfxIds.QI_BEAM` registered as `new QiBlastFx(init, true)`): gather at the caster's right hand (`muzzle()`, followed per frame from the client entity), beam head flies at 140 b/s, blast at `blastAt = charge + travel`, beam holds 0.5 s then thins over 0.6 s; new params `width`, charge default 0.6 in beam mode; `beamSparks` batch; screen/camera gather and fire kick use distance to the hand. `qi_blast.fsh`: new `Core`, `BeamA`, `BeamB` uniforms (core no longer fixed above Target), beam core / sheath / hand glow / head ball, beam light on the ground, near-eye fade. Notes: `BHSpells/docs/bhfx/qi_blast.md`.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells `blaze_aura` round 2: prism_flame in fire colours
+- User (in-game screenshot of round 1): odd lines, "just the fire, the same feel as prism_flame".
+- BHSpells: `BlazeAuraFx` and `particle/blaze_tongue.fsh` deleted, params `INK` / `SHADOW` / `SMOKE` / `EYES` removed. `PrismFlameFx` gets `Look` (`PRISM` / `BLAZE`); `bhspells:blaze_aura` is registered as `new PrismFlameFx(init, Look.BLAZE)`: same timing and shape, `blaze_aura.fsh` rewritten as `prism_flame.fsh`'s shape with fire colouring (`Tint3` red, red-orange edge glow instead of the rainbow), new `particle/blaze_wisp.fsh` (fire-coloured `prism_wisp`), ember motes, fire sounds, `FLAME` fallback. Prism look unchanged.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+- next: keep `blaze_aura.fsh` shape in step with `prism_flame.fsh`.
+
+## 2026-11-12 — BHSpells `qi_blast` round 3: length from `duration`
+- User asked why not `duration`. `QiBlastFx`: param `length` dropped; the post-blast length is now `duration() / 20 - charge` (min 0.5 s), so the fades always fit the framework's own end and server spawns set it the usual way; `defaultDuration` = charge + 6 s; `hold:true` uses 6 s and ends itself with `end(FINISH)`.
+- result: `compileJava` OK. Not tested in game.
+
+## 2026-11-12 — BHSpells new standalone `bhspells:blaze_aura`
+- User: three references of a body on fire (manga ink wall of flame with a dark figure and glowing eyes, painted white-orange flame strips leaping off the shoulders, a flame pillar with yellow sparks): "another burning effect with this feel". Made as a new effect; `prism_flame` untouched.
+- BHSpells: new `BlazeAuraFx` + `blaze_aura.fsh` (sheet through the body like `prism_flame`: heat field column + rising noise + ridges, white/yellow/orange/red ramp, comic ink outline + hatching, dark silhouette window over the body, depth-tested glowing eyes from `getEyePosition`/`getViewVector`, flickering ground pool + ignition ring) + particle `blaze_tongue.fsh` (RIBBON flame strips, premultiplied ALPHA); reuses `power_haze`, `haki_wave`, built-in `DOT` / `STREAK`. `BhfxIds.BLAZE_AURA`, new params `INK`, `SHADOW`, `SMOKE`, `EYES`; registered in `BhfxClientBridge`. Notes: `BHSpells/docs/bhfx/blaze_aura.md`.
+- result: `compileJava` OK, glslcheck OK, numpy preview of the sheet. Not tested in game (checklist in `testing.md`). bhfx itself unchanged.
+
+## 2026-11-12 — BHSpells `qi_blast` round 2: no light column, `length`
+- User: drop the light going up into the sky, and make how long the blast lasts adjustable.
+- BHSpells: `qi_blast.fsh` pillar block, its light on the ground and `Params3` removed; `QiBlastFx`: pillar strengths gone, new param `length` (replaced by `duration` in round 3; seconds from the blast to the end, 6, 1.5..30) sets `defaultDuration` and stretches every fade after the blast by `length/6` (dome opens in 1.6 s, faster only when shorter; the hit's frames / flash / kick unchanged).
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-12 — BHSpells new standalone `bhspells:qi_blast` (ระเบิดปราณ)
+- User: a heavy blue "boom" with a wide reach, like the world is ending, like a qi blast.
+- BHSpells: new `QiBlastFx` + `qi_blast.fsh` (one full-screen pass: core, dome shell + inner haze, pillar of light, ground shock front / cracks / scorch, light on the world, blue grade); reuses `power_wave` (rings) and `haki_wave` (DISTORT shells), built-in `STREAK` / `DOT`; `BhfxIds.QI_BLAST`, registered in `BhfxClientBridge`. Design notes: `BHSpells/docs/bhfx/qi_blast.md`.
+- result: BHSpells `compileJava` OK, glslcheck OK. Not tested in game (checklist in `testing.md`). bhfx itself unchanged.
+- next: first in-game look; watch for a white screen at the blast.
+
+## 2026-11-11 — BHSpells Lunebris: range 30, real stun, banner/downslam damage, `lunebris_impact`
+- BHSpells: `LunebrisSpell` (lock range and `AOE_RADIUS` 20 → 30, aim assist 1.2, 20° cone fallback `findTargetInCone`, `BANNER_DAMAGE` / `DOWNSLAM_DAMAGE` 20 x power multiplier), `LunebrisManager` (enemies in the ring hit and stunned until the combo ends, stunned players pinned back, debuffs 10 s / 15 s on the target, `lunebris_impact` at the ground impact), new `LunebrisStunEffect` + `LunebrisStunClientEvents` + `LunebrisStunSkillMixin` / `LunebrisStunLocalPlayerPatchMixin` (the stun also blocks input and Epic Fight skills on the stunned player's client), `EarthRoarStunService.applyStunWithoutIcon`; bhfx side: new `LunebrisImpactFx` (`bhspells:lunebris_impact`) reusing the `lunebris_surge` pass and the lash / flame / haki_wave materials; `lunebris_aura` / `lunebris_surge` now get radius 30.
+- result: BHSpells `build` OK. Not tested in game (checklist in `testing.md`).
+- next: in-game look at radius 30 and the impact; stun icon is a copy of `earth_roar_stun.png`.
+
+## 2026-11-11 — BHSpells `prism_flame` round 8: `speed`
+- User: make the speed adjustable. `PrismFlameFx`: param `speed` (`BhfxIds.SPEED`, 1, 0.1..4) scales the flame's flow clock, the strands' rise and turn (life / sqrt), and the glitter and shimmer rise; surges stay on `beat`. The strand helper's own `speed` argument renamed `pace`.
+- result: `compileJava` OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 7: wider, faint middle
+- User (round 6 approved): make the flame wider so the middle is faint, it doesn't need to be very bright.
+- BHSpells: `PrismFlameFx.DEFAULT_RADIUS` 1.15 → 1.6; `prism_flame.fsh` new `core` term makes the flame hollow like an aura (alpha and streak glow lower through the middle, less so in the tongues above the head).
+- result: `compileJava` OK, glslcheck OK, numpy preview. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 6: soft oval window over the body
+- User (round 5 screenshot, close up): the clear window over the body is a rectangle; just make it faint.
+- BHSpells `prism_flame.fsh`: the box (narrow smoothsteps across and a cut at the head) became a soft oval round the body's middle, its edge broken by the flame's noise, fading gradually (alpha down to x0.25).
+- result: glslcheck OK, numpy preview has no straight edges. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 5: clear over the body, ground light on the ground
+- User (round 4 seen in game): the middle is too dense, the body can't be seen, fade it over the body only; the light / ring spreading under the feet should stay on the ground.
+- BHSpells `prism_flame.fsh`: new `BodyA` window in blocks from the followed body's bounding box (alpha x0.15, rainbow x0.3, halo x0.2 there); the halo no longer spreads sideways at the feet; new ground light on floor pixels only (`groundBand` + upward normal): pool round the feet and the burst / surge ring (`GroundA`). `PrismFlameFx`: removed the `ground` batch (flat `radiant_ring` quads that floated over uneven ground), new `ring(t, s)` from time like `surge()`, strand roots moved out of the window, pass bounds cover the ring.
+- result: `compileJava` OK, glslcheck OK, numpy preview shows the body clear. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 4: power-up feel
+- User: make it able to be tall, and make it feel like powering up. `height` already existed (since round 2); surges now also add height.
+- BHSpells `PrismFlameFx`: 12-tick charge (low flickering flame, motes pulled in, building tremble), a burst (flame shoots up, `haki_wave`, ground ring, dust thrown out along the ground, `power_line` aura lines, a rush of strands, ripple / flash / shake / FOV), then a surge every `beat` seconds (`BhfxIds.BEAT`, 1.6; 0 = burst only) worked out from time alone; aura lines also stream up all the time. `prism_flame.fsh`: `FlameB.x` is now a flow clock that runs faster in a surge, `FlameB.w` the surge (brighter, stronger rainbow and halo).
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 3: tip line, view from above, strands back
+- User (round 2 screenshots, seen in game): what is the dotted line above the head; it looks odd from above; wants the round 1 flame strands back.
+- BHSpells `prism_flame.fsh`: above the tip the width is 0 and the one centre pixel column still passed → `shape` and the rainbow `edge` now times `smoothstep(0, 0.03, prof)`; the sheet fades out from |dir.y| 0.7 to 0.92 instead of only halving. `PrismFlameFx`: strands back (`particle/prism_wisp.fsh` recreated, rainbow follows `prism`), 14 a second, rooted inside the flame and scaled by `height` / `radius`; ground glow smaller and fainter.
+- result: `compileJava` OK, glslcheck OK (2 files), numpy preview shows no line above the tip. Round 3 not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame` round 2: one big steady white flame, no red
+- User: no red; one big, steady flame; the fire looked floaty.
+- BHSpells: removed the crimson smoke, the particle tongues, the ribbon strands, ash and the start flash, and deleted `particle/prism_flame.fsh`, `prism_wisp.fsh`, `crimson_blaze.fsh`. New pass `shaders/bhfx/prism_flame.fsh`: one sheet through the body's axis facing the camera, drawn over the body, a teardrop that splits into a few slow tongues above the head, marbled streaks, thinner over the body, rainbow slivers on the edges, white halo. `PrismFlameFx` keeps light glitter, `power_haze` and a white ground glow. Params now `color`, `color2`, `height` (3.2), `radius` (1.15), new `prism` (`BhfxIds.PRISM`, rainbow strength), `scale`.
+- The shape was checked on a numpy port of the shader maths (3 tries; the first read as a candle). Image: `BHSpells/docs/bhfx/tools/preview_prism_flame.png`.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `prism_flame`: white flame with a rainbow sheen burning on the body
+- User sent a reference (a hand in milky white flame with prism-like rainbow slivers on its edges, crimson billowing fire-smoke behind) and asked for that fire and those colours burning on the body.
+- BHSpells: new `client/PrismFlameFx` (`bhspells:prism_flame`, `BhfxIds.PRISM_FLAME`, registered in `BhfxClientBridge`). Attach it: white flame tongues, flowing white strands (RIBBON drawn at once, curling round the body), crimson fire-smoke drawn under the white, rainbow glitter, dark ash specks, `power_haze`, a red glow pool (`radiant_ring`), a flare on start. Params `color`, `color2`, `color3`, `scale`, `density`.
+- New materials `particle/prism_flame.fsh`, `prism_wisp.fsh`, `crimson_blaze.fsh` (all premultiplied ALPHA; each fades within 1.5 blocks of the camera so the caster's first-person view isn't covered). Design notes: `BHSpells/docs/bhfx/prism_flame.md`.
+- result: BHSpells `compileJava` OK, glslcheck OK (3 files). Not tested in game.
+
+## 2026-11-11 — BHSpells `power_wave.png` and `wind_slash.png` as small as they can go
+- User: make both as small as possible while keeping them good-looking.
+- Method: tried resolution x bits-per-channel options and scored each by rendering it the way its material does (fully drawn and half dissolved, bilinear like the GPU) against the original, then looked at 3x crops. Lessons: an unused channel costs real bytes (power_wave's B was a copy of R); the dissolve channel (G) needs more bits than the others because the materials sharpen it through a narrow smoothstep (power_wave grainy at 5 bits, wind_slash rough at 4); thin hair lines rule out lowering wind_slash's resolution, soft bands allow halving power_wave's height.
+- BHSpells `gen_power_wave.py`: saved at 512x256, R5 G6 A5, B empty → 181 KB → 52 KB (the script was first checked to reproduce the committed file exactly). `gen_wind_slash.py`: R4 G5 A5, B empty → 76 KB → 51 KB. Shader comments updated; no Java / shader logic change.
+- result: regenerated, ~39–40 dB against the originals, side-by-side looks the same. Not tested in game.
+
+## 2026-11-11 — BHSpells `wind_slash.png` under 100 KB
+- User: the texture file is too big (236 KB), keep it under 100 KB, lower resolution is fine.
+- BHSpells `docs/bhfx/scripts/gen_wind_slash.py`: still drawn at 1024x1024, saved at 512x512 (`OUT_SIZE`, 64 rows per band) with 6 bits per channel (`OUT_BITS`) and PNG optimize → 76 KB. No shader / Java change (the material samples bands by fraction).
+- result: regenerated, preview checked (shapes intact). Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` round 9: the wind spreads out
+- User: make the wind itself spread out too.
+- BHSpells `RadiantAuraFx`: every gust now spirals outwards as it climbs (0.5–1.2 b/s, feet ring x1.4) and widens over its life (half-width x0.8 → x1.5); new `spread` = `radius` / 2.8 (0.6..4) scales the layer rings, the outward drift and the glint / dust areas, so `radius` widens the whole aura (heights unchanged).
+- result: `compileJava` OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` round 8: gold crystals instead of rocks, `radius`
+- User asked what the black particles were (the floating rock chips, dark with a thin gold rim) and picked gold crystal / light shards, plus an adjustable radius.
+- BHSpells: `particle/radiant_debris.fsh` removed, new `particle/radiant_crystal.fsh` (kite shard, two flat faces, ridge, glinting rim, translucent glowing gold). `RadiantAuraFx`: `debris` → `crystals` (capacity 256); new param `radius` (`FxParam.RADIUS`, `DEFAULT_CRYSTAL_RADIUS` 2.8, 0.5..16, times the size) for the area they rise from; rate follows the area (x0.3..4). `BhfxIds.RADIANT_AURA` doc lists it.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` round 7: the wind as a 4-layer storm
+- User sent a motion sheet and four rules: orbit round the character, a helix climbing from the feet to the head, 2–4 layers at different heights and speeds, broken arcs with sharp tips (plus a flat ring at the feet, tilted rings, some gusts flying out).
+- BHSpells `RadiantAuraFx`: `slash()` now takes a layer (tables `LAYER_HEIGHT/RADIUS/TILT/LEAN/HALF/SPIN/RATE/RISE/START`): feet ring, low, middle, head; each layer's ring plane tips towards a direction that wobbles round (`PRECESS`), arcs 90–195° of that ring climb along their length and rise as they turn; 15% fly outwards; layers switch on from the feet up 0–0.45 s after the burst; the 8 burst gusts spread over the layers and fly out. New param `speed` (`BhfxIds.SPEED`, 1; negative turns the other way). Per-layer debt replaces `SLASH_RATE`.
+- result: `compileJava` OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` rounds 4–6: wind texture, sharp → flat → layered ribbons
+- Round 4 (user sent anime wind sheets, "not soft, a gusting storm"): sickle sheets with needle tips, hooked heads, claw barbs, dark-core / bright-rim shading (shadow in B). User: looks 3D; wants a texture, the sketch as the main reference.
+- Round 5: the sketch drawn directly in flat colour (straight top edge, stepped lower edge, capsule slits, swallowtail head). Mid-way the user sent a brief: ribbons of wind of uneven thickness, curling, sharp tips, not smoke puffs; soft feathered edges; layered translucent strokes.
+- Round 6 (current): `gen_wind_slash.py` builds each of 8 bands (1024x1024, 128 rows each) from layered translucent strokes (back ribbon, main ribbon swelling / pinching with a curled needle head, 1–2 crossing ribbons, hair-thin speed lines, crescent fragments), crisp leading edge, feathered trailing edge, flat brush-streak tone; soft slits and forked heads as sketch accents. R and G premultiplied by A. `radiant_ribbon.fsh`: 8 bands, flat colour (gold body, `color2` where brightest), dissolve by G / A. `RadiantAuraFx` slash uniforms: `Tint` color2, `Tint2` color at 0.9.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` round 3: wind wisps from the user's sketch
+- User: the round 2 texture looked odd (saw-tooth lower edge); sent a sketch: long thin wisps, smooth edges, pointed and forked tips, slits inside, slivers peeling off, small steps, many variants.
+- BHSpells `docs/bhfx/scripts/gen_wind_slash.py` rewritten (overlapping pointed strands, slits, slivers); `wind_slash.png` now 1024x512, 8 bands of 64 rows. `radiant_ribbon.fsh` reads 8 bands. `RadiantAuraFx.slash()`: 32 points, span 75–165°, half-width 0.24–0.44 x s, band 0..7; capacity 896.
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-11 — BHSpells `radiant_aura` round 2: ribbons become textured wind slashes
+- User (Roblox reference): wants the ribbons round the body to look like wind slashes — pointed crescents with a torn, spiky edge and loose slivers.
+- BHSpells: new `textures/fx/wind_slash.png` (4 slash shapes; R brightness, G dissolve order, A coverage) from new `docs/bhfx/scripts/gen_wind_slash.py`. `radiant_ribbon.fsh` rewritten: texture by `p.along` / `p.corner.y`, drawn head first then frays by G, ALPHA premultiplied. `RadiantAuraFx`: the 7 endless streams are gone; `slash()` lays one 24-point arc at a time (`ribbon()` + `along(0..1)`, random span / radius / height / tilt / lean, orbiting 3.4–5.6 rad/s), 11 a second plus 8 big ones at the burst (queued to the next frame).
+- result: `compileJava` OK, glslcheck OK. Not tested in game.
+
+## 2026-11-10 — BHSpells `radiant_aura`: golden aura with spiralling ribbons
+- User sent two references (a cultivator wrapped in golden light ribbons with glints; an anime aura with lightning and floating rocks) and asked for an aura with that feel, in gold.
+- BHSpells: new `client/RadiantAuraFx` (`bhspells:radiant_aura`, `BhfxIds.RADIANT_AURA`, registered in `BhfxClientBridge`). 10-tick gather (dust pulled in), one burst, then 7 RIBBON streams spiralling round the body in a radial plane, the `golden_aura` pass as body glow, glints, dust, `power_line`, `power_haze`, gold `haki_bolt` / `haki_strike` crackle, floating rock chips, ground glow pool and ring pulses. Params `color`, `color2`, `scale`.
+- New materials `particle/radiant_ribbon.fsh` (uses a `Time` uniform and `p.along`, not `p.seed`), `radiant_glint.fsh`, `radiant_debris.fsh`, `radiant_ring.fsh`. Design notes: `BHSpells/docs/bhfx/radiant_aura.md`.
+- result: BHSpells `compileJava` OK, glslcheck OK (4 files). Not tested in game.
+
 ## 2026-11-10 — Version 0.3.10
 - The user asked to bump the version (roadmap U3, ahead of the U1 in-game round).
 - bhfx: `gradle.properties` `mod_version` 0.3.9 → 0.3.10; `CHANGELOG.md` 0.3.10 section (phase 0 and 1, ribbon plane / along, scoped stop). Protocol stays 2.

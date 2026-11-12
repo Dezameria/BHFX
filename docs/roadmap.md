@@ -24,6 +24,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
 - [x] 2026-11-02 Mirror block (added 2026-10-23): tested in game (user report) ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
+- [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## 1.0 plan
@@ -106,7 +107,8 @@ Requirement (user, 2026-11-06): everyone in range sees the same effects. Under l
   - [ ] 2. Quality / distance LOD for `emit` and `Stream` counts (e.g. LOW ×0.5, fewer far away). Changes looks: evenly counted shapes change spacing, streamed ribbons get coarser. Needs a per-batch / per-emit opt-out; default **off** so existing BHSpells effects don't change.
   - [ ] 3. Max on-screen size and near-camera fade per batch, for fill rate (big ALPHA smoke). Changes looks of effects round the player (aura, `attach @s`, first person); default **off**.
   - Not planned now: evaluate-once pre-pass (positions computed 4× per particle, 8× for ribbons; worth it at tens of thousands), half-float packing (112 → ~64 bytes; position/time precision risk), a half-res buffer (particles already draw at effect resolution), ALPHA sorting, compute shaders (GL 4.3, not on macOS), persistent mapped buffers.
-  - [ ] Later, only when an effect needs it: mesh particles; GPU simulation by texture ping-pong (no compute: GL 3.2 / macOS 4.1); particle sorting for ALPHA; a dev-only overdraw view.
+  - [x] 2026-11-12 `TUMBLE` facing (tumbling panes in real world planes) covers flat shards; see [`decisions.md`](decisions.md). Version 0.3.11 (bumped 2026-11-12); BHSpells `build.gradle` and `mods.toml` `[0.3.11,0.4)` raised with it.
+  - [ ] Later, only when an effect needs it: mesh particles (thick pieces with side faces); GPU simulation by texture ping-pong (no compute: GL 3.2 / macOS 4.1); particle sorting for ALPHA; a dev-only overdraw view.
 
 - Shader pack mode: while a pack is on, keep screen-only effects (flash, vignette, ripple, impact, bloom, pulses) and skip only depth-based world passes, instead of the all-or-nothing `offWithShaderpack`. Only needed if world-space parts look wrong with a pack (2026-10-17: the user reports effects visible with Complementary forced on).
 

@@ -14,7 +14,29 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 - 2026-11-10: RIBBON materials see a different `p.seed` (and `p.seconds`) on every segment: `pLife` is `flat`, taken from one end point. Anything keyed on them (noise offsets, dissolve) jumps at each segment, so a strip breaks into slices as it fades (seen in BHSpells `anime_shockwave`, screenshot). Use `p.along`, `p.corner`, `p.age` (interpolated) and per-ribbon constants in `p.data` instead. bhfx's own `test_swirl.fsh` offsets its noise by `p.seed` and has the same flaw. Possible fix in bhfx: a per-ribbon seed, or document it in the particle header.
 
+- 2026-11-12 (API trap, crashed a client): calling `BHFxClient.play` (and, to be safe, `BHFxClient.stop`) from inside an `Fx` hook (`tick`, `onStop`, ...) throws `ConcurrentModificationException` in `ClientFxManager.tick` (`ACTIVE` is being iterated; `startLocal` → `add` appends to it). Crash: `BHSpells/run/crash-reports/crash-2026-11-12_02.26.09-client.txt`, from BHSpells `QiBlastFx` starting `impact_ring` / `ground_beat` at its blast. Workaround in effect code: `Minecraft.getInstance().tell(() -> BHFxClient.play(...))` (`QiBlastFx.playLater`, `GoldenClashFx.onStop`). Possible fix in bhfx: queue starts made during the tick and add them after the loop, or say so in the `BHFxClient.play` javadoc.
+
 ## Fixed
+
+### 2026-11-12 — BHSpells `sky_shatter` with `hold:true` drew nothing (fixed in code, not tested in game)
+- **Cause**: `hold:true` gives the effect `duration()` = `FxSpawn.UNTIL_STOPPED` (−1); the fade computed (−0.05 − t) / 1.6 → 0, so it counted as fully faded. Any Fx that fades on `duration()` has the same trap.
+- **Fix**: only fade on the duration when it is > 0. Rule for new effects: check `duration() > 0` before using it as an end time.
+
+### 2026-11-12 — BHSpells `sky_shatter` drew nothing in the sky since round 3 (fixed, checked in a WebGL preview, not in game)
+- **Symptom**: rounds 3 and 4 in game: shards fell, but no cracks, no holes, not even the darker sky.
+- **Cause**: the round-3 rewrite of `sky_shatter.fsh` read the fade from `Timing.w` (copied from `glass_shatter`), while `SkyShatterFx` sends it in `Timing.y`; `.w` is 0, so every pixel took the "faded out" early return. glslang and the compile can't see a uniform's layout mismatch.
+- **Fix**: `fade = Timing.y`. Found by rendering the real shader in a WebGL preview (`BHSpells/docs/bhfx/tools/preview_sky_shatter.html`): the sky came out unchanged in every panel before the fix. Same preview showed `patch` (a variable) is reserved in GLSL ES; renamed, and `patch` added to the reserved scan (NVIDIA accepted it in `#version 150`).
+- **Lesson**: when an effect shows "nothing", render the pass in the preview and compare pixels with and without it before tuning looks.
+
+### 2026-11-12 — Every particle material broken after TUMBLE (fixed, not re-tested in game)
+- **Symptom**: nothing showed for `bhspells:sky_shatter` (and every other particle effect was gone). `latest.log`: 31 materials "broken and will be skipped", all `vertex compile failed ... error C1012: abstract parameters not allowed in function definition "bhfxUnpackUnit"`.
+- **Cause**: the new `bhfxUnpackUnit(float packed)` in `particle/vertex.vsh`, shared by every material. `packed` is reserved in GLSL 1.50; NVIDIA refuses it, glslang (`checkShaders`) let it through.
+- **Fix**: parameter renamed to `code`. `checkShaders` (`gradle/glsl-check.gradle`) and `glslcheck.py` now fail on reserved words used as names (see [`shaders.md`](shaders.md)); checked that they catch `packed`, and that all 17 bhfx and 55 BHSpells shaders pass. bhfx rebuilt as 0.3.11 (same version; `copyToBHSpells` cleared the deobf copy).
+
+### 2026-11-12 — BHSpells dev client crashed with `NoSuchMethodError` in `SkyShatterFx` (not a code bug; dev-loop trap)
+- **Symptom**: `crash-2026-11-12_12.28.55-client.txt`: `NoSuchMethodError: SkyShatterFx$Landing.<init>(float, Vec3, boolean)` from `SkyShatterFx.fall`, the first time a shard landed.
+- **Cause**: the client was started at 12:17 with the round-2 classes, and BHSpells was recompiled at 12:26 while it ran. The dev client loads BHSpells classes straight from `build/classes`, and nested classes load lazily: the outer `SkyShatterFx` was the old one (calls `Landing(float, Vec3, boolean)`, has `fall`), the not-yet-loaded `Landing` record came from the new build (`Landing(float, Vec3, float)`). The source at that time had neither `fall` nor that constructor.
+- **Fix**: none needed in code; restart `runClient` after any BHSpells `compileJava` / `build`. Rule recorded in the `bhfx-dev-loop` skill.
 
 ### 2026-11-05 — bhfx's own `runClient` never started (fixed, checked in game)
 - Symptom: `gradlew runClient` in `bhfx/` died at launch every time since Carpet was added as a dev dependency (logs 2026-10-24 to 2026-11-05). `latest.log`: `Mixin apply failed carpet.mixins.json:MinecraftMixin ... Critical injection failure: @Inject annotation on onCloseGame could not find any targets matching '...m_91320_...'`. Reported by the user as "เปิด runclient ของ bhfx ไม่ติด".
