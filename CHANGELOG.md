@@ -4,6 +4,16 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.11 — 2026-11-12 (protocol 2)
+- **Added** (experimental): particle facing `TUMBLE`, a pane lying in a real plane of the world (not turned to the
+  camera) that tumbles round its own axis: `axis(dir, length)` = long side at birth, `normal(n)` = face at birth,
+  new `ParticleSpawn.tumble(axis, rad/s)`. `p.facing` is 1 face on .. 0 edge on (fresnel, glints). Glass shards,
+  leaves, cards, debris. Same 112 bytes per slot. BHSpells `sky_shatter` uses it, so BHSpells now
+  needs bhfx `[0.3.11,0.4)`.
+- **Added**: `bhfx:mirror_panel`, a thin mirror plate laid on the face you place it against (walls, floors,
+  ceilings). Only its front reflects. Panels side by side on one wall join into one mirror with one continuous
+  reflection. Recipe: 3 glass panes over 3 iron nuggets → 6 panels.
+
 ## 0.3.10 — 2026-11-10 (protocol 2)
 - **Changed**: the client remembers every effect it is sent and builds only the ones it shows. Every effect within
   `guaranteedRadius` (new client setting, default 48 blocks) is always built; past that, the nearest ones up to
