@@ -133,7 +133,57 @@ tasks.register('checkShaders') {
         outDir.mkdirs()
         def failures = []
         int checked = 0
+        // glslang takes these as names, but GLSL 1.50 reserves them and NVIDIA's compiler refuses them ("abstract
+        // parameters not allowed", 2026-11-12: a parameter named `packed` broke every particle material)
+        def reserved = ['common', 'partition', 'active', 'asm', 'class', 'union', 'enum', 'typedef', 'template', 'this',
+                'packed', 'resource', 'goto', 'inline', 'noinline', 'public', 'static', 'extern', 'external', 'interface',
+                'long', 'short', 'half', 'fixed', 'unsigned', 'superp', 'input', 'output', 'hvec2', 'hvec3', 'hvec4',
+                'fvec2', 'fvec3', 'fvec4', 'filter', 'sizeof', 'cast', 'namespace', 'using', 'sample', 'subroutine',
+                'buffer', 'shared', 'coherent', 'volatile', 'restrict', 'readonly', 'writeonly', 'precise', 'patch'] as Set
+        def wordPattern = ~/[A-Za-z_][A-Za-z0-9_]*/
+        def reservedIn = { String text ->
+            def hits = [] as LinkedHashSet
+            boolean inBlock = false
+            text.readLines().eachWithIndex { String raw, int i ->
+                // drop comments: block comments (also across lines), then line comments
+                def line = new StringBuilder()
+                int at = 0
+                while (at < raw.length()) {
+                    if (inBlock) {
+                        int end = raw.indexOf('*/', at)
+                        if (end < 0) {
+                            at = raw.length()
+                        } else {
+                            inBlock = false
+                            at = end + 2
+                        }
+                    } else if (raw.startsWith('/*', at)) {
+                        inBlock = true
+                        at += 2
+                    } else if (raw.startsWith('//', at)) {
+                        at = raw.length()
+                    } else {
+                        line.append(raw.charAt(at))
+                        at++
+                    }
+                }
+                if (line.toString().trim().startsWith('#')) {
+                    return
+                }
+                def m = wordPattern.matcher(line)
+                while (m.find()) {
+                    if (reserved.contains(m.group())) {
+                        hits << "'${m.group()}' (expanded line ${i + 1})".toString()
+                    }
+                }
+            }
+            hits
+        }
         def runGlslang = { String label, File src, File original ->
+            def words = reservedIn(src.getText('UTF-8'))
+            if (!words.isEmpty()) {
+                failures << "${label} (${original})\nreserved GLSL word(s) used as names: ${words.join(', ')}".toString()
+            }
             def log = new ByteArrayOutputStream()
             def result = project.exec {
                 commandLine glslang.absolutePath, src.absolutePath
