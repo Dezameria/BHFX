@@ -14,6 +14,7 @@ Daily work log, newest at the top. Format:
 ## 2026-11-16 — Particle live window (0.3.16)
 - bhfx: `ParticleBatch` (`live`, `liveStart`, `advanceWindow`, `windowRuns`, `WINDOW_MARGIN` 0.25 s), `PostRenderer` (window advanced in `updateParticleStride`; budget, stride and instances count the window; `PWindow` uniform), `ParticleRenderer.draw`, particle `vertex.vsh` (instance → slot through the two runs of the window, multiples of the stride as before); JUnit `ParticleWindowTest` (4). 0.3.15 → 0.3.16.
 - result: build + JUnit passed; Claude measured in game alone via dev control (old code stashed for the baseline): instances drawn at 25 s down 73–91 %, sheets look the same. BHSpells untouched (`libs/` restored).
+- Stress before / after (Claude, dev control, `status` line added to `DevControl`): thinning at 70 effects 1 in 64 → 1 in 5, GPU 0.75–1.5 → 1.3–2.1 ms (living particles drawn instead of dead ones), idle after the end 0.77 → 0.12 ms. Table in [`testing.md`](testing.md).
 - next: optimization plan items 4 (`/bhfx stats` peak vs capacity), 2 and 3 (opt-in LOD, near-camera fade) when wanted.
 
 ---

@@ -30,7 +30,8 @@ import java.util.Set;
  * the folder {@code bhfx_dev} exists. Each file runs line by line, files in name order; a finished file moves to
  * {@code inbox/done/}, and what each line did goes to {@code bhfx_dev/outbox/<file>.log}.
  * <p>
- * Lines: {@code # comment}; {@code wait <seconds>}; {@code camera first|back|front}; {@code quit} (closes the game);
+ * Lines: {@code # comment}; {@code wait <seconds>}; {@code camera first|back|front}; {@code status} (logs fps and
+ * {@code /bhfx status} now); {@code quit} (closes the game);
  * otherwise a command, with or without its slash, whose first word is in {@link #ALLOWED} ({@code bhfx}, {@code tp},
  * {@code time}, {@code weather}, {@code fill} ...), sent as if typed in chat. A line waits while a /bhfx shoot is taking
  * shots, so a list of shoots runs one by one. Nothing runs before the player is in a world.
@@ -183,6 +184,11 @@ final class DevControl {
                 }
                 mc.options.setCameraType(type);
                 log(dir, lineNo + " " + line);
+                return;
+            }
+            case "status" -> {
+                // a reading to compare runs by: last second's fps and /bhfx status, into the outbox log
+                log(dir, lineNo + " status: fps " + mc.getFps() + " | " + ClientFxManager.status().replace('\n', ' '));
                 return;
             }
             case "quit" -> {

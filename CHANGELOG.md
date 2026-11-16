@@ -8,7 +8,9 @@ server must use the same one.
 - **Changed** (performance): particle batches draw only their live window, from the oldest particle not yet dead to the
   newest, instead of every slot ever written. Long-running effects draw 73–91 % fewer instances (bhfx test effects at
   25 s: `test_vortex` 3840 → 576, `test_particles` 3317 → 311), so less vertex work and less thinning when many effects
-  play at once. No look change, no API change.
+  play at once. No look change, no API change. Under `/bhfx stress 70` the particle thinning drops from 1 in 64 to
+  1 in 5 (more of each effect shows; GPU time goes up a little because those particles are really drawn).
+- **Added** (dev client only): dev control line `status` logs fps and `/bhfx status`.
 
 ## 0.3.15 — 2026-11-16, built locally, not published (protocol 3)
 - **Added**: `/bhfx shoots <fx> [<fx> ...]` shoots several effects in turn at the spot you look at

@@ -17,6 +17,19 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
   gain is fewer instances, which matters most when many effects share the particle budget (less thinning). Not yet
   measured: `/bhfx stress` before / after (`/bhfx bench` restarts the effect, so its rings never wrap: same numbers).
 - Baseline bench (old code, 20 s, 1600x900): bhfx GPU `test_flow` 0.90 ms, `test_vortex` 1.00, `test_particles` 1.10.
+- Stress, 2026-11-16 (`/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles`, MEDIUM, 1600x900,
+  readings every 2 s by the dev-control `status` line; old = the four render files checked out from `2b9d485`):
+
+  | | old | new |
+  | :--- | :--- | :--- |
+  | thinning at the peak (70 fx) | 1 in 64 (the cap) | 1 in 5 |
+  | particle slots drawn at the peak | 15–17.5k | 13–15.5k |
+  | bhfx GPU at the peak | 0.75–1.5 ms | 1.3–2.1 ms |
+  | after all ended | 248 slots, 0.77 ms | 0 slots, 0.12 ms |
+
+  The budget now goes to living particles, so each effect keeps about 12× more of its particles under load; GPU time
+  rose a little because they are drawn instead of collapsed (still far under the 6 ms bar). fps stayed at the 119 cap
+  both runs, so frame cost is not measurable on this machine. Not shot (numbers only).
 
 ### ✅ Dev control, `/bhfx shoots`, `sheet.png` (2026-11-16, 0.3.15; run by Claude alone: `runClient -PquickPlay="New World" -Pwindow=1600x900` with `bhfx_dev/inbox/001_check.txt`)
 - The client opened straight into the world; "bhfx dev control on" in the log; all 10 lines ran in order (time, weather, camera, `tp` with a view, wait, one shoot of 3, `shoots` of `test_flow` + `test_swirl`, quit); each line waited for the shoot before it; the game closed itself. `outbox/001_check.txt.log` and `status.txt` right (`status.txt` showed world, position, view, fps 119, shoot busy, inbox progress, latest folder).

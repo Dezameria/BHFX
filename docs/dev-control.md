@@ -29,6 +29,7 @@ Lines:
 - `# comment`, empty lines: skipped.
 - `wait <seconds>` (0–600).
 - `camera first|back|front`.
+- `status`: logs the last second's fps and `/bhfx status` into the outbox (readings to compare runs by).
 - `quit`: closes the game.
 - A command, with or without `/`, whose first word is one of `bhfx tp teleport time weather gamemode gamerule summon
   kill effect difficulty fill setblock clear give` (`DevControl.ALLOWED`); sent as if typed. Anything else is refused.
