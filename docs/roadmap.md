@@ -28,6 +28,59 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
+## Performance and new effect forms (plan proposed 2026-11-16 after a code review; not started)
+
+Rules for every step: bhfx only; a performance step must not change the look (same `/bhfx shoot` sheets on old and new
+code, through dev control) and is measured before / after; anything that can change a look is opt-in and off by
+default; one version bump per finished stage. Review notes: [`worklog.md`](worklog.md) 2026-11-16.
+
+- [ ] **A. Measure properly first (0.3.17).** The 2026-11-16 stress run could not show frame cost (fps at the 119 cap,
+  single-frame GPU readings, no CPU number).
+  - [ ] A1. CPU ms of bhfx per frame (tick part and render part) in `/bhfx status` and the dev-control `status` line.
+  - [ ] A2. Dev-control line to lift the fps cap (`fps unlimited|<n>`), and GPU / CPU ms averaged over the time between
+    two `status` lines instead of one frame.
+  - [ ] A3. `/bhfx stats`: peak alive vs capacity per batch (old optimization item 4).
+  - [ ] A4. Baseline with A1–A3: `/bhfx stress 70` and the four particle test effects, numbers and sheets into
+    [`testing.md`](testing.md).
+- [ ] **B. Free wins, no look change (0.3.18).** Found in `PostRenderer`:
+  - [ ] B1. Draw particle and model runs in place. Now every run first copies the whole input target
+    (`blit(from, pingFbo[ping], ...)`), and runs split whenever passes and particles of different effects interleave.
+    When the input is already a ping target and no material in the run reads `DiffuseSampler` (uniform not active),
+    draw onto the input and skip the copy and the ping swap. Models keep their per-target depth buffer.
+  - [ ] B2. Bounded passes copy only what differs. A scissored pass now copies the full target before shading its rect.
+    The other ping target differs from the input only inside the previous pass's rect, so copy that rect (padded); a
+    full copy only on the first use in a frame or after a full-screen pass / particle run.
+  - [ ] B3. Frame-constant uniforms once per program per frame. `begin()` sets three matrices, `Eye`, fog, `ScreenSize`,
+    `GameTime` and three sampler units on every draw; many batches share `DOT` / `STREAK` / `SPRITE`. Keep a frame
+    stamp per `ShaderProgram`; set sampler units once after link. `OutSize` stays per draw.
+  - [ ] B4. Built-in particle / model uniforms through locations resolved once per program, not about 20 `String` map
+    lookups per batch (`ShaderProgram.location`). Only if A1 shows the CPU part matters.
+- [ ] **C. New forms that are shared by design (0.3.19–0.3.2x).** A custom pass costs one screen pass per effect and
+  only 8 fit a frame (`maxPassesPerFrame`); these collect every effect's items into one built-in pass or reuse the
+  particle path, so they stay cheap with many players. All new API, `@ApiStatus.Experimental`, each with a test effect.
+  - [ ] C1. `FxLights`: point lights (position, colour, radius, falloff) from any effect, gathered into one data table
+    and drawn by one pass that lights the world from depth. Spells light the ground and walls round them.
+  - [ ] C2. `FxDecals`: textured marks on the ground and walls (magic circles, scorch, cracks; rotation, fade, flipbook,
+    ramp), all in one pass, built on `groundDecal`. No shader to write for the common case.
+  - [ ] C3. Bolts and beams: a Java builder for lightning / beam polylines (jitter, branches, travel) on the existing
+    ribbons, plus the built-in textured-ribbon material from the backlog. No new renderer.
+  - [ ] C4. Mesh particles: a particle batch whose pieces are an `FxModel` (shards, debris, blades) moved by the GPU
+    particle motion. Uses the particle data buffer with the model draw.
+  - [ ] C5. Model afterimages (ghost copies with their own pose and fade: needs per-copy poses) and a `DISTORT` model
+    material (old M4).
+- [ ] **D. Memory and hitches (scale phase 2).** Pool `ParticleBatch` storage and GL buffers by power-of-two size, a
+  ceiling on slots allocated. Measured with `/bhfx stress` staggered starts (frame over 50 ms count).
+- [ ] **E. Opt-in quality knobs, default off.** Count LOD for `emit` / `stream` (old item 2); near-camera fade and max
+  on-screen size (old item 3); `PassOptions` half-resolution stage with a depth-aware upsample for heavy passes
+  (`sdf_march`, volumes); dev-only overdraw view.
+- [ ] **F. Needs E's half-res stage.** Light shafts from a world point; fog / smoke volumes; later per-stream seeded
+  random (`FxRandom`).
+- Checked and left alone: bloom (5 levels from half of effect resolution), the full-resolution snapshot copy (it is
+  `SceneSampler` and the composite's sharp source), particle upload (only new slots, `glBufferSubData`), the GPU timer
+  (no wait). Still not planned: evaluate-once particle pre-pass, half-float packing, compute shaders.
+
+Suggested order: A → B → C1 → C2 → C3 → D → E → C4 / C5 → F.
+
 ## Next feature: `FxData` (chosen 2026-11-16, code done the same day)
 
 - [ ] `FxData`: tables of `vec4` that an `Fx` fills in Java and a pass reads as a `samplerBuffer`. Code done 2026-11-16

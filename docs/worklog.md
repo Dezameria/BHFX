@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Review and plan: performance and new effect forms
+- bhfx: read `PostRenderer` (frame loop, `begin`, `drawBatch`, bloom, composite), `ParticleRenderer`, `UniformBinder`, the particle / model shader headers and includes. No code change.
+- found: every particle / model run copies the whole input target first; a bounded pass copies the whole target before shading its rect; frame-constant uniforms are set again on every draw; built-in uniforms go through `String` lookups per batch; there is no CPU time reading and fps is capped in the stress runs. Fine as is: bloom, snapshot copy, particle upload, GPU timer.
+- result: plan in [`roadmap.md`](roadmap.md) "Performance and new effect forms" (stages A–F). Not started; waits for the user's pick.
+
+---
+
 ## 2026-11-16 — Particle live window (0.3.16)
 - bhfx: `ParticleBatch` (`live`, `liveStart`, `advanceWindow`, `windowRuns`, `WINDOW_MARGIN` 0.25 s), `PostRenderer` (window advanced in `updateParticleStride`; budget, stride and instances count the window; `PWindow` uniform), `ParticleRenderer.draw`, particle `vertex.vsh` (instance → slot through the two runs of the window, multiples of the stride as before); JUnit `ParticleWindowTest` (4). 0.3.15 → 0.3.16.
 - result: build + JUnit passed; Claude measured in game alone via dev control (old code stashed for the baseline): instances drawn at 25 s down 73–91 %, sheets look the same. BHSpells untouched (`libs/` restored).
