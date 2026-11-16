@@ -113,6 +113,16 @@ class GeoAnimationLoaderTest {
     }
 
     @Test
+    void oneNumberKeyframeWarnsBecauseGeckoLibCrashesOnIt() {
+        // 2026-11-16: "2.0": 1 in bhfx's test file stopped runClient (GeckoLib loads every animations/*.json)
+        GeoAnimationLoader.Library lib = GeoAnimationLoader.load("{\"animations\":{\"a\":{\"bones\":{\"b\":"
+                + "{\"scale\":{\"0\":[1,1,1],\"1\":2}}}}}}");
+        assertEquals(1, lib.warnings().size());
+        assertTrue(lib.warnings().get(0).contains("GeckoLib"));
+        assertEquals(2f, at(lib.clips().get("a"), 1f, "b")[7], 1e-6f); // still read
+    }
+
+    @Test
     void weightBlendsOverThePose() {
         GeoAnimationLoader.Clip c = clip("", "\"b\":{\"rotation\":[40,0,0],\"scale\":[3,3,3]}");
         FxPose pose = new FxPose().rotation("b", 20, 0, 0);

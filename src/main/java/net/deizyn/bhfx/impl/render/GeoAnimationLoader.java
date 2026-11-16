@@ -470,6 +470,12 @@ public final class GeoAnimationLoader {
                     warnings.add(where + ": keyframe time '" + k.getKey() + "' is not a number");
                     continue;
                 }
+                if (k.getValue().isJsonPrimitive()) {
+                    // read fine here, but GeckoLib loads every assets/*/animations/*.json and throws on this form,
+                    // which stops the game from loading when GeckoLib is installed
+                    warnings.add(where + "@" + k.getKey() + ": a keyframe of one number; write [x, y, z] (GeckoLib"
+                            + " cannot read this and stops the game loading)");
+                }
                 Key key = key(k.getValue(), rest, where + "@" + k.getKey(), warnings);
                 key.time = time.floatValue();
                 keys.add(key);

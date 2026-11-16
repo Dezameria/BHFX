@@ -35,6 +35,11 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 - 2026-11-14 BHSpells `confinement_song`: a ghost copy of each sound ring appeared away from the effect. Cause: a sphere's rim was found from the closest distance between its centre and the full view **line** (`tc = dot(C - eye, dir)` not clamped), so the part behind the camera drew a mirrored ring when looking away. Fix: also fade by `tc > 0`. Rule for any pass that measures a point against the view ray: clamp or gate `t ≥ 0` (`rayLine` in `shapes.glsl` already clamps).
 
+### 2026-11-16 — BHSpells `runClient` crashed while loading ("Rendering overlay"): bhfx's test animation broke GeckoLib
+- **Symptom**: the game crashed on the loading screen, `GeckoLibException: bhfx:animations/test_model.animation.json: Error loading animation file` ← `Not a JSON Object: 1`.
+- **Cause**: GeckoLib loads **every** `assets/*/animations/*.json` of every mod at resource load and throws on what it can't read. bhfx's new test file had a keyframe of one number (`"2.0": 1` in a scale keyframe map). bhfx's own loader accepts that; GeckoLib only accepts a number for a whole channel, not inside a keyframe map.
+- **Fix**: the keyframe written as `[1, 1, 1]`; `GeoAnimationLoader` now warns on that form (says GeckoLib stops the game loading); JUnit `oneNumberKeyframeWarnsBecauseGeckoLibCrashesOnIt`. Rule: animation files shipped by bhfx or for `FxAnimation` must stay GeckoLib-readable (what Blockbench exports is). Checked from GeckoLib 4.8.3's `BakedAnimationsAdapter` bytecode: arrays, `{"vector"}`, `pre` / `post` (arrays or `{"vector"}`), `lerp_mode`, Molang strings are fine.
+
 ### 2026-11-14 — RGB / grey PNG textures could not load (fixed in code, not tested in game)
 - Symptom: none seen yet; found while writing an RGB crack texture for BHSpells `arm_shatter`.
 - Cause: `FxTextures.read` used `NativeImage.read(in)`, which keeps the file's format, then called `getPixelRGBA`, which throws on anything but RGBA.

@@ -11,6 +11,12 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — runClient crash: test animation unreadable by GeckoLib
+- bhfx: `assets/bhfx/animations/test_model.animation.json` (`"2.0": 1` → `[1, 1, 1]`), `GeoAnimationLoader` (warns on one-number keyframes), `GeoAnimationLoaderTest` (10). Details in [`bugs.md`](bugs.md).
+- result: build passed; BHSpells runClient then loaded to the title screen and into a world (22:29), `bhfx warmed up 104 shader(s)`, no `broken`, no bhfx errors; the only `GL ERROR`s were `65539: Invalid key 0` (typing commands). The user started `bhfx:test_model` and `bhspells:thousand_swords`; how they look is not reported yet.
+
+---
+
 ## 2026-11-16 — Version 0.3.13
 - bhfx: `gradle.properties` 0.3.12 → 0.3.13; `CHANGELOG.md` (0.3.12 closed 2026-11-16 with body parts .. waves / `FxGround`; `FxPose` and `FxAnimation` moved under 0.3.13); `API_PLAN.md` 5.7 version tags; `release.md` (raise the patch version per finished batch, the user's rule; range text corrected to `[0.3.12,0.4)`).
 - BHSpells: `build.gradle` `fg.deobf("net.deizyn:bhfx:0.3.13")` ×2, `libs/bhfx-0.3.13.jar` (by `copyToBHSpells`). `mods.toml` stays `[0.3.12,0.4)`: BHSpells uses no 0.3.13 API yet.
