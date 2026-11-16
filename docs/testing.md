@@ -6,7 +6,8 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
-### ⏳ Models drawn by bhfx (2026-11-16, build + 8 `GeoModelLoaderTest` cases + glslang; all 17 BHSpells `.geo.json` baked offline without errors)
+### ✅ Models drawn by bhfx (2026-11-16, build + 8 `GeoModelLoaderTest` cases + glslang; all 17 BHSpells `.geo.json` baked offline without errors)
+**Passed in game 2026-11-16** (the user ran the checklist and reported "passed"; no item-by-item notes).
 1. `/bhfx test bhfx:test_model at ^ ^ ^5`: three swords about 1.7 blocks tall, turning: left as painted (brown grip, gold guard, steel blade, red gem), middle a pulsing cyan glow, right burning away from orange edges and coming back every 4 s. Textures sit right (no stretched or swapped faces), no holes, no inside faces showing.
 2. Walk round and close up; put a block between you and them: hidden correctly; the glow blooms.
 3. `/bhfx test bhfx:test_model attach @s`, F5: one glowing sword in the right hand, blade forward, following the arm; check it is not inside out (the cull flip for mirrored frames).
@@ -14,7 +15,8 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 5. Together with `test_particles` and `test_data`: particles in front of / behind the swords look right (models draw at the particles' order, as their own group).
 6. Optional: the same in an Fx with a BHSpells model, e.g. `FxModel.geo(bhspells:golden_gate_entity)` with its texture, next to the real entity: the textures should match GeckoLib's.
 
-### ⏳ Posed and animated models, M2 + M3 (2026-11-16, build + `BoneRigTest` (7) + `GeoAnimationLoaderTest` (9) + `MolangTest` (4) + glslang; all 15 BHSpells animation files load with no warnings, offline)
+### ✅ Posed and animated models, M2 + M3 (2026-11-16, build + `BoneRigTest` (7) + `GeoAnimationLoaderTest` (9) + `MolangTest` (4) + glslang; all 15 BHSpells animation files load with no warnings, offline)
+**Passed in game 2026-11-16** (the user ran the checklist and reported "passed"; no item-by-item notes).
 1. `/bhfx test bhfx:test_model`: a fourth sword, furthest right (textured): the blade swings ±35° round the guard and stretches, the gem spins, bobs and vanishes for half a second every 3 s; the other three swords as before (not posed).
 2. Walk round it and close up: the swinging blade is not cut off at the screen edge or culled while visible (bounds grow with the pose); faces stay solid (no inside-out faces), light on the blade changes as it turns.
 3. `/bhfx status` with it running: no GL errors; frame time no different from the three static swords alone.
@@ -22,7 +24,8 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 5. The fifth sword (furthest right) plays `test_model.animation.json` "swing" on a 2 s loop: blade eases to one side, swings smoothly through the other and back; the gem spins steadily and jumps up at 1 s, drops back by 2 s; the whole sword swells about 15 % at 1 s. Moving from the first frame (loaded in the constructor), no warnings in `latest.log`.
 6. F3+T while it plays: still animates (the file is read again).
 
-### ⏳ Travelling waves and ground lookups (2026-11-16, build + `WavesTest` (4) + `FxGroundTest` (3) only)
+### ✅ Travelling waves and ground lookups (2026-11-16, build + `WavesTest` (4) + `FxGroundTest` (3))
+**Passed in game 2026-11-16** (the user ran the checklist and reported "passed"; no item-by-item notes).
 1. `/bhfx test bhfx:test_wave at ~ ~ ~30`: flash at once, a bending ring runs out, boom and shake about 0.1 s later (a sharp explosion within 64 blocks).
 2. Fly about 150 blocks away (`at ~150 ~ ~`): the flash, then thunder and shake about 0.45 s later, as the ring passes you; at about 400 blocks, about 1.2 s and low thunder. Volumes far off may be faint (Minecraft's sound range).
 3. Quit or change dimension while a shake is on its way: nothing fires later in the new world.
@@ -246,7 +249,7 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
 
 ## BHSpells spells that use bhfx
 
-### ⏳ `bhspells:thousand_swords` rounds 1–2: a thousand flying swords (bhfx instanced models) (2026-11-16; round 1 seen in game by the user: swords planted under the floor; round 2 ground found from blocks, `compileJava` only)
+### ✅ `bhspells:thousand_swords` rounds 1–3 (round 3 passed in game 2026-11-16, the user: "passed"; swords on the ground, waves): a thousand flying swords (bhfx instanced models) (2026-11-16; round 1 seen in game by the user: swords planted under the floor; round 2 ground found from blocks, `compileJava` only)
 1. `/bhfx test bhspells:thousand_swords at ^ ^ ^12`: slim white swords with pink flower guards form one by one in a dome over the spot, tips pointing down at where each will strike; eight volleys draw back and shoot tip first into the ground, white-hot with streaks and sparks; they stay planted, cool, then dissolve from the pommel up. Textures as in `BHSpells/docs/bhfx/thousand_swords_model.png`.
 2. FPS while all 1000 are in the air and then planted; `/bhfx bench bhspells:thousand_swords` GPU ms; `{count:2000}` for the worst case.
 3. Swords hidden behind blocks; planted ones sit on the real ground on a hill (strike heights read per point).

@@ -4,7 +4,8 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Open / known limitations
 
-- 2026-11-16 (open, under watch): the BHSpells dev client died during `bhspells:thousand_swords`: Windows Application
+- 2026-11-16 (open, under watch; **not seen again** in the evening retest after the hardening, the user ran
+  `thousand_swords` again and reported "passed"): the BHSpells dev client died during `bhspells:thousand_swords`: Windows Application
   Error at 19:08:20, `java.exe` access violation (0xc0000005) in `nvoglv64.dll` 32.0.16.1692 (NVIDIA OpenGL) at offset
   0x15c300a, LiveKernelEvent reports right after and a 9.5 s stall in `latest.log` ("Can't keep up! ... 9472ms"), so
   most likely a GPU hang and driver reset. No Java exception, no crash report, no `hs_err`. It came 0.3 s after
