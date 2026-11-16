@@ -6,6 +6,12 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Dev control, `/bhfx shoots`, `sheet.png` (2026-11-16, 0.3.15; run by Claude alone: `runClient -PquickPlay="New World" -Pwindow=1600x900` with `bhfx_dev/inbox/001_check.txt`)
+- The client opened straight into the world; "bhfx dev control on" in the log; all 10 lines ran in order (time, weather, camera, `tp` with a view, wait, one shoot of 3, `shoots` of `test_flow` + `test_swirl`, quit); each line waited for the shoot before it; the game closed itself. `outbox/001_check.txt.log` and `status.txt` right (`status.txt` showed world, position, view, fps 119, shoot busy, inbox progress, latest folder).
+- Every folder had `sheet.png` (all shots, labelled) and `shots.txt` with per-shot `/bhfx status` (e.g. `test_flow` 1.16–1.50 ms GPU, 42 → 437 particle slots over 0.75 s); `last_batch.txt` listed both `shoots` folders.
+- Side result: the saved spot stood inside a cobblestone house, so the effects showed only through a gap: particles and their glow were hidden by the walls with no bleed (the occlusion item of the 0.3.9 particle checklist).
+- Not checked: `solo` on a separate `shoot` while another test effect plays (the batch path uses it), chat hidden with `gui:true`.
+
 ### ✅ `/bhfx shoot` items 1–3 (item 3's lesson: with `gui:true` the chat covered half the shot; since 2026-11-16 chat is hidden during a `gui:true` run, not re-checked)
 Earlier run, items 1–2 (2026-11-16, bhfx's own runClient at 854x480: `/bhfx shoot bhfx:test_model at ^ ^ ^6` → 8 of 8 shots, each taken 1–8 ms after its requested time, GUI hidden, `shots.txt` and `latest.txt` right; Claude read the PNGs). Items 3–5 not tried. The same shots also checked `test_model`: all five swords right (posed sword swings and stretches, the animated one swings both ways with the gem jumping at 1 s, dissolve gone around 1.5–2 s and back by 3 s, glow and textured turning).
 1. `/bhfx shoot bhfx:test_model at ^ ^ ^6`: chat says 8 shots into `screenshots/bhfx/bhfx_test_model_<date-time>`; the hotbar and hand vanish for about 3 s, then come back with a clickable "bhfx shoot: 8 of 8 shot(s) in ..." line.

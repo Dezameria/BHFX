@@ -4,7 +4,14 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.14 — unreleased (protocol 3)
+## 0.3.15 — unreleased (protocol 3)
+- **Added**: `/bhfx shoots <fx> [<fx> ...]` shoots several effects in turn at the spot you look at
+  (`screenshots/bhfx/last_batch.txt` lists the folders). Every shoot folder now has `sheet.png` (all shots on one page)
+  and per-shot `/bhfx status` in `shots.txt`; a shoot stops earlier test effects first (`solo:false` keeps them).
+- **Added** (dev client only): commands from files in `run/bhfx_dev/inbox/` with a status file, and
+  `runClient -PquickPlay="<world>" -Pwindow=WxH`; see `docs/dev-control.md`.
+
+## 0.3.14 — 2026-11-16, built locally, not published (protocol 3)
 - **Added**: `/bhfx shoot <fx> [at | attach] [{params, shots:"0.2,0.5,1", gui:true}]` plays an effect and saves
   screenshots at those seconds after it starts (on the game clock) into `screenshots/bhfx/<fx>_<date-time>/`, with a
   `shots.txt` of the command, camera and times. The GUI is hidden while it shoots unless `gui:true`.

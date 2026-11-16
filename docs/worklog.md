@@ -11,6 +11,12 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Shoot polish and dev remote control (0.3.15)
+- bhfx: `FxShots` (`sheet.png` contact sheet, per-shot `/bhfx status`, queue for `/bhfx shoots`, `last_batch.txt`), `ClientFxCommands` (`shoots`, `solo` stop of earlier test effects, `shootAt`), `FxCommandArgs` (`solo`), `DevControl` (new: `bhfx_dev/inbox` → commands, `outbox` log, `status.txt`, no pause on focus loss), `ClientEvents` (tick hook, `shoots`), `build.gradle` (`-PquickPlay`, `-Pwindow`), `docs/dev-control.md` (new), README / CHANGELOG / decisions; 0.3.14 → 0.3.15. BHSpells untouched (its `libs/` jar put back after the build copied 0.3.15 in).
+- result: build passed; then Claude ran the whole loop alone (quick-play launch, 10-line inbox file, 19 shots, quit). Details in [`testing.md`](testing.md).
+
+---
+
 ## 2026-11-16 — Particle tests by `/bhfx shoot`
 - In game (bhfx's own client, 2560x1369): `test_particles`, `test_flow`, `test_vortex`, `test_swirl`, 8 shots each, read by Claude. Results in [`testing.md`](testing.md) (0.3.9 section): flow / vortex / swirl behave as their checklists say; vortex colours read white / warm / salmon because the test materials multiply by the fire ramp (not a renderer bug); the burst ring of `test_particles` and swirl's tilted rings not seen in the frames.
 - Unblocks the particle optimization plan (roadmap).

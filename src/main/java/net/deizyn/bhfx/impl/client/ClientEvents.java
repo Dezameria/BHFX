@@ -37,6 +37,7 @@ public final class ClientEvents {
             ClientFxManager.tick(Minecraft.getInstance());
             ClientFxCommands.tick();
             MirrorRenderer.tick();
+            DevControl.tick();
         }
     }
 
@@ -145,6 +146,7 @@ public final class ClientEvents {
                                                 IntegerArgumentType.getInteger(ctx, "seconds"))))))
                 .then(ClientFxCommands.test())
                 .then(ClientFxCommands.shoot())
+                .then(ClientFxCommands.shoots())
                 .then(ClientFxCommands.stop())
                 .then(ClientFxCommands.stress())
                 .then(Commands.literal("reload").executes(ctx -> {

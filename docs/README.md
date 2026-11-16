@@ -18,6 +18,7 @@ All bhfx development knowledge lives here as markdown, split into categories, so
 | [`release.md`](release.md) | Release builds, server/client install, mods BHSpells requires, pre-release checklist | Dependencies or the release process change |
 | [`integrations/bhspells.md`](integrations/bhspells.md) | How BHSpells uses bhfx: the bridge, which spells, lessons from real use | A spell starts using bhfx, or something new comes up on the BHSpells side |
 | [`API_PLAN.md`](API_PLAN.md) | Full public API spec and design principles | The API is added to or changed |
+| [`dev-control.md`](dev-control.md) | Driving the dev client from files (`bhfx_dev/inbox`), quick-play launch, `/bhfx shoot` output | Testing in game without typing, or reading shots |
 | `plan-*.md` | Plans for one feature or project, written before work starts: [`plan-fx-data.md`](plan-fx-data.md) (runtime data tables for passes), [`plan-neoforge-1.21.1.md`](plan-neoforge-1.21.1.md) (port) | The plan changes; when the work is done, move what's still true into the other categories and mark the plan done |
 
 Docs that live elsewhere:

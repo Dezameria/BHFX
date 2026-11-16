@@ -36,6 +36,15 @@ minecraft {
         }
 
         client {
+            // dev shortcuts: ./gradlew runClient -PquickPlay="New World" -Pwindow=1920x1080 opens straight into that
+            // world at that window size (used with run/bhfx_dev, see docs/dev-control.md)
+            if (project.hasProperty('quickPlay')) {
+                args '--quickPlaySingleplayer', project.property('quickPlay').toString()
+            }
+            if (project.hasProperty('window')) {
+                def size = project.property('window').toString().split('x')
+                args '--width', size[0], '--height', size[1]
+            }
         }
 
         server {

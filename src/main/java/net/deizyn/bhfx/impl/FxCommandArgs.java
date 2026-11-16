@@ -27,13 +27,14 @@ import java.util.regex.Pattern;
  * /bhfx_play only), {@code name:a} (a label for {@code stop name a}; several effects may share one) and
  * {@code part:right_hand} (with {@code attach}: ride on that body part, see {@link BodyPart}); and, read by /bhfx shoot
  * only, {@code shots:[0.2d,0.5d,1d]} or {@code shots:"0.2,0.5,1"} (seconds after the start) and {@code gui:true} (keep
- * the hotbar, hand and HUD in the shots). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
+ * the hotbar, hand and HUD in the shots) and {@code solo:false} (keep earlier test effects playing; by default a shoot
+ * stops them first). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
  * decimals → float (an int also fills a float key), {@code "#RRGGBB"} → colour.
  */
 public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range, @Nullable String name,
-                            @Nullable BodyPart part, @Nullable float[] shots, boolean gui) {
+                            @Nullable BodyPart part, @Nullable float[] shots, boolean gui, boolean solo) {
     public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null, null,
-            null, false);
+            null, false, true);
     /** Most shots one /bhfx shoot takes; latest second a shot may be at. */
     public static final int MAX_SHOTS = 32;
     public static final float MAX_SHOT_SECONDS = 600f;
@@ -57,6 +58,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         BodyPart part = null;
         float[] shots = null;
         boolean gui = false;
+        boolean solo = true;
         int count = 0;
         for (String name : tag.getAllKeys()) {
             Tag value = tag.get(name);
@@ -86,6 +88,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
                 }
                 case "shots" -> shots = shots(value);
                 case "gui" -> gui = bool(name, value);
+                case "solo" -> solo = bool(name, value);
                 case "part" -> {
                     part = value instanceof StringTag s ? BodyPart.byId(s.getAsString()) : null;
                     if (part == null) {
@@ -108,7 +111,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         }
         int ticks = hold ? FxSpawn.UNTIL_STOPPED
                 : duration != null ? Math.max(1, Math.round(duration * 20f)) : FxSpawn.DEFAULT_DURATION;
-        return new FxCommandArgs(params.build(), ticks, range, label, part, shots, gui);
+        return new FxCommandArgs(params.build(), ticks, range, label, part, shots, gui, solo);
     }
 
     /** Seconds from a list of numbers or a "0.2,0.5,1" string: sorted, 1..MAX_SHOTS of them, each 0..MAX_SHOT_SECONDS. */

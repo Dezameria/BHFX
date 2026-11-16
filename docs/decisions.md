@@ -12,6 +12,14 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
   small but only helps block-looking debris. Half-res stages only save GPU time. Bending the world itself needs
   chunk-renderer mixins that would clash with Sodium-type mods and shader packs, so it is not planned.
 
+## 2026-11-16 — Dev remote control through files, dev client only
+- **Decision**: `DevControl` reads commands from `<run>/bhfx_dev/inbox/*.txt` (allowlisted first words: `bhfx`, `tp`,
+  `time`, `weather`, `fill` ...; plus `wait`, `camera`, `quit`), writes `status.txt` and `outbox/*.log`. Only when
+  `FMLEnvironment.production` is false and the `bhfx_dev` folder exists. With `runClient -PquickPlay` a tool can start
+  the game into a world, set the camera by `/tp`, shoot, and read `sheet.png` without the user.
+- **Reason**: every check needed the user to type and report back; files need no port or setup, work in both dev
+  folders, and the allowlist plus dev-only gate keep it from being a general remote shell. Details: [`dev-control.md`](dev-control.md).
+
 ## 2026-11-16 — No shadows (sun direction, blob, SDF or model shadows) for now
 - **Decision**: not planned. The user judged shadows more than effects need. `sdf_march.glsl` keeps `sdfShadow` for an
   effect that wants it in its own pass.

@@ -3,6 +3,7 @@ package net.deizyn.bhfx.impl.client;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.StopMode;
 import net.deizyn.bhfx.api.client.LocalFxHandle;
 import net.deizyn.bhfx.impl.FxCommandArgs;
@@ -57,6 +58,9 @@ final class ClientFxCommands {
 
     private static int shoot(CommandContext<CommandSourceStack> ctx, FxCommands.Shape shape) throws CommandSyntaxException {
         FxCommandArgs args = FxCommands.args(ctx, shape);
+        if (args.solo()) {
+            STARTED.stop(info -> true, StopMode.IMMEDIATE); // earlier test effects would show up in the shots
+        }
         int started = play(ctx, shape);
         if (started <= 0) {
             return started;
@@ -73,6 +77,73 @@ final class ClientFxCommands {
             return 0;
         }
         return started;
+    }
+
+    /**
+     * /bhfx shoots &lt;fx&gt; [&lt;fx&gt; ...]: shoot each effect in turn (default times, GUI hidden), all at the spot you
+     * look at now, each alone; folders listed in {@code screenshots/bhfx/last_batch.txt}.
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> shoots() {
+        return Commands.literal("shoots").then(Commands.argument("fxs", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                .suggests((ctx, builder) -> SharedSuggestionProvider.suggestResource(ClientFxManager.registeredIds(),
+                        builder.createOffset(builder.getStart() + builder.getRemaining().lastIndexOf(' ') + 1)))
+                .executes(ClientFxCommands::shoots));
+    }
+
+    private static int shoots(CommandContext<CommandSourceStack> ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null) {
+            return 0;
+        }
+        List<ResourceLocation> ids = new ArrayList<>();
+        for (String word : com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "fxs").split("[,\\s]+")) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            ResourceLocation id = ResourceLocation.tryParse(word);
+            if (id == null || !ClientFxManager.registeredIds().contains(id)) {
+                ctx.getSource().sendFailure(Component.literal("bhfx shoots: " + word + " is not a registered effect"));
+                return 0;
+            }
+            ids.add(id);
+        }
+        if (ids.isEmpty() || ids.size() > 32) {
+            ctx.getSource().sendFailure(Component.literal("bhfx shoots: give 1 to 32 effect ids"));
+            return 0;
+        }
+        Vec3 at = lookTarget(mc, player);
+        List<java.util.function.Supplier<Boolean>> runs = new ArrayList<>();
+        for (ResourceLocation id : ids) {
+            runs.add(() -> shootAt(id, at, "bhfx shoots " + id));
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal("bhfx shoots: " + ids.size() + " effect(s) in turn at "
+                + (int) Math.floor(at.x) + " " + (int) Math.floor(at.y) + " " + (int) Math.floor(at.z)
+                + " (GUI hidden until done). Keep the camera still."), false);
+        FxShots.queue(runs);
+        return ids.size();
+    }
+
+    /** Start {@code fx} alone at {@code at} (earlier test effects stopped) and shoot it with default times. */
+    static boolean shootAt(ResourceLocation fx, Vec3 at, String label) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null) {
+            return false;
+        }
+        STARTED.stop(info -> true, StopMode.IMMEDIATE);
+        LocalFxHandle handle = ClientFxManager.startLocal(fx, FxCommands.spawnAt(at, player, FxCommandArgs.NONE));
+        if (handle.isNone()) {
+            return false;
+        }
+        STARTED.add(handle, fx, null, at, mc.level.dimension().location());
+        try {
+            FxShots.start(fx, null, false, label);
+            return true;
+        } catch (java.io.IOException ex) {
+            BHFxMod.LOGGER.warn("bhfx shoots: {}: {}", fx, ex.getMessage());
+            return false;
+        }
     }
 
     static LiteralArgumentBuilder<CommandSourceStack> stop() {
