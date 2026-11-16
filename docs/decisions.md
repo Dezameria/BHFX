@@ -3,6 +3,14 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-17 — Lights are one shared pass, fed by a uniform array
+- **Decision**: `PassList.light` only records a light; `PassListImpl.drawList` adds one `bhfx:lights` entry (ordinary
+  pass machinery: bounds, scissor, copy) in front of the list, outside the pass cap. Lights go to the shader as
+  `uniform vec4 Lights[128]` (64 lights), not a data table. No shadows.
+- **Reason**: a custom pass per effect costs a screen pass each and only 8 fit a frame; lights from 70 effects must
+  cost about the same as from one. A uniform array needs no buffer object and no per-frame table upload path; 512
+  floats is within the GL 3.2 minimum (1024 fragment uniform components). Shadows were dropped on 2026-11-16.
+
 ## 2026-11-17 — Uniform values are cached per program
 - **Decision**: `ShaderProgram.set1` .. `setMatrix` remember the last value sent and skip the GL call when it is the
   same (uniforms stay in a program between draws and frames). A uniform goes either through these (everything in

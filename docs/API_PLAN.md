@@ -715,6 +715,26 @@ Shapes measured by a distance function and drawn by sphere tracing inside a pass
 
 ---
 
+### 5.8 Point lights (`PassList.light`, 0.3.20, Experimental)
+```java
+@Override
+protected void passes(FrameContext frame, PassList out) {
+    out.light(frame.position().add(0, 1.2, 0), 0xFF8030, 1.5f, 7f); // world point, colour, strength, radius in blocks
+}
+```
+- Call it every frame the light should show; animate by changing the arguments. Strength 1 is a clear light, 2–3 a
+  flash. The effect's presence (fade in / out when built late or hidden) is applied for you.
+- Every effect's lights go into one built-in pass, `bhfx:lights` (`lights.fsh`), drawn before all other passes (order
+  `Integer.MIN_VALUE`), bounded by a sphere round all lights, not counted against `maxPassesPerFrame`. So a light
+  costs a few shader instructions per lit pixel, not a pass. At most `PassList.MAX_LIGHTS` (64) per frame; when full,
+  a new light replaces the one farthest from the camera if it is nearer.
+- Look: surfaces from the depth buffer, face normal from depth derivatives; falloff is smooth to zero at the radius;
+  faces turned away keep 30 %; the surface colour is multiplied up (less on already bright surfaces, so daylight does
+  not burn out) plus a little of the light's own colour (so it shows on dark blocks at night); faded by terrain fog.
+- Limits: no shadows (light passes through walls inside its radius), entities are lit like any surface in the depth
+  buffer, particles / models / sky are not lit, translucent blocks take the light of what is behind them. No config
+  switch yet.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

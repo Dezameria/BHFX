@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C1: point lights (0.3.20)
+- bhfx: `PassList.light` + `MAX_LIGHTS` (api), `PassListImpl` (`lights`, `light`, `lightsEntry`, `isEmpty`, `drawList`), `lights.fsh`, `LightsTestFx` (`bhfx:test_lights`), `ClientBootstrap`; JUnit `PassListLightsTest` (2). 0.3.19 → 0.3.20.
+- result: build + glslang + JUnit passed; shot in game by Claude (night, noon, wall): works; daylight gain lowered once. Stress with 71 lit effects: 0.46 ms GPU. BHSpells untouched (`libs/` restored).
+- next: C2 `FxDecals` (textured marks on ground and walls, one pass), then C3 bolts / beams.
+
+---
+
 ## 2026-11-17 — Where render CPU goes (0.3.19)
 - bhfx: `PostRenderer` (`phases()`, `PHASE_NAMES`, timing round stride / batch upload / uniforms / draw / loop / sweep / bloom / composite; empty batches skipped, `lastIdleBatches`), `FrameStats` (phase sums, split line), `ClientFxManager.renderFrame` (`lastCollectNanos`, `lastDrew`), `ShaderProgram` (`FAST`, `U_*`, index setters), `ClientFxCommands.stress` (seed from the arguments). 0.3.18 → 0.3.19.
 - result: build + JUnit passed; three runs in game by Claude. The CPU cost is per draw call in the driver; uniforms by index and skipping empty batches measured no gain. Table in [`testing.md`](testing.md). BHSpells untouched.

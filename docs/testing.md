@@ -6,6 +6,16 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Point lights, `bhfx:test_lights` (2026-11-17, 0.3.20; build + glslang + JUnit `PassListLightsTest` (2); in game by Claude through dev control: `/bhfx shoot` at night and at noon, open field, with a stone wall filled in behind the lights and removed after)
+- Night: red, green and blue pools on the grass following the three orbs, mixing where they meet; the wall takes the
+  colour of the light passing it with a soft edge; nothing lit past the radius; the pulsing white light shows on the
+  wall top. Noon: the same, tinted without burning out (after the gain was lowered on bright surfaces; the first
+  version went white-yellow on grass).
+- Load: `/bhfx stress 70 32 10 bhfx:test_lights` (71 effects, 284 lights asked, 64 drawn; 8 orb passes + the lights
+  pass): 457 fps, render CPU 0.28 ms, GPU 0.46 ms. No `broken` / exception in the log.
+- Not checked: a light inside a room (the 30 % on faces turned away), under water / behind glass, with a shader pack,
+  with other effects' passes on top, which lights drop when over 64 in view (JUnit only), in BHSpells.
+
 ### ✅ Where render CPU goes (2026-11-17, 0.3.19; in game by Claude through dev control, `fps unlimited`, MEDIUM, 1600x900; three runs, seeded stress, no `broken` / exception)
 `stats 3` at the peak, average ms per frame:
 

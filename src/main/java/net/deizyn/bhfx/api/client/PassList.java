@@ -4,10 +4,27 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.world.phys.Vec3;
+
 import java.util.function.Consumer;
 
 /** Shader passes requested this frame. {@code shader} "ns:name" loads assets/ns/shaders/bhfx/name.fsh. */
 public interface PassList {
+    /**
+     * A point light for this frame: world surfaces within {@code radius} blocks of {@code position} (a world point)
+     * are brightened in the colour {@code rgb} (0xRRGGBB), strongest at the centre and fading to nothing at the
+     * radius. {@code strength}: 1 is a clear light, 2–3 a flash; it fades with the effect's presence on its own. Call
+     * it every frame the light should show. The lights of every effect are drawn together in one built-in pass before
+     * all other passes, so a light costs far less than a pass of its own; at most {@link #MAX_LIGHTS} show in one
+     * frame (the ones farthest from the camera are dropped). Lights do not cast shadows and do not light particles,
+     * models or the sky.
+     */
+    @ApiStatus.Experimental
+    void light(Vec3 position, int rgb, float strength, float radius);
+
+    /** Most lights drawn in one frame. */
+    int MAX_LIGHTS = 64;
+
     void add(ResourceLocation shader, Consumer<Uniforms> setup);
 
     void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup);

@@ -42,7 +42,14 @@ public final class PassListImpl implements PassList {
     private static final Comparator<Entry> KEEP_ORDER =
             Comparator.comparingInt(Entry::order).thenComparingDouble(Entry::distance).thenComparingInt(Entry::seq);
 
+    private static final net.minecraft.resources.ResourceLocation LIGHTS =
+            new net.minecraft.resources.ResourceLocation("bhfx", "lights");
+
     private final List<Entry> entries = new ArrayList<>();
+    /** This frame's lights, two vec4 each: (camera-relative centre, radius), (linear rgb * strength, unused). */
+    private final float[] lights = new float[MAX_LIGHTS * 8];
+    private int lightCount;
+    private final Consumer<Uniforms> lightSetup = u -> u.floats("Lights", lights).f1("LightCount", lightCount);
     private final List<Entry> kept = new ArrayList<>();
     private double distance;
     private float presence = 1f;
@@ -51,6 +58,7 @@ public final class PassListImpl implements PassList {
     /** Start a frame; bounds are stored relative to {@code camera}. */
     void clear(Vec3 camera) {
         entries.clear();
+        lightCount = 0;
         this.camera = camera;
         this.presence = 1f;
     }
@@ -65,7 +73,77 @@ public final class PassListImpl implements PassList {
     }
 
     boolean isEmpty() {
-        return entries.isEmpty();
+        return entries.isEmpty() && lightCount == 0;
+    }
+
+    int lightCount() {
+        return lightCount;
+    }
+
+    @Override
+    public void light(Vec3 position, int rgb, float strength, float radius) {
+        float s = strength * presence;
+        if (position == null || !(s > 0.001f) || !(radius > 0.01f)) {
+            return;
+        }
+        float x = (float) (position.x - camera.x);
+        float y = (float) (position.y - camera.y);
+        float z = (float) (position.z - camera.z);
+        int slot = lightCount;
+        if (slot >= MAX_LIGHTS) {
+            // full: the new light takes the place of the one farthest from the camera, when it is nearer than that
+            float far = reachOf(x, y, z, radius);
+            slot = -1;
+            for (int i = 0; i < MAX_LIGHTS; i++) {
+                float r = reachOf(lights[i * 8], lights[i * 8 + 1], lights[i * 8 + 2], lights[i * 8 + 3]);
+                if (r > far) {
+                    far = r;
+                    slot = i;
+                }
+            }
+            if (slot < 0) {
+                return;
+            }
+        } else {
+            lightCount++;
+        }
+        int b = slot * 8;
+        lights[b] = x;
+        lights[b + 1] = y;
+        lights[b + 2] = z;
+        lights[b + 3] = radius;
+        lights[b + 4] = linear(rgb >> 16) * s;
+        lights[b + 5] = linear(rgb >> 8) * s;
+        lights[b + 6] = linear(rgb) * s;
+        lights[b + 7] = 0f;
+    }
+
+    /** Distance from the camera to the nearest point a light reaches (0 inside it). */
+    private static float reachOf(float x, float y, float z, float radius) {
+        return Math.max(0f, (float) Math.sqrt(x * x + y * y + z * z) - radius);
+    }
+
+    private static float linear(int channel) {
+        return (float) Math.pow((channel & 0xFF) / 255.0, 2.2);
+    }
+
+    /** The built-in lights pass, bounded by a sphere round every light; drawn before everything else. */
+    private Entry lightsEntry() {
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+        for (int i = 0; i < lightCount; i++) {
+            int b = i * 8;
+            float r = lights[b + 3];
+            minX = Math.min(minX, lights[b] - r);
+            maxX = Math.max(maxX, lights[b] + r);
+            minY = Math.min(minY, lights[b + 1] - r);
+            maxY = Math.max(maxY, lights[b + 1] + r);
+            minZ = Math.min(minZ, lights[b + 2] - r);
+            maxZ = Math.max(maxZ, lights[b + 2] + r);
+        }
+        double hx = (maxX - minX) * 0.5, hy = (maxY - minY) * 0.5, hz = (maxZ - minZ) * 0.5;
+        return new Entry(LIGHTS, Integer.MIN_VALUE, -1, 0.0, lightSetup, minX + hx, minY + hy, minZ + hz,
+                Math.sqrt(hx * hx + hy * hy + hz * hz), null, 0f, 1f, null);
     }
 
     @Override
@@ -196,6 +274,9 @@ public final class PassListImpl implements PassList {
             kept.removeIf(e -> !e.drawsGeometry() && ++seen[0] > max);
         }
         kept.sort(DRAW_ORDER);
+        if (lightCount > 0) {
+            kept.add(0, lightsEntry()); // not counted against max: one pass for every effect's lights
+        }
         return kept;
     }
 }

@@ -61,7 +61,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
 - [ ] **C. New forms that are shared by design (0.3.19–0.3.2x).** A custom pass costs one screen pass per effect and
   only 8 fit a frame (`maxPassesPerFrame`); these collect every effect's items into one built-in pass or reuse the
   particle path, so they stay cheap with many players. All new API, `@ApiStatus.Experimental`, each with a test effect.
-  - [ ] C1. `FxLights`: point lights (position, colour, radius, falloff) from any effect, gathered into one data table
+  - [x] 2026-11-17 C1 done as `PassList.light` (0.3.20), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.8). Later if wanted: a config switch, lights from particles (one call per batch), spot / line lights. Planned text: `FxLights`: point lights (position, colour, radius, falloff) from any effect, gathered into one data table
     and drawn by one pass that lights the world from depth. Spells light the ground and walls round them.
   - [ ] C2. `FxDecals`: textured marks on the ground and walls (magic circles, scorch, cracks; rotation, fade, flipbook,
     ramp), all in one pass, built on `groundDecal`. No shader to write for the common case.

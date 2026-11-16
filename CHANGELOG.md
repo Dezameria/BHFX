@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.19 — unreleased (protocol 3)
+## 0.3.20 — unreleased (protocol 3)
+- **Added** (Experimental): `PassList.light(position, rgb, strength, radius)`: point lights that brighten the ground
+  and walls near an effect. The lights of every effect are drawn in one built-in pass (`bhfx:lights`) before all other
+  passes and do not count against `maxPassesPerFrame`; at most 64 per frame (`PassList.MAX_LIGHTS`, the farthest are
+  dropped). No shadows; particles, models and the sky are not lit. Test effect `bhfx:test_lights`.
+
+## 0.3.19 — 2026-11-17, built locally, not published (protocol 3)
 - **Added**: `/bhfx stats` splits render CPU by phase (effects' frame code, stride, particle upload / uniforms / draw,
   passes, sweep, bloom, composite, frame setup).
 - **Changed**: `/bhfx stress` with the same arguments lays out the same effects every time (client), so two runs can be
