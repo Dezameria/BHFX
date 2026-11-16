@@ -11,6 +11,12 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Particle tests by `/bhfx shoot`
+- In game (bhfx's own client, 2560x1369): `test_particles`, `test_flow`, `test_vortex`, `test_swirl`, 8 shots each, read by Claude. Results in [`testing.md`](testing.md) (0.3.9 section): flow / vortex / swirl behave as their checklists say; vortex colours read white / warm / salmon because the test materials multiply by the fire ramp (not a renderer bug); the burst ring of `test_particles` and swirl's tilted rings not seen in the frames.
+- Unblocks the particle optimization plan (roadmap).
+
+---
+
 ## 2026-11-16 — Pushed bhfx
 - bhfx: `feature/scale-phase0` pushed to `origin` (Dezameria/BHFX), `b684ab4..48a8ea7` (17 commits: 0.3.12–0.3.14). BHSpells left alone at the user's request (8 local commits, not pushed).
 
