@@ -20,6 +20,11 @@ glslang is found automatically in `ironspell_more/tools/glslang` (see [`shaders.
 
 Release jars are production builds. They include the player commands `/bhfx on|off|stats|status|bench|reload|test|stop` and the op-2 server command `/bhfx_play`.
 
+Version steps: raise the patch version (`gradle.properties` `mod_version`) with each finished batch of features, not
+only at release (the user's rule, 2026-11-16), so a rebuilt jar never hides behind ForgeGradle's cached copy of the same
+version ([`bugs.md`](bugs.md) 2026-11-04). The batch's lines go under the new version in `CHANGELOG.md`; the earlier
+version is closed with its date. BHSpells' `mods.toml` range moves only when BHSpells uses the new version's API.
+
 When the bhfx version changes, update the two `net.deizyn:bhfx:<version>` lines in `BHSpells/build.gradle` (the `copyToBHSpells` task already swaps the jar in `BHSpells/libs`), and replace the old jar in any modpack's `mods/` instead of adding a second one.
 
 ## Installing
@@ -30,7 +35,7 @@ When the bhfx version changes, update the two `net.deizyn:bhfx:<version>` lines 
 | Every client | The same set as the server |
 | Single player | Everything on one machine |
 
-- **bhfx is optional**, but if you use it, it must be on **the server and every client** (the network channel is strict). The version must be in the range BHSpells accepts (currently `[0.3.11,0.4)`, since 2026-11-12).
+- **bhfx is optional**, but if you use it, it must be on **the server and every client** (the network channel is strict). The version must be in the range BHSpells accepts (currently `[0.3.12,0.4)`, since 2026-11-13).
 - bhfx can be turned off or removed at any time (see "Removing bhfx" in `../README.md`). Worlds are not affected.
 
 ### Mods BHSpells requires (`BHSpells/src/main/resources/META-INF/mods.toml`)

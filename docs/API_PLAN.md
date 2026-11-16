@@ -656,7 +656,7 @@ A Blockbench / GeckoLib `.geo.json` drawn by bhfx itself with a material shader:
   without culling: the footer drops each copy's back faces with `gl_FrontFacing` against the sign of its axes'
   determinant, so copies may be mirrored. Give `within` bounds (otherwise never culled). Light: one value at the
   bounds' centre. First user: BHSpells `bhspells:thousand_swords` (1000 copies of a 708-triangle sword).
-- **Posed bones (M2)** (`FxPose`; `PassList.model(model, frame, scale, pose, material[, options], setup)`,
+- **Posed bones (M2, 0.3.13)** (`FxPose`; `PassList.model(model, frame, scale, pose, material[, options], setup)`,
   `models(model, instances, count, pose, material, options, setup)`): `rotation(bone, x, y, z)` degrees added to the
   modelled rotation, `position(bone, x, y, z)` pixels, `scale(bone, ...)` round the pivot, `hide(bone)` = scale 0,
   `reset` / `clear`; Blockbench animation numbers (GeckoLib's sign rules: rotation x and y negated, position x
@@ -670,7 +670,7 @@ A Blockbench / GeckoLib `.geo.json` drawn by bhfx itself with a material shader:
   pose is read at draw time (same frame): two poses in one frame need two `FxPose`s. Negative scales turn faces inside
   out. JUnit `BoneRigTest` (7: posing equals re-baking with that rotation, pixel positions, hide, cache, reach holds
   every vertex, parent loops / NaN harmless).
-- **Animations (M3)** (`FxAnimation.of("ns:name")` → `assets/ns/animations/name.animation.json`, `FxAnimation.file(rl)`;
+- **Animations (M3, 0.3.13)** (`FxAnimation.of("ns:name")` → `assets/ns/animations/name.animation.json`, `FxAnimation.file(rl)`;
   `apply(clip, seconds, pose[, weight])`, `load()`, `ready()`, `has`, `length`, `loops`, `done`, `clips`): plays a
   Blockbench / GeckoLib clip into an `FxPose` (clip by full name or the part after the last dot when unique).
   `impl/render/GeoAnimationLoader` (pure Java): constants, keyframe maps, `vector` / `pre` + `post`; between keys like

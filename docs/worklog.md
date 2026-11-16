@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Version 0.3.13
+- bhfx: `gradle.properties` 0.3.12 → 0.3.13; `CHANGELOG.md` (0.3.12 closed 2026-11-16 with body parts .. waves / `FxGround`; `FxPose` and `FxAnimation` moved under 0.3.13); `API_PLAN.md` 5.7 version tags; `release.md` (raise the patch version per finished batch, the user's rule; range text corrected to `[0.3.12,0.4)`).
+- BHSpells: `build.gradle` `fg.deobf("net.deizyn:bhfx:0.3.13")` ×2, `libs/bhfx-0.3.13.jar` (by `copyToBHSpells`). `mods.toml` stays `[0.3.12,0.4)`: BHSpells uses no 0.3.13 API yet.
+- result: see the commit; not run in game.
+
+---
+
 ## 2026-11-16 — Animated models (M3): `FxAnimation`
 - bhfx: `api/client/FxAnimation` (new), `impl/render/GeoAnimationLoader` (new: clips, channels, interpolation, easing, bezier), `impl/render/Molang` (new: compiled subset), `impl/render/AnimationLibrary` (new: background load, cache, reload), `ClientBootstrap` (reload listener), `assets/bhfx/animations/test_model.animation.json` (new: "swing", "pop"), `ModelTestFx` (fifth, animated sword); JUnit `GeoAnimationLoaderTest` (9), `MolangTest` (4). Offline: all 15 BHSpells animation files load with no warnings; 0.17 µs per `apply` of `dafeng_bamboo` "Bloom".
 - result: bhfx `gradlew build publishToMavenLocal` passed. Not run in game.
