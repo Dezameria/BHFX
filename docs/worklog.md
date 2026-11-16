@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Remaining tests by `/bhfx shoot`
+- In game (bhfx's own client), Claude read the shots: `test_sdf` ✅, `test_data` ✅ (behind-terrain hiding not shown), `test_model attach @s` sword in the hand (first person, and third person at 3 s), `test_points` not judgeable there (needs BHSpells + a GeckoLib entity, third person). Dark dots in `test_data` glow measured as star rims, not a bug.
+- bhfx: `FxShots` hides chat during `gui:true` runs (chat covered half the shots). Build passed; not re-checked in game.
+- Lesson: effects from earlier commands were still playing in later shots; `/bhfx stop` between runs.
+
+---
+
 ## 2026-11-16 — `/bhfx shoot`, version 0.3.14; model LOD not needed
 - Bench by the user: `bhspells:thousand_swords` bhfx GPU 1.12–1.16 ms avg, +0.00–0.02 ms per frame at 137 fps (two runs, 20 s). Under the 1.5 ms bar, so no model LOD.
 - bhfx: `impl/client/FxShots` (new), `ClientFxCommands.shoot`, `ClientEvents` (`shoot` registered, `RenderTickEvent` END hook), `FxCommandArgs` (`shots`, `gui` reserved keys); JUnit `FxCommandArgsShotsTest` (3). README / API_PLAN command tables, `release.md`. 0.3.13 → 0.3.14 (BHSpells `build.gradle` too; `mods.toml` unchanged).

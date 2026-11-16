@@ -6,7 +6,8 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
-### ✅ `/bhfx shoot` items 1–2 (2026-11-16, bhfx's own runClient at 854x480: `/bhfx shoot bhfx:test_model at ^ ^ ^6` → 8 of 8 shots, each taken 1–8 ms after its requested time, GUI hidden, `shots.txt` and `latest.txt` right; Claude read the PNGs). Items 3–5 not tried. The same shots also checked `test_model`: all five swords right (posed sword swings and stretches, the animated one swings both ways with the gem jumping at 1 s, dissolve gone around 1.5–2 s and back by 3 s, glow and textured turning).
+### ✅ `/bhfx shoot` items 1–3 (item 3's lesson: with `gui:true` the chat covered half the shot; since 2026-11-16 chat is hidden during a `gui:true` run, not re-checked)
+Earlier run, items 1–2 (2026-11-16, bhfx's own runClient at 854x480: `/bhfx shoot bhfx:test_model at ^ ^ ^6` → 8 of 8 shots, each taken 1–8 ms after its requested time, GUI hidden, `shots.txt` and `latest.txt` right; Claude read the PNGs). Items 3–5 not tried. The same shots also checked `test_model`: all five swords right (posed sword swings and stretches, the animated one swings both ways with the gem jumping at 1 s, dissolve gone around 1.5–2 s and back by 3 s, glow and textured turning).
 1. `/bhfx shoot bhfx:test_model at ^ ^ ^6`: chat says 8 shots into `screenshots/bhfx/bhfx_test_model_<date-time>`; the hotbar and hand vanish for about 3 s, then come back with a clickable "bhfx shoot: 8 of 8 shot(s) in ..." line.
 2. That folder (in `BHSpells/run/screenshots/bhfx/`): `01_t0.10s.png` .. `08_t3.00s.png`, the swords visible, no GUI; `shots.txt` with the command, camera, window, bhfx status and each shot's requested and taken time (taken within a frame of requested); `latest.txt` names the folder.
 3. `/bhfx shoot bhspells:thousand_swords at ^ ^ ^12 {shots:"0.5,1.7,2.0,2.4,3", gui:true}`: 5 shots with the GUI showing.
@@ -38,7 +39,7 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 3. Quit or change dimension while a shake is on its way: nothing fires later in the new world.
 4. `bhspells:thousand_swords` round 3 (uses both): no stall at the start (ground looked up over the first ticks); swords strike the surface on a hill and in a dip; impact sounds and shakes come later the further away you are.
 
-### ⏳ Named points and GeckoLib bones (2026-11-16, bhfx `build` + BHSpells `compileJava` only; no JUnit: needs a live world)
+### ⏳ Named points and GeckoLib bones (2026-11-16, bhfx `build` + BHSpells `compileJava` only; no JUnit: needs a live world). 2026-11-16 shoot try in bhfx's own client, first person, on the player: shows nothing to judge (no GeckoLib reporter there; the grey "nothing reported" orb is at the feet, off screen). Needs BHSpells' client, a GeckoLib entity, third person: `/bhfx shoot bhfx:test_points attach @e[type=<geckolib entity>,limit=1,sort=nearest] {gui:true}`
 Run in the BHSpells dev client (BHSpells reports GeckoLib bones, `compat/bhfx/client/GeckoBhfxPoints`).
 1. Before anything: cast a few BHSpells spells with GeckoLib visuals (e.g. Flames Eagle, Aqua Flower, Eternal Purification) without any bhfx test running: they look and animate exactly as before, no log warnings ("reporting GeckoLib bones to bhfx failed" must not appear).
 2. Summon or cast something with a GeckoLib entity, then `/bhfx test bhfx:test_points attach <that entity>` (`@e[type=...,limit=1,sort=nearest]`): within a frame or two a white orb on every bone pivot, with red (forward), green (up), blue (right) markers; they move with the animation. A grey orb at the entity before the first report.
@@ -46,14 +47,14 @@ Run in the BHSpells dev client (BHSpells reports GeckoLib bones, `compat/bhfx/cl
 4. Walk away until the entity is culled / out of view: orbs go back to the grey one, no errors; walk back: bones again.
 5. Mirror next to the GeckoLib entity: orbs stay on the real one, not on the reflection.
 
-### ⏳ SDF shapes and frames (2026-11-16, build + 6 `FxFrameTest` cases + glslang only)
+### ✅ SDF shapes and frames (2026-11-16, build + 6 `FxFrameTest` cases + glslang; in game by `/bhfx shoot bhfx:test_sdf`, Claude read the shots: the glowing hand on its base disc closes, curls and opens to a flat palm over 3 s, edges glow, no NaN sheet or holes)
 1. `/bhfx test bhfx:test_sdf at ^ ^ ^5`: a pale blue hand of light about 2.5 blocks tall stands on the spot, fingers up, turning slowly, opening into a flat hand and closing into a fist every ~3.5 s. Fingers bend towards the palm, the thumb folds across; joints look smooth (no seams or holes), rim brighter than the middle, a soft glow round it.
 2. Walk round it and close up: no flicker, no missing slices at the edges of its bounds, nothing drawn through a wall between you and it.
 3. `/bhfx test bhfx:test_sdf attach @s`, F5: a smaller hand of light over your right hand, fingers pointing down the arm's line, following the arm when walking and swinging; then in first person (estimated pose, lower right). With Epic Fight battle mode it should follow the weapon hand (uses `BodyPose`).
 4. `/bhfx bench bhfx:test_sdf` close up (hand filling about a third of the screen): note the GPU ms here. More than ~2 ms at 1080p means effects built this way need lower `SDF_STEPS` or smaller bounds.
 5. `latest.log`: no shader compile error, no GL error.
 
-### ⏳ `FxData` data tables (2026-11-16, build + 7 `DataTableTest` cases + glslang only)
+### ✅ `FxData` data tables, mostly (2026-11-16, build + 7 `DataTableTest` cases + glslang; in game by `/bhfx shoot bhfx:test_data`: the orbs fade in and swirl, colours stay per orb, bloom on the bright core, `/bhfx status` showed "1 data table(s)" at 1.46 ms GPU. Not shown by these shots: an orb hidden behind terrain (nothing stood in front). Small dark dots in the glow are the stars' own dark rims through additive light, measured: the star pixel itself brightens 139 → 253)
 Same version (0.3.12), so the build already cleared the deobf cache; check `runClient` picked up the new jar (`bhfx-dev-loop`).
 1. `/bhfx test bhfx:test_data at ^ ^ ^8 {radius:6}`: 256 coloured glowing orbs circle the point at different heights and speeds, smoothly (positions rewritten every frame), fade in over 0.5 s, gone after 20 s.
 2. Walk so a wall or hill is between you and some orbs: those are hidden, not drawn through the terrain.

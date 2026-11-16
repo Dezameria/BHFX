@@ -9,6 +9,7 @@ import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.ChatVisiblity;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +27,8 @@ import java.util.Locale;
  * status, requested and actual times) and {@code screenshots/bhfx/latest.txt} naming the newest folder. Times are on the
  * game clock (ticks + partial tick, like an effect's own {@code seconds}), so a pause or a slow frame doesn't shift
  * them; at most one shot per frame. Taken at the end of the frame (after bhfx, the hand and the GUI); the GUI is hidden
- * for the run unless {@code gui:true}, and put back after. One run at a time; a new one replaces it. Render thread.
+ * for the run unless {@code gui:true} (then the hand and hotbar show but chat is hidden: it covered half the shots), and
+ * put back after. One run at a time; a new one replaces it. Render thread.
  */
 final class FxShots {
     /** Shot times when none are given (seconds). */
@@ -47,6 +49,8 @@ final class FxShots {
         final ResourceLocation level;
         final boolean restoreHideGui;
         final boolean changedGui;
+        @Nullable
+        ChatVisiblity restoreChat;
         final StringBuilder notes = new StringBuilder();
         int next;
 
@@ -81,6 +85,10 @@ final class FxShots {
             mc.options.hideGui = true;
         }
         Run r = new Run(times != null ? times : DEFAULT, dir, clock(mc), mc.level.dimension().location(), hidden, change);
+        if (gui && mc.options.chatVisibility().get() != ChatVisiblity.HIDDEN) {
+            r.restoreChat = mc.options.chatVisibility().get();
+            mc.options.chatVisibility().set(ChatVisiblity.HIDDEN);
+        }
         Camera cam = mc.gameRenderer.getMainCamera();
         Vec3 eye = cam.getPosition();
         r.notes.append("command: /").append(command).append('\n')
@@ -89,7 +97,7 @@ final class FxShots {
                 .append(String.format(Locale.ROOT, "camera: %.2f %.2f %.2f yaw %.1f pitch %.1f, fov option %d%n",
                         eye.x, eye.y, eye.z, cam.getYRot(), cam.getXRot(), mc.options.fov().get()))
                 .append("window: ").append(mc.getWindow().getWidth()).append('x').append(mc.getWindow().getHeight())
-                .append(gui ? ", GUI shown" : ", GUI hidden").append('\n')
+                .append(gui ? ", GUI shown (chat hidden)" : ", GUI hidden").append('\n')
                 .append("bhfx: ").append(ClientFxManager.status().replace('\n', ' ')).append('\n')
                 .append("shots (requested s -> taken at s):\n");
         run = r;
@@ -123,8 +131,18 @@ final class FxShots {
     static void clear() {
         Run r = run;
         run = null;
-        if (r != null && r.changedGui) {
-            Minecraft.getInstance().options.hideGui = r.restoreHideGui;
+        if (r != null) {
+            restore(r);
+        }
+    }
+
+    private static void restore(Run r) {
+        Minecraft mc = Minecraft.getInstance();
+        if (r.changedGui) {
+            mc.options.hideGui = r.restoreHideGui;
+        }
+        if (r.restoreChat != null) {
+            mc.options.chatVisibility().set(r.restoreChat);
         }
     }
 
@@ -135,9 +153,7 @@ final class FxShots {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (r.changedGui) {
-            mc.options.hideGui = r.restoreHideGui;
-        }
+        restore(r);
         if (why != null) {
             r.notes.append(why).append('\n');
         }
