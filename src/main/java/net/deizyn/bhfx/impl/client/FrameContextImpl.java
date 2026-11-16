@@ -1,5 +1,7 @@
 package net.deizyn.bhfx.impl.client;
 
+import net.deizyn.bhfx.api.BodyPart;
+import net.deizyn.bhfx.api.client.BodyPose;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.api.client.Fx;
@@ -61,7 +63,36 @@ final class FrameContextImpl implements FrameContext {
 
     @Override
     public Vec3 position() {
-        return followed != null ? followed.getPosition(partial) : fx.init().origin();
+        if (followed == null) {
+            return fx.init().origin();
+        }
+        BodyPart part = fx.init().part();
+        return part != null ? BodyParts.pose(followed, part, partial).position() : followed.getPosition(partial);
+    }
+
+    @Override
+    public Optional<BodyPose> part(BodyPart part) {
+        return followed == null ? Optional.empty() : Optional.of(BodyParts.pose(followed, part, partial));
+    }
+
+    @Override
+    public BodyPose part(Entity entity, BodyPart part) {
+        return BodyParts.pose(entity, part, partial);
+    }
+
+    @Override
+    public Optional<BodyPose> point(String name) {
+        return followed == null ? Optional.empty() : EntityPoints.point(followed, name);
+    }
+
+    @Override
+    public Optional<BodyPose> point(Entity entity, String name) {
+        return EntityPoints.point(entity, name);
+    }
+
+    @Override
+    public java.util.Map<String, BodyPose> points() {
+        return followed == null ? java.util.Map.of() : EntityPoints.points(followed);
     }
 
     @Override

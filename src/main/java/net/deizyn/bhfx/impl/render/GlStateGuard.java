@@ -6,6 +6,7 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL31;
 import org.lwjgl.opengl.GL33;
 
 import java.nio.ByteBuffer;
@@ -36,7 +37,13 @@ final class GlStateGuard {
     private boolean scissor;
     private boolean depthMask;
     private int touchedUnits;
+    /** Units that had a buffer texture bound (particle data, {@code FxData}). */
+    private int bufferUnits;
     private int unpackBuffer;
+    /** Buffer bindings bhfx changes (model uploads, data tables, particles, model depth): put back as they were. */
+    private int arrayBuffer;
+    private int textureBuffer;
+    private int renderbuffer;
     private boolean active;
     private boolean blendTouched;
     private int blendSrcRgb;
@@ -53,6 +60,9 @@ final class GlStateGuard {
         vao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
         unpackBuffer = GL11.glGetInteger(0x88EF); // GL_PIXEL_UNPACK_BUFFER_BINDING
+        arrayBuffer = GL11.glGetInteger(0x8894); // GL_ARRAY_BUFFER_BINDING
+        textureBuffer = GL11.glGetInteger(0x8C2A); // GL_TEXTURE_BUFFER (its buffer binding)
+        renderbuffer = GL11.glGetInteger(0x8CA7); // GL_RENDERBUFFER_BINDING
         viewportBuf.clear();
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewportBuf);
         for (int i = 0; i < 4; i++) {
@@ -69,6 +79,7 @@ final class GlStateGuard {
         scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
         depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         touchedUnits = 0;
+        bufferUnits = 0;
         blendTouched = false;
         active = true;
         if (unpackBuffer != 0) {
@@ -89,6 +100,15 @@ final class GlStateGuard {
         if (savedSampler[unit] != 0) {
             GL33.glBindSampler(unit, 0);
         }
+    }
+
+    /**
+     * Like {@link #touchUnit}, for a unit that gets a buffer texture: {@link #restore} leaves no buffer texture bound
+     * there. Minecraft never binds buffer textures, so 0 is what it expects.
+     */
+    void touchBufferUnit(int unit) {
+        touchUnit(unit);
+        bufferUnits |= 1 << unit;
     }
 
     /** Call before changing the blend function or equation (particles); restored exactly, as Minecraft caches them. */
@@ -126,12 +146,18 @@ final class GlStateGuard {
             if ((touchedUnits & (1 << unit)) != 0) {
                 GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, savedTexture[unit]);
+                if ((bufferUnits & (1 << unit)) != 0) {
+                    GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, 0);
+                }
                 if (savedSampler[unit] != 0) {
                     GL33.glBindSampler(unit, savedSampler[unit]);
                 }
             }
         }
         GL13.glActiveTexture(activeTexture);
+        GL30.glBindBuffer(0x8892, arrayBuffer); // GL_ARRAY_BUFFER
+        GL30.glBindBuffer(GL31.GL_TEXTURE_BUFFER, textureBuffer);
+        GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, renderbuffer);
         if (unpackBuffer != 0) {
             GL30.glBindBuffer(0x88EC, unpackBuffer);
         }

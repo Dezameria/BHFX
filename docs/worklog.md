@@ -11,6 +11,330 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Game crash during `thousand_swords`: NVIDIA driver, hardening
+- User: the game crashed. `latest.log` just stops after a 9.5 s stall; no crash report. Windows event log: `java.exe` access violation in `nvoglv64.dll` at 19:08:20 plus LiveKernelEvents, 0.3 s after the model's re-upload (details and hypotheses in [`bugs.md`](bugs.md), Open).
+- bhfx: `GlStateGuard` (array / texture-buffer / renderbuffer bindings saved and restored), `FxModels.finish` (restores the previous VAO), `model/vertex.vsh` (broken instances draw nothing).
+- result: bhfx `gradlew build` passed (`checkShaders` 23), published + copied; BHSpells `compileJava` passed. Not confirmed that it fixes the crash.
+
+---
+
+## 2026-11-16 — BHSpells `thousand_swords` round 2: swords planted under the floor
+- User (in game): the swords stick in below the ground. Cause: `ThousandSwordsFx.ground()` read `Heightmap.Types.MOTION_BLOCKING_NO_LEAVES`, a server-side heightmap the client doesn't have; and `^ ^ ^12` targets tilt with pitch.
+- BHSpells `ThousandSwordsFx`: ground found by scanning blocks (collision top / fluid surface, leaves skipped) under the target first (±24, becomes the base height for the dome and strikes), then under each strike point (±10). Lesson in [`integrations/bhspells.md`](integrations/bhspells.md).
+- result: BHSpells `compileJava` passed. Not seen in game yet.
+
+---
+
+## 2026-11-16 — Instanced models; BHSpells `thousand_swords` from the user's Blockbench sword
+- User: `Geberia_Feihua.bbmodel` (a Java-block Blockbench project, 59 cubes, embedded 1024² texture; every cube pivots on the sword's tip), "a thousand swords slashing", the pivot is the tip.
+- bhfx: `PassList.models` (instanced), `FxData.setInstance`, `ModelDraw` (+ `instances`, `count`), `PassListImpl.models`, `PostRenderer.drawModel` (instanced path: no cull, `glDrawArraysInstanced`), `model/vertex.vsh` (per-copy frame from `MInstances` by `gl_InstanceID`, `mInstance`, `mIndex`, `mDet`), `_header.glsl` (`MInstanced`, `Surface.instance` / `index`), `_footer.glsl` (per-copy back-face drop).
+- BHSpells: `docs/bhfx/tools/bbmodel_to_geo.py` (new converter), `assets/bhspells/geo/geberia_feihua.geo.json` + `textures/fx/geberia_feihua.png` (converted, tip at 0,0,0), `shaders/bhfx/model/flying_sword.fsh`, `compat/bhfx/client/ThousandSwordsFx` (`bhspells:thousand_swords`, registered in `BhfxClientBridge`, id in `BhfxIds`), `docs/bhfx/thousand_swords.md` + `thousand_swords_model.png`.
+- Checked: the converted model bakes with `GeoModelLoader` (708 triangles) and a software render of it (and of `bhfx:test_model`) from the baked mesh and texture looks right from four sides.
+- result: bhfx `gradlew build` passed (JUnit, `checkShaders` 23), published + copied; BHSpells `compileJava` passed; `flying_sword.fsh` passed glslang (assembled by hand). Not run in game.
+- next: in-game round 1 ([`testing.md`](testing.md)).
+
+---
+
+## 2026-11-16 — Models drawn by bhfx, M1: static `.geo.json` with materials (0.3.12)
+- User: turn models themselves into effects through bhfx. Built M1 of the plan (static models, three materials); bones, animation and instancing later.
+- Read GeckoLib 4.8.3's `BakedModelFactory`, `GeoQuad`, `FaceUV.Rotation`, `RenderUtils` and `GeoEntityRenderer.renderRecursively` (decompiled with ForgeFlower from the ForgeGradle cache into the session scratchpad) so the bake matches it.
+- bhfx: `api/client/FxModel` (new), `PassList.model` (×2), `PassListImpl` (+ `Entry.model`, `drawsGeometry()`: models don't count as screen passes); `impl/render/GeoModelLoader`, `FxModels`, `ModelDraw` (new); `PostRenderer` (model group with `modelFbo` + depth renderbuffer, `drawModel`, `modelRect`, `warmupModel`, cull flip for mirrored frames, sweep / release / status / held bytes); `ShaderManager.getModel` + attribute locations bound in `link`; `UniformBinder.blankTexture`, `FxTextures.blank`; `ShaderWarmup` (model/ materials); `gradle/glsl-check.gradle` (model materials). Shaders `model/vertex.vsh`, `_header.glsl`, `_footer.glsl`, `textured.fsh`, `glow.fsh`, `dissolve.fsh`. Test effect `impl/client/test/ModelTestFx` (`bhfx:test_model`) with `geo/test_model.geo.json` and `textures/fx/test_model.png` (written by a stdlib-only script). JUnit `GeoModelLoaderTest` (8).
+- Found: API_PLAN 5.3 listed `vnoise3` / `fbm3` / `hash22` in `noise.glsl`; they never existed (fixed the row).
+- result: `gradlew build` passed (all JUnit, `checkShaders` 23 shaders), published + copied to BHSpells; all 17 BHSpells `.geo.json` bake without errors (offline run). Not run in game.
+- next: [`testing.md`](testing.md) "Models drawn by bhfx"; then M2.
+
+---
+
+## 2026-11-16 — Named points on entities; GeckoLib bones from BHSpells (0.3.12)
+- User: let bhfx effects ride on GeckoLib model bones, without changing anything that exists.
+- bhfx: `impl/client/EntityPoints` (new: named points per entity, wanted only when asked, never estimated, 128 max, pruned), `BodyParts` (only new package-private accessors for its capture window: `capturingWorld`, `frame`, `toWorldRotation`, `camera`; behaviour unchanged), `BHFxClient.point` / `points` / `wantsPoints` / `reportPoint` (×2), `FrameContext.point(name)` / `point(entity, name)` / `points()` + `FrameContextImpl`, `EntityPoints.clear()` next to `BodyParts.clear()` (`ClientEvents`, `ClientFxManager`); test effect `impl/client/test/PointsTestFx` (`bhfx:test_points`, reuses `test_data.fsh`).
+- BHSpells: `compat/bhfx/client/GeckoBhfxPoints` (new) + one line in `client/fx/BHFxClientIntegration.register`. Checked against GeckoLib 4.8.3's bytecode: `GeoRenderEvent.Entity.CompileRenderLayers` is posted on `MinecraftForge.EVENT_BUS` the first time a renderer's layers are read; `renderRecursively` calls `applyRenderLayersForBone` after `translateAwayFromPivotPoint`.
+- result: bhfx `gradlew build` passed (JUnit, `checkShaders`), published + copied to BHSpells; BHSpells `compileJava` passed. Not run in game; no JUnit for points (needs entities and a capture window).
+- next: [`testing.md`](testing.md) checklist (first item: existing GeckoLib spells unchanged).
+
+---
+
+## 2026-11-16 — 3D shapes from signed distances, and bones (0.3.12)
+- User: build layers 1 + 2 of the 3D plan (SDF includes; bones from Java). Layer 3 (mesh baking) left for later ([`decisions.md`](decisions.md)). Read first how `../orbital-laser`'s Sky Breaks hand moves: Rust samples arm poses 30/s into a table (`sb_hand.rs` `Arm::table`), the pass lerps two poses (`hd_pose`), rebuilds 15 finger bones per pixel (`hd_set`) and measures 18 baked per-bone distance grids (`hb_piece`) in each bone's frame.
+- bhfx: shaders `include/sdf3d.glsl`, `include/sdf_march.glsl` (new), frame functions added to `include/data.glsl`, `test_sdf.fsh`; `api/client/FxFrame` (new record), `FxData.setFrame` (default method); test effect `impl/client/test/SdfTestFx` (`bhfx:test_sdf`, registered in `ClientBootstrap`); JUnit `FxFrameTest` (6).
+- Docs: `API_PLAN.md` 5.3 + new 5.6, `CHANGELOG.md`, `testing.md` checklist, `decisions.md`, `roadmap.md`, `README.md` include list.
+- result: `gradlew build` passed (JUnit, `checkShaders` 19 shaders OK), published to mavenLocal and copied to BHSpells. Not run in game; the hand's proportions and the curl directions are untested guesses.
+- next: the `testing.md` checklists for `test_sdf` and `test_data`; a BHSpells spell on it.
+
+---
+
+## 2026-11-16 — `FxData`: runtime data tables for passes (0.3.12)
+- User: build the `FxData` plan on 1.20.1 now. Added to the unreleased 0.3.12 (with body parts), on `feature/scale-phase0`, uncommitted.
+- bhfx: `api/client/FxData` (new), `Fx.createData`, `Uniforms.data`; `impl/render/DataTable` + `DataTables` (new: buffer texture per table, dirty-range upload, 5 s idle free), `UniformBinder` (binds tables; points every active `samplerBuffer` at unit 5 so none sits on unit 0 next to `DiffuseSampler`), `ShaderProgram.bufferSamplers`, `GlStateGuard.touchBufferUnit` (clears buffer textures on restore), `PostRenderer` (tables in sweep / release / held bytes / status; `binder.begin` in both warmups), `ParticleRenderer` (buffer unit marked; `unbind` now activates unit 5 first: it used to unbind on whatever unit the setup left active). Shaders: `include/data.glsl`, `test_data.fsh`. Test effect `impl/client/test/DataTestFx` (`bhfx:test_data`). JUnit `DataTableTest` (7).
+- Docs: `API_PLAN.md` 4.2, 4.4, 5.3, new 5.5; `CHANGELOG.md`; `testing.md` checklist; `plan-fx-data.md` status; `README.md` include list.
+- result: `gradlew build` passed (all JUnit suites, `checkShaders` 18 shaders OK incl. `samplerBuffer` under `#version 150`), published to mavenLocal and copied to BHSpells by the build. Not run in game.
+- next: the `testing.md` checklist; then one BHSpells effect on `FxData`.
+
+---
+
+## 2026-11-16 — Plans: `FxData` next, and a 1.21.1 NeoForge port (docs only)
+- Read `../orbital-laser` (a Horizon mod, Rust/WGSL) to see what its effects do that bhfx can't. Only bending the world
+  itself (The Fold, `set-warp`) is out of reach; runtime data tables, block textures in a pass and half-res stages
+  have workarounds. Chose `FxData` as the next feature ([`decisions.md`](decisions.md) 2026-11-16).
+- bhfx: `docs/plan-fx-data.md`, `docs/plan-neoforge-1.21.1.md` (new); `docs/README.md` (lists `plan-*.md`),
+  `docs/roadmap.md`, `docs/decisions.md`.
+- result: docs only; no code changed, nothing built. Version facts in the port plan are from memory, not checked.
+- next: `FxData` after 0.3.12 is committed and `feature/scale-phase0` is merged; two questions about the port in
+  [`roadmap.md`](roadmap.md).
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 10: auspicious-cloud sheet removed
+- User: remove `textures/fx/higan_curl_sheet.png` altogether.
+- BHSpells: PNG deleted; `HiganbanaDomainFx` without `CURL_SHEET` / `CURL_RATE` / `curls` / `curlFlow`; `gen_higan_smoke_sheets.py` writes only `higan_smoke_sheet.png` (byte-identical to before); `preview_higan_mist.html` and the `higan_mist.fsh` header updated.
+- result: `compileJava` + glslcheck pass; no reference to the sheet left in `src/`. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 9: cumulus flipbook, still xiangyun shapes
+- User (a red cumulus photo; three xiangyun drawings): cumulus shape for the smoke; clouds after the drawings in place of `higan_curl_sheet`; mid-round: no need for such a big flipbook, base it on the pictures.
+- BHSpells `docs/bhfx/tools/gen_higan_smoke_sheets.py` rewritten for 2×2 sheets: `higan_smoke_sheet.png` a 4-frame cumulus flipbook (11 KB), `higan_curl_sheet.png` four still xiangyun shapes after the drawings (17 KB). `particle/higan_mist.fsh`: uniform `Grid` (cols, rows, frames) — flipbook or one still cell per particle (`data.z`). `HiganbanaDomainFx`: `mistUniforms(u, sheet, frames)`, curls pick one of the four shapes, smaller tilt and growth.
+- Lessons: a cloud built from several masses must fade each pixel by the base of the mass it belongs to (argmin of the per-mass SDFs), or per-mass horizontal masks leave straight vertical seams; let the lowest billows reach past the base so the fade, not a billow's round edge, ends the bottom. A few still variants picked per particle (and mirrored) give more variety per kilobyte than a long flipbook of one shape.
+- result: `compileJava` + glslcheck pass; checked coloured in the sprite preview. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 8: soft smoke and auspicious-cloud sheets
+- User (pictures: Chinese auspicious clouds; soft blurry red smoke): change the two smoke textures to those feels.
+- BHSpells `docs/bhfx/tools/gen_higan_smoke_sheets.py` rewritten: `higan_smoke_sheet.png` = soft fuzzy cloud (lumps summed into one mass, warped 3D value-noise fbm so frames flow, rising dissolve threshold; 64 px cells, 14 KB); `higan_curl_sheet.png` = xiangyun (smooth-union lobes, flat base, Archimedean spiral lines, inset top line, waving wisps; 128 px cells, 42 KB); 16 grey levels. `higan_mist.fsh` fringe light 0.25; `mistUniforms` body crimson ×0.6.
+- Lesson: a soft, blurry sheet needs few pixels (64 px cells look the same once filtered) — spend resolution only on sheets with thin lines. And with a "grey = detail" colour scheme, keep a soft sheet's grey nearly flat, or its thin fringe gets the detail colour and reads as a rim.
+- result: `compileJava` + glslcheck pass; checked coloured in the sprite preview. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 7: smoke spread with the radius, red faint mist, smaller sheets
+- User: the smoke is bunched up even with a bigger radius; spread it and its rates with the radius; spread the smoke round the caster over everything in red; make the mist faint; keep files small.
+- BHSpells `HiganbanaDomainFx`: the mist ring round the caster → field mist over 0.92R; curls over 0.85R; rates × `areaK` = (radius/32)² (0.3..2.5), vortex throw × `spreadK`; column and vortex rates down; lower alphas; red mist palette. `higanbana_domain.fsh` `THICK` 0.16 → 0.1. `gen_higan_smoke_sheets.py` gained `levels` (24): sheets 69 + 93 KB → 33 + 43 KB.
+- Lesson: anything an effect spreads "round the caster" should take its area and its spawn rate from the radius param, or a bigger domain just looks emptier with the same clump in the middle.
+- result: `compileJava` + glslcheck pass. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 6: original smoke back, flipbook mist, claws over the field
+- User: the round-4 drawn cloud feels odd; bring the original smoke back and mix it in; more black-red smoke ribbons round the body and over the whole area; use two 4x4 hand-painted-style smoke flipbooks (a swelling cloud, S-shaped curls) instead.
+- BHSpells: `particle/higan_smoke.fsh` restored to the rounds 1-3 cel puff (light from uniform `Glow`); new `particle/higan_mist.fsh` (4x4 greyscale+alpha flipbook, frames blended over the life, white body -> black-red, grey -> crimson, lower fringe lit); new `docs/bhfx/tools/gen_higan_smoke_sheets.py` -> `textures/fx/higan_smoke_sheet.png`, `higan_curl_sheet.png` (512², 69 KB / 93 KB); `HiganbanaDomainFx`: batches `mist` / `curls`, mist ring and vortex moved to `mist`, new curl stream, claws back to 3 / 3 / 2.6 a second, new `fieldClaw` (10 a second over the field). Previews `preview_higan_mist.html`; `preview_higan_cloud.html` removed.
+- Lesson: an image-generator prompt for a sprite sheet can be met procedurally (SDF lobes with smooth union + noise edges, crescent shading, holes for dissipation; stamped discs along an integrated S-curve for tendrils) — deterministic, aligned cells, and the material colours it, so a later hand-made sheet in the same layout drops in.
+- result: `compileJava` + glslcheck pass; sheets checked by eye and coloured in the sprite preview. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 5: spider lily shape, cheaper
+- User (photo of a red spider lily): the ground flowers should have its outline, not as detailed; mind optimisation.
+- BHSpells `particle/higan_flower.fsh` rewritten: stem, wide head, 10 stamens fanning sideways and curving up with orange anthers, 6 ribbon petals curling back into loops. Cost: curves as parabolas with a first-order distance (no `atan`), curls as rings, early exit outside head and stem, and an `fwidth`-based LOD that draws a starburst below ~40 px (also stops thin lines flickering). `HiganbanaDomainFx` flowers 0.9–1.5 blocks. Preview `docs/bhfx/tools/preview_higan_flower.html`.
+- result: `compileJava` + glslcheck pass; checked in the sprite preview. Not seen in game.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 4: ground off bodies, anime cloud ring
+- User (first in-game screenshot + their anime cel-smoke picture): the floor texture was painted over the character; wants the swirl round the body bigger, wrapping the area, turning less, like mist / clouds, in the style of the picture.
+- BHSpells `higanbana_domain.fsh`: ground effects only on up-facing surfaces (`dFdx`/`dFdy` normal) below `1.2 + 0.15·r` above the centre; centre light skips the caster and is capped at 1. `higan_smoke.fsh` rewritten as an anime effect cloud (seven painted-over lobes, crescent cel light on the top lobe, curl arcs, outline, coral / mauve palette by height, near-camera fade); `HiganbanaDomainFx`: `cloudUniforms`, new slow three-tier cloud ring (`ringFlow`), vortex slowed, claws cut to accents, smoke `data` layout changed. Preview `docs/bhfx/tools/preview_higan_cloud.html`.
+- Lessons: a pass that paints "the ground" by height band also paints entities standing on it — mask by surface normal (and a height cap near the caster). For drawn cel clouds, shade the lobe that is painted on top (last one containing the pixel), not the nearest one (that gives jagged stripes at Voronoi seams), and light it as a crescent outside an offset shadow circle rather than by a straight gradient.
+- result: BHSpells `compileJava` + glslcheck pass; cloud checked in the sprite preview. Not seen in game again yet.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` round 3: claws, smoke vortex, spreading web, thorns
+- User (red ink swirl, red-black barbed claw strokes, Arcane's cells in a black web): big swirling smoke spreading round; no line rings curling in on the ground, moving smoke texture instead; claw-like aura texture; power webbing over the whole area; no heartbeat sound.
+- BHSpells `HiganbanaDomainFx`: the round-2 smoke ribbons → `higan_claw` blades (3 layers, bigger, barbed, hooked, burning edge + additive halo); new smoke vortex (`vortexFlow`, big `higan_smoke` clouds orbiting and pushed out to ~20 blocks); new `higan_thorn` (AXIS thorns shooting out of the ground behind the web front, sinking back on wither); ink strokes and the flat ground strokes removed; `WARDEN_HEARTBEAT` removed. `higanbana_domain.fsh`: sigil / pit / ring → `floorSmokeAt` (polar painterly smoke swirl from blurred mips, cel edges); pools → a warped-Voronoi black web spreading out over 3 s with a ragged front. Deleted `higan_swirl.fsh`, `higan_stroke.fsh`.
+- Lesson: fine-grained noise reads as marble on the ground; sampling a higher mip level (`textureLod(..., 2.5–3)`) gives the big soft painterly shapes, then a contrast stretch + hard threshold gives the cel edge.
+- result: BHSpells `compileJava` + glslcheck pass; ground checked in the browser preview. Not tested in game. Notes: `BHSpells/docs/bhfx/higanbana_domain.md`.
+
+---
+
+## 2026-11-14 — BHSpells `bhspells:higanbana_domain` rounds 1–2: red-black domain of death
+- User (10 reference pictures): the most epic, frightening, powerful aura — red-black smoke spreading over the whole area as if covered by death; concept higanbana. Mid-round: make it smoky, swirling round the body with a technique like radiant_aura.
+- BHSpells: new `client/HiganbanaDomainFx` (`BhfxIds.HIGANBANA_DOMAIN`, registered in `BhfxClientBridge`), pass `higanbana_domain.fsh` (dead ground with Voronoi blood pools and black veins, a log-spiral higanbana sigil of petal blades and hooked stamens, shock front and heartbeat rings, centre light, an absorbing 32-step black-red shroud with a wall at the edge and a column round the caster, a vortex sky and far haze while inside), OVERLAY `higanbana_grade.fsh` (drained red grade, ink creeping in from the screen edges), materials `higan_swirl` (cel smoke ribbon), `higan_flower` (procedural spider lily on AXIS), `higan_petal`, `higan_glint`, `higan_smoke` (cel-banded billow), `higan_stroke`. Round 2: radiant_aura's four-layer storm (`storm` / `swirl`) done as smoke ribbons. Preview `docs/bhfx/tools/preview_higanbana.html` (pass only). Design notes: `BHSpells/docs/bhfx/higanbana_domain.md`.
+- Lessons: for a dark domain, keep the ground and smoke mostly black and put red only in the pools, sigil edges, centre and underglow (the first draft read as neon); an edge falloff on the volume can eat a wall drawn at the edge, so tear the wall's face with the noise instead; while the sky is replaced, haze far terrain into the same colours or a normal-coloured band shows at the horizon.
+- result: BHSpells `compileJava` + glslcheck (8 shaders) pass; the pass checked in the browser preview (inside / outside / night). Not tested in game.
+- bhfx `.claude/launch.json`: added `bhspells-root-preview-2` (port 8769) for when 8767 is held by another session.
+
+---
+
+## 2026-11-14 — BHSpells meditation_aura: dark / black colours
+- User: make `bhspells:meditation_aura` support black. Everything was additive, so black drew nothing.
+- BHSpells `meditation_aura.fsh`: field accumulated as an untinted scalar `glow`; `darkness(tint)` = 1 − smoothstep(0.15, 0.55, max channel) splits it into added light (`tint·glow·(1−dark)`) and absorption (`mix(col, tint, 0.85·(1−exp(−1.3·glow))·dark)`, capped so it stays smoke). `MeditationAuraFx`: same curve in Java; dark > 0.5 → wisps and motes on ALPHA with plain colour, no bloom, first-person vignette in the colour, SMOKE fallback without post.
+- Lesson: for an additive effect to take a dark colour, keep the shape field untinted until the end — `tint × field` is zero for black and loses the shape.
+- result: BHSpells `compileJava` + glslcheck pass; not tested in game. Design note: `BHSpells/docs/bhfx/meditation_aura.md`.
+
+---
+
+## 2026-11-14 — `bhspells:ink_sphere` round 7: smaller `ink_flame.png`
+- User: the texture feels too big; lower the resolution if needed, without losing much detail.
+- BHSpells `docs/bhfx/tools/gen_ink_flame_texture.py`: new `out_size` (box-filter shrink from the drawing size, so it is supersampled; the strands are shrunk before they are sharpened, so they stay thin) and `levels` (grey levels per channel, for PNG size). Same seed at 512 / 256 levels reproduces the old file byte for byte. Shipped 256×256 at 32 levels: 339 KB → 58 KB, a quarter of the VRAM; 128 smeared the strands. Preview takes `?tex=` to compare files.
+- result: compared offline (strips at equal display size) and in `preview_ink_sphere.html`. Texture only, no code change (the shader reads `textureSize`). Not tested in game.
+
+## 2026-11-14 — `bhspells:ink_sphere` round 6: white / black lines as params
+- User: can the overlap of the white and black shades, bottom and top, be adjusted?
+- BHSpells: new params `white` (`BhfxIds.WHITE_LINE`, how high the white flames reach, fraction of the height from the bottom, 0.56) and `black` (`BhfxIds.BLACK_LINE`, where the black ink tongues start, 0.28), read in `InkSphereFx`, sent as `P2.xy`, used by `inkAt` in `ink_sphere.fsh`; preview takes `?white=` / `?black=`.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in the preview at 0.35 / 0.5 and 0.75 / 0.15. Not tested in game.
+
+## 2026-11-14 — `bhspells:ink_sphere` round 5: spawn position is the centre
+- User: make the spawn point the sphere's centre.
+- BHSpells `InkSphereFx`: `center()` returns the effect position as it is (it was position + radius); the bottom used for the base glow and the pass bounds is centre − radius. Shader unchanged. `BhfxIds` / class docs and the test commands in `docs/bhfx/ink_sphere.md` updated (`at ^ ^8 ^20` rests it on the ground; `at ~ ~ ~` puts you in the middle).
+- result: BHSpells `compileJava` passed. Not tested in game.
+
+## 2026-11-14 — `bhspells:ink_sphere` round 4: no sideways swing
+- User: "not so curved, flowing from the bottom to the top", then while it was being changed: keep the sphere's curve, just don't swing.
+- BHSpells `ink_sphere.fsh`: tried a straight-up layout (u across the sphere as the camera sees it), then went back to round 3's wrap round the sphere and removed only the sway: the `sin` wobble of u by height and time, each layer's drift round the sphere, and most of the strand bend (0.14 → 0.04). Every layer now only flows straight up its meridian.
+- result: glslcheck OK, checked in `preview_ink_sphere.html`. Shader only. Not tested in game.
+
+## 2026-11-14 — `bhspells:flame_sphere` renamed `bhspells:ink_sphere`, round 3: ink-flame texture
+- User: call it an ink sphere, take the fire sounds out, study the reference's pattern (a texture is fine): ink, but a little like fire, a magic liquid drifting round the sphere, as close to the reference as possible.
+- BHSpells: renamed id / `BhfxIds.INK_SPHERE` / `InkSphereFx` / `ink_sphere.fsh` / docs / preview. New tileable texture `textures/fx/ink_flame.png` from `docs/bhfx/tools/gen_ink_flame_texture.py` (spectral noise, wraps by construction, channels equalised: R strands, G flame body, B ink columns; optional comparison strip like the reference's left panel). The shader lays it out by height on the sphere (white tongues from a height-rising threshold on G with R strands in them, a solid white band at the bottom that hides the pole, black ink spikes from B above the middle), each layer flowing up and round at its own speed, explicit mip level from texel vs pixel size. Fire sounds removed (beacon hum kept).
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in `preview_ink_sphere.html`. Not tested in game.
+
+## 2026-11-14 — `bhspells:flame_sphere` round 2: black and white ink on the surface instead of fire
+- User: what flows up the dome is not really fire but a black and white ink feel; look at the reference's texture again.
+- BHSpells `flame_sphere.fsh`: removed the raymarched flame volume; the ink is painted on the sphere's surface (`inkAt` / `inkLight`, near wall plus the far wall faintly through it): coordinates round the vertical axis × arc from the bottom pole, drifting up, two layers of domain warp stretched vertically, veins = ridges of the warped noise at three scales, a white body from a height-rising threshold on vertically stretched columns (black ink hangs down between the tongues), grey veins fading towards the top, and the ink climbs with `rise`. `noise_fbm.png` ridges came out speckled (moon surface), so the pattern uses `wrapNoise`, a smooth value noise that wraps round the sphere (no atan seam). `FlameSphereFx` docs, fallback particles (`SQUID_INK` / `END_ROD`) and `BhfxIds` doc updated.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in `preview_flame_sphere.html` (dark and daylight backdrops, timeline). Not tested in game.
+
+## 2026-11-14 — `bhspells:flame_sphere` round 1: sphere of energy with white flames rising inside
+- User (reference picture: dark grey-blue see-through sphere, white-hot flames licking up from the lower half, white glow at the base) chose radius 8, fixed in the world, flames rising from the bottom on appearing and dying down from the top on going, grey-blue + white, light on the ground, refraction through the shell.
+- BHSpells: new `client/FlameSphereFx` + `flame_sphere.fsh` (one pass, no particles): `raySphere` shell refracting `DiffuseSampler` through `projectUv`, a 40-step flame volume (`flameAt`: cylindrical noise round the vertical axis + 3D value noise flowing up, contrast-stretched, a fire mask whose threshold rises with height so the white body breaks into tongues, ridge wisps), base glow in the air, light on the world, dimmed when the camera is inside. `BhfxIds.FLAME_SPHERE`, registered in `BhfxClientBridge`. Spawn position = bottom of the sphere. Preview `docs/bhfx/tools/preview_flame_sphere.html` (fetches the shader between its `preview` markers). Notes: `BHSpells/docs/bhfx/flame_sphere.md`.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in the browser preview (timeline, daylight / dark backdrops, camera inside). Not tested in game.
+- next: user tries `/bhfx test bhspells:flame_sphere at ^ ^ ^20`.
+
+## 2026-11-15 — `bhspells:yin_yang_burst` round 8: heads curl into the arms
+- User (two in-game screenshots, arrow at the head/arm joint, red X on grey lines at the white arm's edge): the head looked like a round lump sticking out; wants its edge to curl on into the pattern.
+- BHSpells `yin_yang_burst.fsh`: the head's round edge met the arm's straight edge at a right angle at the disc rim. Winding outside the disc is now `1.3·√(r − 1)` (infinitely steep at the rim), so the edge carries on along the rim and peels off into the arm like a tomoe tail; noise and brush coordinates use a softened copy. Removed the round 6 strands (read as rings, likely what the X marked).
+- result: glslcheck OK, checked in `preview_yin_yang.html?strip=1`. Shader only. Not tested in game.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 7: bigger true-shape yin-yang, cleaner particles, softer blackout
+- User (in-game screenshot with the desired S drawn on it): bigger yin-yang, the head bulged out of shape; particles spawned oddly; the blackout should not be pitch black.
+- BHSpells: `DISC_RADIUS` 1.6 → 2.6 with the shader's disc-unit radii scaled down (`SWIRL_REACH` 4.2); no winding inside the disc, constant shear across it and only 25% lead there, so heads, eyes and the S keep their shape; ink clouds from blocks only start outside the painted rim and never on the viewer's side of it; `BLACK_DEPTH` 0.85. The cream specks across the user's screenshot were not the texture (bhfx samples LINEAR + mipmaps); probably rain in front of the plane, asked the user.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in `preview_yin_yang.html?strip=1`. Not tested in game.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 6: not round, whipping arms, alternating bands drawn inwards
+- User: "getting there", but too round; the reference whips and alternates its bands, as if drawing white and black in from all round.
+- BHSpells `yin_yang_burst.fsh`: winding eases off outside (`0.75·log(1+r²)` instead of linear, which wrapped the outside into rings), arm tips hook back unevenly (`hook`), the arm split becomes `r·mix(cos a, cos(3a + bandPhase), bands)` so the arms break into alternating bands whose phase slides them inwards, counter-colour strands along the arms, grey patches far out that come in pure, a non-circular rim, `SWIRL_REACH` 5.5. `YinYangBurstFx.RIM` 4.4 to match.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in `preview_yin_yang.html?strip=1`. Not tested in game.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 5: outer swirl turning the wrong way
+- User: the outer swirl seemed to turn the wrong way against the yin-yang.
+- Two causes. (1) `yin_yang_burst.fsh`: the arms were wound with `+twist`, so outer parts led the counter-clockwise spin; now `th = spin − twist·shape` (arms trail). (2) `YinYangBurstFx`: a positive `orbit` is counter-clockwise seen from the axis tip, and the axis pointed away from the viewer, so the ink particles turned clockwise on screen; the batches now orbit round `-axis`.
+- result: BHSpells `compileJava` passed, glslcheck OK, direction checked frame by frame in `preview_yin_yang.html?strip=1`. Not tested in game.
+- Lesson for `orbit` users: to turn counter-clockwise as the viewer sees it, the orbit axis must point towards the viewer.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 4: yin and yang as two bodies swallowing each other
+- User: the swirl still turned oddly, like one plate; wants yin and yang separate so they really swirl into each other.
+- BHSpells `yin_yang_burst.fsh` `inkField`: yang and yin are evaluated in their own frames (`yangBody`), each with its own lead/lag, arm coil and a non-accumulating core shear (scaled by `sway`); overlaps fold one over the other in inflowing tongues, gaps are marbled churn, eyes ride with their heads (`eyeAt`). `preview_yin_yang.html` gained `?strip=1` (9 frames 0.3 s apart) and `?anim=1`.
+- result: glslcheck OK, checked in the browser preview strip. No Java change. Not tested in game.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 3: the held vortex as a thick-paint yin-yang
+- User (reference: a swirling thick-paint yin-yang, with arrows drawn showing flow into the centre): round 2's held vortex read as "lines and rings", not a yin-yang.
+- BHSpells `yin_yang_burst.fsh`: new `inkField` (core barely twisted `th = spin + twist·r²/(1+r)`, low twist so two broad arms sweep out, torn cloud edges far out, dry-brush streaks along the arms in the unwound frame, emboss relief from a second sample). Removed the time-growing winding and the marbled filaments. Fixed a hole in the centre that had been there since round 1 (the fill mask was 0 at r = 0 even when formed). `YinYangBurstFx`: `AHEAD` 3.2 → 5.5, slower vortex spin, STREAK strands and motes removed, block ink as clouds that end at the swirl's rim. New WebGL preview `BHSpells/docs/bhfx/tools/preview_yin_yang.html` (fetches the real shader functions), served by the new `bhspells-root-preview` config in `bhfx/.claude/launch.json`.
+- result: BHSpells `compileJava` passed, glslcheck OK, checked in the browser preview. Not tested in game.
+
+## 2026-11-14 — `bhspells:yin_yang_burst` round 2: stirred ink, timed vortex that sucks in the surroundings
+- User: wants it to look stirred together like ink, and a set time for the vortex to keep rolling up, sucking black and white in from everything around.
+- BHSpells `yin_yang_burst.fsh`: yin-yang field folded 3 times by texture noise after the spiral, marbled filaments where black meets white, grey only at the collapse; winding grows with time (`P3.z`); suction on the camera-facing plane drags the scene in along the spiral (two-phase crossfaded flow, re-projected with `projectUv`) and inks it, colour drains farther out. `YinYangBurstFx`: new `BhfxIds.SWIRL` param (vortex seconds, 6), explicit `duration` sets it too, `hold:true` whirls until a stop which collapses and bursts (`endTicks` returns the rest of the sequence), spin accumulated per frame, ink strands/clouds torn off real block surfaces (light/dark by `MapColor`) spiralling in.
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game.
+
+## 2026-11-14 — BHSpells new `bhspells:yin_yang_burst` (yin-yang smoke → grey water burst → blackout)
+- User (3 references: thick-paint black/white yin-yang swirl, cloudy yin-yang, black/white smoke vortex): black and white aura smoke gathering in front into a yin-yang like liquid or smoke, swirling, merging, bursting into grey water that covers everything, then a pitch-black screen fading to grey and slowly back to colour.
+- BHSpells: `YinYangBurstFx` + `yin_yang_burst.fsh` (camera-facing disc: smooth yin-yang SDF warped by log-polar inflowing noise and wound by radius into spiral arms; then a `raySphere` water ball with surface refraction/froth and depth murk) + `yin_yang_burst_grade.fsh` (OVERLAY: under-water wobble, blackout, drained colour, grey wash). Particles: ALPHA smoke puffs orbit + pull, vortex motes, droplets, spray, reused `haki_wave` shell. `BhfxIds.YIN_YANG_BURST`, registered in `BhfxClientBridge`. Params `radius`, `scale`. Notes: `BHSpells/docs/bhfx/yin_yang_burst.md`.
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game; the client must restart to register the new effect.
+
+## 2026-11-14 — aura_release round 3: parts did not fade out at the end
+- User: when it goes, parts of it do not fade out.
+- Cause: bhfx drops the effect (and all its live particles) the tick `age > duration`, while `burn()` kept spawning full-strength particles living up to 1.8 s until the last tick; a stop ended after 20 ticks, also under the particle life; and the overexposed column faded linearly, so it looked unchanged until it popped off.
+- BHSpells `AuraReleaseFx` + `aura_release.fsh`: `DIE_TICKS` 30, particle lives capped at `MAX_LIFE` 1.3 s and at the time left, emission and alpha fade with the effect, eased fade, column brightness by fade², a dissolve uniform (core sinks and thins, the rest drifts up into tongues). Lesson recorded in `integrations/bhspells.md` and the `bhfx-particles` skill.
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game.
+
+## 2026-11-14 — aura_release round 2: the column in meditation_aura's style
+- User: wants the meditation_aura feel. A first try put meditation_aura's sheath on the body; the user said no: the feel belongs in the rising column itself. That try was removed and `MeditationAuraFx` restored as it was.
+- BHSpells `aura_release.fsh`: `pillarAt` rewritten with meditation_aura's technique at column scale (glowing skin round a flared SDF core, tongues lifted by upward-flowing 3D value noise that detach and carry the column past its core, streaks kept), 32 steps with an early-out. `AuraReleaseFx`: scaled-up `meditation_wisp` wisps peel off the column; sustained `power_line` lines halved. Also fixed `pow(negative, 2.0)` in `meditation_aura.fsh`'s breath ring (NaN trap).
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game.
+
+## 2026-11-14 — BHSpells new `bhspells:aura_release` (anime aura release column)
+- User (reference: an anime power-release scene): a white column of energy erupting up from the floor like an upturned flame, radial burst at the base, layered rising light, turbulent edges, overexposed core, cracked floor; a guideline, not an exact copy.
+- BHSpells: `AuraReleaseFx` + `aura_release.fsh` (raymarched column with seamless atan noise via `textureLod`, cast light, radial ground glow, Voronoi cracks, one shockwave ring, wash-out) reusing materials `power_line`, `power_haze`, `haki_wave`, plus `bhfx:streak` / `bhfx:dot` and vanilla block chips. `BhfxIds.AURA_RELEASE`, registered in `BhfxClientBridge`. Params `radius`, `height`, `color`, `color2`. Notes: `BHSpells/docs/bhfx/aura_release.md`.
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game; the client must restart to register the new effect.
+
+## 2026-11-14 — BHSpells new `bhspells:meditation_aura` (white meditation aura on the body's shape)
+- User (reference: a seated, cross-legged figure in a hugging aura): a faint white aura rising off the body, based on the model; rising upwards only, or just wrapping the body; a calm, focused meditation feel.
+- BHSpells: `MeditationAuraFx` + `meditation_aura.fsh` (11 capsules rebuilt from body parts every frame, raymarched thin sheath, tongues lifted by upward-flowing 3D noise, floor light and a breath ring) + material `particle/meditation_wisp.fsh` (VELOCITY wisps) + DOT motes; `BhfxIds.MEDITATION_AURA`, registered in `BhfxClientBridge`. Params `color`, `height` (rise, 0 = wrap only), `density`, `speed`, `scale`. Notes: `BHSpells/docs/bhfx/meditation_aura.md`.
+- Tuned in a new WebGL preview of the real pass (`tools/preview_meditation_aura.html`): first version painted a white sheet over the body's front; tongues are now gated off inside the sheath and dimmed over the body's own pixels, raymarch tightened (36 steps, sphere one block smaller than the pass bounds).
+- result: BHSpells `compileJava` passed (the running client predates only these files, so it was safe), glslcheck OK, `processResources` done. Not tested in game; the client must restart to register the new effect.
+
+## 2026-11-14 — confinement_song round 2: ghost sound ring away from the effect (fixed)
+- User (saw it in game): the echo rings look right, but another ring shows somewhere else in the world.
+- Cause: `confinement_song.fsh` measured each sound sphere's rim (and the heart glow and burst flash) from the cage to the whole view line, `tc` unclamped. Looking away from the effect, the line behind the camera passes the cage just the same, so a mirrored ring appeared opposite it.
+- Fix: `centreFront` also needs `tc > 0` (`smoothstep(0, 0.4, tc)`). glslcheck OK, `processResources` done (reload resources or restart the client). Not re-tested in game.
+
+## 2026-11-14 — BHSpells new `bhspells:confinement_song` (บทเพลงกักขัง)
+- User (two reference images: a glowing crystal cube cage with a figure inside, a tilted astrolabe ring): a cage that lasts 1–2 min, then slowly cracks and bursts with a magic circle. The feel is power carried on guqin notes; the sound's echo resonates with what is inside.
+- BHSpells: `ConfinementSongFx` + `confinement_song.fsh` (ray-traced corner-up cube, staff ring and ladder ring, guqin ground circle with 13 hui and 7 strings, sound pulses out and echoes back that make the cage ring, Voronoi cracks, burst circle) + materials `particle/song_note.fsh` (note glyphs) and `particle/cage_shard.fsh` (TUMBLE triangle shards). `BhfxIds.CONFINEMENT_SONG`, registered in `BhfxClientBridge`. A pentatonic melody on harp + guitar note-block sounds drives the pulses. Default: stands 90 s, then bursts; `hold:true` + `stop finish` breaks it. Notes: `BHSpells/docs/bhfx/confinement_song.md`.
+- result: BHSpells `compileJava` passed, glslcheck OK (3 shaders). Not tested in game; checklist in [`testing.md`](testing.md).
+- tooling: `bhfx-effect-recipes/scripts/glslcheck.py` now spots a particle material from a relative path too (`particle/x.fsh` from the shader folder was checked as a pass and failed).
+
+## 2026-11-14 — BHSpells `crimson_mist` round 2: `density` makes a visible difference
+- User: changing `density` a lot gives the same mist. Cause: clamped 0..1, scaled opacity only 0.25×..2×, did not change bank coverage.
+- BHSpells `crimson_mist.fsh`: opacity `THICK × (density/0.5)^1.5`, banks fill more air with density (`cover`), ground light by density; `CrimsonMistFx` clamps 0..3.
+- result: glslcheck OK; shader copied with `processResources` (client running, so `compileJava` skipped; the new clamp needs a restart). Not tested in game.
+
+## 2026-11-14 — BHSpells new `bhspells:crimson_mist` (wide thin red mist)
+- User (reference image of a green glowing fog): a wide red mist covering the area, not thick, things inside still visible.
+- BHSpells: `CrimsonMistFx` + `crimson_mist.fsh` (raymarched ground mist like `shadow_domain`'s: even haze + billowing 3D-noise banks, self-lit red with pale pockets, red light on the ground, ragged edge, rolls out over 50 ticks); `BhfxIds.CRIMSON_MIST`, registered in `BhfxClientBridge`. Params `color`, `radius` (40), `height` (6), `density` (0.5), `speed`. Notes: `BHSpells/docs/bhfx/crimson_mist.md`, row in `reusable_effects.md`.
+- result: BHSpells `compileJava` passed, glslcheck OK. Not tested in game; checklist in [`testing.md`](testing.md).
+
+## 2026-11-14 — arm_crack texture made smaller (131 KB → 32 KB)
+- User: file too big; lower resolution is fine if the detail stays.
+- `gen_crack_texture.py`: still draws at 512, then box-shrinks to the output size (thin cracks lifted by ^0.8 so hairlines survive), quantises the crack channel to 16 levels and glow/order to 8, writes RGBA (alpha 255) with PNG adaptive row filters. `arm_cracks.png` is now 256² at 34.8 KB; a 2x side-by-side with the 512 version keeps every crack incl. hairlines (softer). Shader and coordinates unchanged.
+- bhfx `FxTextures.read`: decodes with `NativeImage.read(Format.RGBA, in)`. Before, an RGB or grey PNG kept its own format and `getPixelRGBA` threw, so such a texture could not load (found while trying an RGB crack texture). `build` + `publishToMavenLocal` passed.
+
+## 2026-11-14 — arm_shatter round 6: crack texture redone to match the reference
+- User: wants the texture like the reference (cracked plaster / dried mud).
+- BHSpells `docs/bhfx/tools/gen_crack_texture.py` rewritten: a crack network (4 thick main cracks, ~60 medium cracks branching off existing ones at 55–125° and running until they hit another crack, 150+ hairlines, chips at junctions, specks clustered along cracks), 512² instead of 256²; `textures/fx/arm_cracks.png` regenerated (same channels). Preview `docs/bhfx/tools/preview_arm_cracks.png`.
+- result: texture only; no code change. Not tested in game.
+
+## 2026-11-14 — arm_shatter round 5: cracks painted onto the arm through depth, new crack texture
+- User: the cracks still read as an outer layer; wants them on the body like the ground cracks, on all 6 faces, in the style of a reference image (thick chipped main cracks plus hairlines).
+- BHSpells: new pass `shaders/bhfx/arm_shatter.fsh` (depth decal: each scene pixel taken into the four arm boxes, mapped to the nearest of six faces, one texture tile round the arm); new tileable texture `textures/fx/arm_cracks.png` grown by `docs/bhfx/tools/gen_crack_texture.py` (pure Python; r crack, g glow core, b opening order); pieces now `particle/arm_chunk.fsh` sampling the same texture; `arm_skin.fsh` and the per-frame skin panes removed.
+- result: glslcheck OK (pass and material), BHSpells `compileJava` passed. Not tested in game.
+- lesson: to put something on a model's surface, use a depth-decal pass with the body part boxes, not particles above the skin (they always read as a separate layer). See `integrations/bhspells.md`.
+
+## 2026-11-14 — arm_shatter: arms vanished while still waiting cracked (fixed)
+- User: the arms disappear for a while before they break. latest.log (00:54) shows a held test stopped ~22 s later.
+- Cause: `ArmShatterFx.tick` kept the arms hidden when the sequence tick was past `HIDE` (34), but before the break the sequence tick is the plain age, so a `hold:true` effect hid the arms 1.7 s in while still cracked. The frame side already required `fallenApart`.
+- Fix: the tick-side `ShatteredArms.keep` also requires `breakAge >= 0`; every other phase test already sits behind the not-broken branch or checks it. `compileJava` passed. Not tested in game.
+
+## 2026-11-14 — Shoulder points; arm_shatter round 4 (cracks on the skin, visible break, `gone` param)
+- User: arms vanished before they visibly broke; wants a set time before they return; Epic Fight did not split upper and lower arm; cracks floated like an outer layer.
+- bhfx: `BodyPart.LEFT_/RIGHT_SHOULDER` (top of the arm, upper arm's axes): vanilla layer at arm (∓1, −2) px, estimate (±0.375, 1.5), first-person estimate; `CHANGELOG.md`. Still 0.3.12, protocol 3 (unreleased). `build` (116 tests) + `publishToMavenLocal`.
+- BHSpells: `EpicFightBhfxBodyParts` reports shoulders from `Arm_R/L` (`tools/ef_body_points.py`). `ArmShatterFx` rewritten: forearm and upper arm as separate boxes; cracks are a Voronoi pattern in the new `arm_skin.fsh` on TUMBLE panes flush on each face (`softness(0)`), replacing the AXIS strips and `arm_crack.fsh` (deleted); a 6-tick breaking stage (cracks widen, skin turns to stone) before the arm falls apart into its own surface plates, spawned in `passes()` the frame the arm starts hiding; new param `gone` (`BhfxIds.GONE`, seconds, 2.1); slim arms.
+- result: glslcheck OK, BHSpells `compileJava` passed. Not tested in game.
+
+## 2026-11-14 — arm_shatter round 3: hold cracked until stop finish
+- User: keep the arms cracked and break them only on `/bhfx stop finish`.
+- BHSpells `ArmShatterFx`: sequence time now runs from `breakAge`; timed effects break at tick 28 as before, `hold:true` cracks to full and holds (breathing glow, occasional surge, slow embers and sounds) with no looping; `endTicks(FINISH)` plays the break out (52 ticks), `onStop(FINISH)` sets the break; CANCEL fades in 10 ticks and releases the arms; the fade-out follows the end of the sequence, not `stopProgress`, for a finish.
+- result: BHSpells `compileJava` passed. Not tested in game.
+
+## 2026-11-14 — Epic Fight body parts fixed from bind data; arm_shatter round 2 (arms break off for real)
+- User: Epic Fight points "not very accurate"; wants the arms to actually crack and break off.
+- BHSpells `EpicFightBhfxBodyParts`: rewritten to `stack * poseMatrices[joint] * local`, with `local` per point computed from Epic Fight 20.14.17 `biped.json` (see `integrations/bhspells.md`). Found that BHSpells builds against Epic Fight 20.14.17, not the 20.9.7 jar checked on 2026-11-13; layer behaviour re-checked on 20.14.17 (same), mode rule now reads `enableOriginalModel`.
+- BHSpells: new `client/ShatteredArms` (per-entity hide with a 250 ms lapse, kept alive every frame by the effect; vanilla `RenderLivingEvent.Pre/Post` at LOWEST hides arms and sleeves, `RenderHandEvent` cancels first-person hands), `compat/epicfight/client/EpicFightShatteredArms` (`PrepareModelEvent` hides `leftArm/rightArm/leftSleeve/rightSleeve`), mixins `ItemInHandLayerShatteredMixin`, `HumanoidArmorLayerShatteredMixin`, `WearableItemLayerShatteredMixin`, and `MixinPatchedItemInHandLayer` also checks it.
+- BHSpells `ArmShatterFx` round 2: 80-tick round; at the break each arm becomes 12 chunks filling its volume plus flakes, sparks, dust; arms hidden 1.4 s → 3.5 s with molten shoulder stumps; arms return at 3.5 s with faint cooling cracks.
+- result: BHSpells `compileJava` passed, refmap resolves the vanilla mixin targets; Epic Fight mixin targets checked against the 20.14.17 jar with javap. Not tested in game.
+
+## 2026-11-13 — `bhspells:arm_shatter`, a body part test effect
+- User asked how to test body parts, with an effect where both arms crack and break apart.
+- BHSpells: `ArmShatterFx` (`BhfxIds.ARM_SHATTER`, registered in `BhfxClientBridge`), materials `arm_crack.fsh` (AXIS crack pieces re-emitted every frame so they follow the posed arm) and `arm_shard.fsh` (TUMBLE stone flakes); design note `BHSpells/docs/bhfx/arm_shatter.md`.
+- result: glslcheck OK on both materials, BHSpells `compileJava` passed. Not tested in game.
+- next: in-game round 1 (checklist in the design note).
+
+## 2026-11-13 — Body parts: effects on a hand, foot, head (0.3.12, protocol 3)
+- User asked for effects placed on the left/right arm, legs, body and head of a Minecraft model, and on the feet.
+- bhfx: new `api/BodyPart` (11 points incl. `LEFT_/RIGHT_FOOT` and `FEET`; shoulders added 2026-11-14) and `api/client/BodyPose`; `FxSpawn.part(...)`, `FxInit.part` (old constructor kept), `FrameContext/FxContext.part(...)`, `BHFxClient.bodyPart / wantsBodyParts / reportBodyPart`. `impl/client/BodyParts` (capture store, estimate fallback, first-person hands from the camera) and `BodyPartLayer` (render layer added to every `LivingEntityRenderer` in `ClientBootstrap.addLayers`); capture window opened in `ClientEvents` after the mirror reflections at `AFTER_SOLID_BLOCKS`, closed at every later stage. `S2CFxStart` carries the part (protocol 2 → 3). `FxCommandArgs`: `{part:right_hand}`. Version 0.3.11 → 0.3.12, `CHANGELOG.md`.
+- BHSpells: `compat/epicfight/client/EpicFightBhfxBodyParts` (Epic Fight `PatchedLayer` reporting biped joints), registered in `EpicFightLoadedBridge` when bhfx is loaded; `build.gradle` and `mods.toml` need bhfx `[0.3.12,0.4)`.
+- result: bhfx `build` passed (116 JUnit tests incl. new `partPicksABodyPoint`, `startRoundTripsItsBodyPart`; checkShaders) and `publishToMavenLocal`; BHSpells `compileJava` passed. **Not tested in game.**
+- next: in-game checklist in [`testing.md`](testing.md); tune Epic Fight joint offsets after seeing them.
+
 ## 2026-11-12 — BHSpells new `bhspells:prism_flame_field`
 - User: a field version of `prism_flame`, like `flame_field`.
 - BHSpells: `FlameFieldFx(init, prism)`; `bhspells:prism_flame_field` registered as `new FlameFieldFx(init, true)` (white / grey defaults, `prism` rainbow strength via `FieldC`, slate vignette, beacon / amethyst sounds). New `prism_flame_field.fsh` = `flame_field.fsh`'s grid, DDA, edge, ignite and LOD with prism colouring (white by heat, grey folds, pastel-rainbow slivers on each fire's outline, white-rainbow floor pools and glitter). `BhfxIds.PRISM_FLAME_FIELD`. Notes: `BHSpells/docs/bhfx/prism_flame_field.md`. `flame_field` unchanged.

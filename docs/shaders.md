@@ -17,6 +17,7 @@ Steps:
    - bhfx looks up includes in `src/main/resources`.
    - BHSpells looks them up in `src/main/resources` and in **the bhfx jar on the compileClasspath**, so it checks against the same bhfx version it compiles against.
 3. Write the result to `build/glsl-check/<ns>_<name>.frag` and run glslang on each file. If any fails, the build fails with the errors.
+4b. (0.3.12) Model materials `assets/<ns>/shaders/bhfx/model/*.fsh` the same way with `model/_header.glsl` and `model/_footer.glsl` (`<ns>_model_<name>.frag`), and `model/*.vsh` as they are. BHSpells has no copy of `glsl-check.gradle` (noted 2026-10-24), so this lives in bhfx's only.
 4. (0.3.9) Particle materials `assets/<ns>/shaders/bhfx/particle/*.fsh`: bhfx's `particle/_header.glsl` + the material (includes inlined) + `particle/_footer.glsl`, written as `<ns>_particle_<name>.frag`. The header and footer are read from the include roots, so BHSpells would check against the bhfx jar it compiles with. `particle/*.vsh` files are checked as they are. In game `ShaderManager.getParticle` assembles them the same way, from the same files.
 
 **If the header in `ShaderManager.HEADER` changes, update `glslHeader` in `glsl-check.gradle` in both repos too.**

@@ -12,7 +12,7 @@ public final class ClientPacketHandler {
 
     public static void start(S2CFxStart p) {
         ClientFxManager.start(new FxInit(p.fxId(), p.handleId(), p.origin(), p.target(), p.casterId(), p.followId(),
-                p.follow(), p.seed(), p.duration(), p.startAge(), p.params()));
+                p.follow(), p.seed(), p.duration(), p.startAge(), p.params(), p.part()));
     }
 
     public static void stop(S2CFxStop p) {

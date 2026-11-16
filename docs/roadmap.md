@@ -4,6 +4,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 
 ## Now (0.3.x)
 
+- [ ] Body parts (added 2026-11-13, 0.3.12): test in game, vanilla and Epic Fight ([`testing.md`](testing.md)); tune the Epic Fight joint offsets in BHSpells `EpicFightBhfxBodyParts`. Later: baby models (head scale), GeckoLib models, slim arms.
 - [ ] Test pass bounds (`PassOptions.within`, 0.3.7) in game ([`testing.md`](testing.md)).
 - [ ] Optional: `followSeen` in-game check (JUnit already covers it; steps in [`testing.md`](testing.md)).
 
@@ -26,6 +27,32 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-11-02 Mirror block (added 2026-10-23): tested in game (user report) ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
 - [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
+
+## Next feature: `FxData` (chosen 2026-11-16, code done the same day)
+
+- [ ] `FxData`: tables of `vec4` that an `Fx` fills in Java and a pass reads as a `samplerBuffer`. Code done 2026-11-16
+  in the unreleased 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md), then
+  one BHSpells effect using it. Plan and what changed from it: [`plan-fx-data.md`](plan-fx-data.md).
+- [ ] 3D shapes from signed distances (`sdf3d.glsl`, `sdf_march.glsl`, `FxFrame`, `FxData.setFrame`, `bhfx:test_sdf`):
+  code done 2026-11-16 in 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md),
+  then a BHSpells spell using it (a weapon or limb of light on the caster's arm). Later, only when an effect needs a
+  sculpted shape: meshes baked into 3D distance textures ([`decisions.md`](decisions.md) 2026-11-16).
+- [ ] Models drawn by bhfx (`FxModel`, `PassList.model`, `bhfx:test_model`): M1 (static, three materials) code done
+  2026-11-16 in 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md). Next steps
+  ([`decisions.md`](decisions.md) 2026-11-16): M2 bones from Java (skinning), M3 `.animation.json` playback, M4
+  distortion. Instancing (`PassList.models`) done 2026-11-16 for BHSpells `thousand_swords`.
+- [ ] Named points / GeckoLib bones (`BHFxClient.point`, `reportPoint`, `bhfx:test_points`; BHSpells `GeckoBhfxPoints`):
+  code done 2026-11-16 (bhfx build + BHSpells `compileJava`); left: the in-game checklist in [`testing.md`](testing.md),
+  then a spell whose effect rides a bone of its GeckoLib model. Later if wanted: GeckoLib armour / item / replaced
+  renderers.
+- [ ] After that, maybe: block textures in a pass (block atlas + sprite UV rect); first check whether `FxTexture.of`
+  on a vanilla block texture already works. Notes in [`plan-fx-data.md`](plan-fx-data.md) under "Not in this plan".
+
+## 1.21.1 NeoForge port (prepared 2026-11-16, not started)
+
+- [ ] Plan ready: [`plan-neoforge-1.21.1.md`](plan-neoforge-1.21.1.md). Waiting on the user: does BHSpells move too, and
+  is 1.20.1 kept updated after the port? Optional prep on 1.20.1: route the 14 `new ResourceLocation(...)` sites
+  through one helper.
 
 ## 1.0 plan
 

@@ -32,4 +32,13 @@ public interface Uniforms {
      */
     @ApiStatus.Experimental
     Uniforms texture(String name, FxTexture texture);
+
+    /**
+     * Binds a data table ({@link Fx#createData}) to a {@code uniform samplerBuffer name;}; read it with
+     * {@code fxData(name, i)} from {@code bhfx:data.glsl}. Sends what changed since the last bind first. Takes one of
+     * the same 10 units as {@link #texture}. A {@code samplerBuffer} left unbound reads zero in a pass (in a particle
+     * material it may read the particle data, so bind every one you declare).
+     */
+    @ApiStatus.Experimental
+    Uniforms data(String name, FxData data);
 }

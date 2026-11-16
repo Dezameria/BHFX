@@ -254,7 +254,8 @@ final class FxTextures {
             throw new IOException("missing " + file);
         }
         try (InputStream in = resource.get().open()) {
-            return NativeImage.read(in);
+            // always RGBA: getPixelRGBA throws on RGB / grey PNGs, which would otherwise fail to load
+            return NativeImage.read(NativeImage.Format.RGBA, in);
         }
     }
 
@@ -319,6 +320,11 @@ final class FxTextures {
             }
         }
         return id;
+    }
+
+    /** The 1x1 transparent black texture (for samplers a draw has nothing for). Render thread. */
+    int blank() {
+        return fallback();
     }
 
     private int fallback() {

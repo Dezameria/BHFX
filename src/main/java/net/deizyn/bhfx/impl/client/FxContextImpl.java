@@ -5,6 +5,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.deizyn.bhfx.api.BodyPart;
+import net.deizyn.bhfx.api.client.BodyPose;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.api.client.Fx;
@@ -40,7 +42,21 @@ final class FxContextImpl implements FxContext {
 
     @Override
     public Vec3 position() {
-        return followed != null ? followed.position() : fx.init().origin();
+        if (followed == null) {
+            return fx.init().origin();
+        }
+        BodyPart part = fx.init().part();
+        return part != null ? BodyParts.pose(followed, part, 1f).position() : followed.position();
+    }
+
+    @Override
+    public Optional<BodyPose> part(BodyPart part) {
+        return followed == null ? Optional.empty() : Optional.of(BodyParts.pose(followed, part, 1f));
+    }
+
+    @Override
+    public BodyPose part(Entity entity, BodyPart part) {
+        return BodyParts.pose(entity, part, 1f);
     }
 
     @Override

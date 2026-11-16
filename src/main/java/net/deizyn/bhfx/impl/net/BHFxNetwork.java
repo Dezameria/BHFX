@@ -11,7 +11,7 @@ import net.deizyn.bhfx.BHFxMod;
 
 public final class BHFxNetwork {
     /** Strict: client and server must both have bhfx with the same protocol. 2 = start batches and screen pulses (0.3). */
-    private static final String PROTOCOL = "2";
+    private static final String PROTOCOL = "3"; // 3: S2CFxStart carries a body part (0.3.12)
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             BHFxMod.id("main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);

@@ -4,6 +4,21 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 
 ## Open / known limitations
 
+- 2026-11-16 (open, under watch): the BHSpells dev client died during `bhspells:thousand_swords`: Windows Application
+  Error at 19:08:20, `java.exe` access violation (0xc0000005) in `nvoglv64.dll` 32.0.16.1692 (NVIDIA OpenGL) at offset
+  0x15c300a, LiveKernelEvent reports right after and a 9.5 s stall in `latest.log` ("Can't keep up! ... 9472ms"), so
+  most likely a GPU hang and driver reset. No Java exception, no crash report, no `hs_err`. It came 0.3 s after
+  `FxModels` re-uploaded the sword model (bhfx had idled and released its GPU objects at 19:07:25); the same
+  release / reload / instanced draw had worked three times before in that session, and it is the only `java.exe`
+  crash in the event log for 20 days, so the new model path is the prime suspect. Root cause not found. Hardened the
+  same day (bhfx 0.3.12, build only): `GlStateGuard` now saves and restores the `GL_ARRAY_BUFFER`,
+  `GL_TEXTURE_BUFFER` and renderbuffer bindings (bhfx set them to 0 and left them; model uploads were the first to
+  touch `GL_ARRAY_BUFFER`); `FxModels.finish` puts back the vertex array it found instead of leaving the model's bound;
+  `model/vertex.vsh` drops any instance whose numbers are NaN, infinite or absurd (such a copy could cover the screen
+  thousands of times over). If it happens again: note what was on screen, run `bhfx:test_model` alone, then
+  `thousand_swords {count:200}`, to narrow it down. How it was found: `Get-WinEvent` on the System and Application
+  logs round the time the log stopped.
+
 - 2026-10-22 (minor, display only): `/bhfx status` keeps showing the last measured GPU time after every effect has stopped (e.g. "0 fx, 0 pass(es) … 4.38 ms GPU" for ~40 s until the post idles). Seen in the Mingyue Eclipse log 2026-10-22 00:02:48–00:04:09. Not fixed.
 
 - 2026-11-07 (open, scale plan phase 1/2): effects flicker under `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles` (user, 2026-11-07 round). Likely causes, both by design today:
@@ -17,6 +32,13 @@ Format: **symptom → cause → fix (or workaround)**, with the date and files. 
 - 2026-11-12 (API trap, crashed a client): calling `BHFxClient.play` (and, to be safe, `BHFxClient.stop`) from inside an `Fx` hook (`tick`, `onStop`, ...) throws `ConcurrentModificationException` in `ClientFxManager.tick` (`ACTIVE` is being iterated; `startLocal` → `add` appends to it). Crash: `BHSpells/run/crash-reports/crash-2026-11-12_02.26.09-client.txt`, from BHSpells `QiBlastFx` starting `impact_ring` / `ground_beat` at its blast. Workaround in effect code: `Minecraft.getInstance().tell(() -> BHFxClient.play(...))` (`QiBlastFx.playLater`, `GoldenClashFx.onStop`). Possible fix in bhfx: queue starts made during the tick and add them after the loop, or say so in the `BHFxClient.play` javadoc.
 
 ## Fixed
+
+- 2026-11-14 BHSpells `confinement_song`: a ghost copy of each sound ring appeared away from the effect. Cause: a sphere's rim was found from the closest distance between its centre and the full view **line** (`tc = dot(C - eye, dir)` not clamped), so the part behind the camera drew a mirrored ring when looking away. Fix: also fade by `tc > 0`. Rule for any pass that measures a point against the view ray: clamp or gate `t ≥ 0` (`rayLine` in `shapes.glsl` already clamps).
+
+### 2026-11-14 — RGB / grey PNG textures could not load (fixed in code, not tested in game)
+- Symptom: none seen yet; found while writing an RGB crack texture for BHSpells `arm_shatter`.
+- Cause: `FxTextures.read` used `NativeImage.read(in)`, which keeps the file's format, then called `getPixelRGBA`, which throws on anything but RGBA.
+- Fix: `NativeImage.read(NativeImage.Format.RGBA, in)`; `isGray` still works (it checks pixel values). The crack texture is written as RGBA anyway.
 
 ### 2026-11-12 — BHSpells `sky_shatter` with `hold:true` drew nothing (fixed in code, not tested in game)
 - **Cause**: `hold:true` gives the effect `duration()` = `FxSpawn.UNTIL_STOPPED` (−1); the fade computed (−0.05 − t) / 1.6 → 0, so it counted as fully faded. Any Fx that fades on `duration()` has the same trap.

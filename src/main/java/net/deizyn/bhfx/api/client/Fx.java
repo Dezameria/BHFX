@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
 import net.deizyn.bhfx.api.StopMode;
+import net.deizyn.bhfx.impl.render.DataTable;
 import net.deizyn.bhfx.impl.render.ParticleBatch;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -15,7 +16,8 @@ import org.jetbrains.annotations.Nullable;
  * Base class of every client-side effect. Override the hooks you need:
  * <ul>
  *   <li>{@link #tick} — 20/s: particles, sounds, shakes, Effekseer</li>
- *   <li>{@link #passes} — per frame: shader passes and GPU particle batches ({@link #createParticles})</li>
+ *   <li>{@link #passes} — per frame: shader passes and GPU particle batches ({@link #createParticles}), reading data
+ *       tables ({@link #createData}) if they need more than uniforms</li>
  *   <li>{@link #screen} — per frame: full-screen parameters</li>
  *   <li>{@link #camera} — per frame: FOV, hand, and (if the player allows) roll / HUD / camera override</li>
  * </ul>
@@ -35,6 +37,8 @@ public abstract class Fx {
     private int endTicks;
     @Nullable
     private java.util.List<ParticleBatch> particleBatches;
+    @Nullable
+    private java.util.List<DataTable> dataTables;
 
     protected Fx(FxInit init) {
         this.init = init;
@@ -149,6 +153,21 @@ public abstract class Fx {
         return batch;
     }
 
+    /**
+     * A new table of {@code size} {@code vec4} entries (1..{@link FxData#MAX_SIZE}, clamped), all zero, for shaders to
+     * read through {@link Uniforms#data}. Make tables once (constructor or {@link #onStart}). Freed when this effect
+     * ends.
+     */
+    @ApiStatus.Experimental
+    protected final FxData createData(int size) {
+        DataTable table = new DataTable(size);
+        if (dataTables == null) {
+            dataTables = new java.util.ArrayList<>(2);
+        }
+        dataTables.add(table);
+        return table;
+    }
+
     // ------------------------------------------------------------------ hooks
 
     /** Once, before the first tick. Skipped when this client joined mid-effect (startAge > 0). */
@@ -255,6 +274,10 @@ public abstract class Fx {
             if (particleBatches != null) {
                 particleBatches.forEach(ParticleBatch::close);
                 particleBatches = null;
+            }
+            if (dataTables != null) {
+                dataTables.forEach(DataTable::close);
+                dataTables = null;
             }
         }
     }

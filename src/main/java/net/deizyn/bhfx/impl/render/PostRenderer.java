@@ -58,12 +58,23 @@ public final class PostRenderer {
     /** Pixels added around a bounded pass's rect (linear filtering and rounding at its edge). */
     private static final int RECT_PAD = 2;
     private static final float[] ZERO4 = new float[4];
+    private static final float[] ONE1 = {1f};
 
     private final ShaderManager shaders = new ShaderManager();
     private final GlStateGuard guard = new GlStateGuard();
     private final FxTextures textures = new FxTextures();
-    private final UniformBinder binder = new UniformBinder(guard, textures);
+    private final DataTables tables = new DataTables(guard);
+    private final UniformBinder binder = new UniformBinder(guard, textures, tables);
     private final ParticleRenderer particles = new ParticleRenderer(guard);
+    private final FxModels models = new FxModels();
+    private final List<PassListImpl.Entry> modelGroup = new ArrayList<>();
+    private final Set<ResourceLocation> failedModelSetups = new HashSet<>();
+    /** Models draw into the ping targets with a depth buffer of their own (the world's is only sampled). */
+    private final int[] modelFbo = new int[2];
+    private final int[] modelColor = new int[2];
+    private int modelDepth;
+    private int modelW;
+    private int modelH;
     private final List<PassListImpl.Entry> particleGroup = new ArrayList<>();
     private final GpuTimer timer = new GpuTimer();
     private final ResolutionController resolution = new ResolutionController();
@@ -164,7 +175,8 @@ public final class PostRenderer {
             return 0L;
         }
         long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4)
-                + (long) distortW * distortH * 4 + textures.heldBytes() + particles.heldBytes();
+                + (long) distortW * distortH * 4 + textures.heldBytes() + particles.heldBytes()
+                + tables.heldBytes() + models.heldBytes() + (modelDepth != 0 ? (long) modelW * modelH * 4 : 0L);
         if (bloomForW > 0) {
             for (int i = 0; i < BLOOM_LEVELS; i++) {
                 bytes += (long) bloomSize[i][0] * bloomSize[i][1] * 8 * (i < BLOOM_LEVELS - 1 ? 2 : 1);
@@ -202,7 +214,9 @@ public final class PostRenderer {
                 + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "")
                 + (lastParticleCount > 0 ? ", " + lastParticleCount + " particle slot(s)" : "")
                 + (particleStride > 1 ? ", particles thinned to 1 in " + particleStride : "")
-                + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "");
+                + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "")
+                + (tables.count() > 0 ? ", " + tables.count() + " data table(s)" : "")
+                + (models.count() > 0 ? ", " + models.count() + " model(s)" : "");
     }
 
     /** Drop compiled shaders and clear a previous failure; GL targets are rebuilt on demand. */
@@ -210,7 +224,9 @@ public final class PostRenderer {
         RenderSystem.assertOnRenderThread();
         shaders.clear();
         textures.clear();
+        models.clear();
         failedSetups.clear();
+        failedModelSetups.clear();
         disabled = false;
         disabledReason = "";
     }
@@ -301,6 +317,71 @@ public final class PostRenderer {
             int ribbonDrawn = 0;
             for (int index = 0; index < passes.size(); index++) {
                 PassListImpl.Entry pass = passes.get(index);
+                if (pass.model() != null) {
+                    // a run of models shares one copy of the input and one depth buffer
+                    int end = index + 1;
+                    while (end < passes.size() && passes.get(end).model() != null) {
+                        end++;
+                    }
+                    modelGroup.clear();
+                    for (int j = index; j < end; j++) {
+                        PassListImpl.Entry e = passes.get(j);
+                        FxModels.Mesh mesh = models.get(e.model().model().file(), now);
+                        if (mesh == null || shaders.getModel(e.shader()) == null) {
+                            skipped++;
+                            continue;
+                        }
+                        ScreenRect r = e.radius() > 0
+                                ? ScreenRect.ofSphere(viewProj, e.bx(), e.by(), e.bz(), e.radius(), rectScratch)
+                                : e.model().instances() != null ? ScreenRect.FULL : modelRect(e.model(), mesh);
+                        if (r.empty()) {
+                            skipped++;
+                            continue;
+                        }
+                        modelGroup.add(e);
+                    }
+                    index = end - 1;
+                    if (modelGroup.isEmpty()) {
+                        continue;
+                    }
+                    int from = inputFbo;
+                    if (inputFull && (fxW != w || fxH != h)) {
+                        if (!sceneLowReady) {
+                            blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
+                            sceneLowReady = true;
+                        }
+                        from = sceneLowFbo;
+                    }
+                    blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                    ensureModelTargets();
+                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, modelFbo[ping]);
+                    int depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+                    GL11.glDepthMask(true);
+                    GL30.glClearBufferfv(GL11.GL_DEPTH, 0, ONE1);
+                    GL11.glEnable(GL11.GL_DEPTH_TEST);
+                    GL11.glDepthFunc(GL11.GL_LEQUAL);
+                    GL11.glEnable(GL11.GL_CULL_FACE);
+                    guard.touchBlend();
+                    GL11.glEnable(GL11.GL_BLEND);
+                    // premultiplied, like particles: BHFX_ADD writes alpha 0 (pure add); the target keeps its alpha
+                    GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ZERO, GL11.GL_ONE);
+                    GL14.glBlendEquation(GL14.GL_FUNC_ADD);
+                    for (PassListImpl.Entry e : modelGroup) {
+                        drawModel(e, input, depth, time, now);
+                    }
+                    GL11.glDisable(GL11.GL_BLEND);
+                    GL11.glDisable(GL11.GL_CULL_FACE);
+                    GL11.glDisable(GL11.GL_DEPTH_TEST);
+                    GL11.glDepthFunc(depthFunc);
+                    GL11.glDepthMask(false);
+                    GL30.glBindVertexArray(vao);
+                    input = pingTex[ping];
+                    inputFbo = pingFbo[ping];
+                    inputFull = false;
+                    ping ^= 1;
+                    drawn++;
+                    continue;
+                }
                 if (pass.particles() != null) {
                     // a run of particle batches shares one copy of the input
                     int end = index + 1;
@@ -448,6 +529,8 @@ public final class PostRenderer {
             lastParticleCount = particleSlots;
             particles.sweep(now);
             textures.sweep(now);
+            tables.sweep(now);
+            models.sweep(now);
 
             int bloom = 0;
             if (drawn > 0 && quality.bloom && BHFxConfig.BLOOM.get() && screen.bloomStrength() > 0.001f) {
@@ -511,6 +594,7 @@ public final class PostRenderer {
             GL11.glColorMask(true, true, true, true);
             GL30.glBindVertexArray(warmVao);
             GL20.glUseProgram(program.id());
+            binder.begin(program); // samplerBuffers off unit 0 (two sampler types on one unit fail the draw)
             for (int unit = UNIT_INPUT; unit <= UNIT_BLOOM; unit++) {
                 // no texture: samples read zero, and nothing samples the target being drawn
                 guard.touchUnit(unit);
@@ -524,6 +608,15 @@ public final class PostRenderer {
         } finally {
             guard.restore();
         }
+    }
+
+    /** Compile and link a model material (models have no shared geometry to draw it with here). */
+    public boolean warmupModel(ResourceLocation id) {
+        if (disabled) {
+            return false;
+        }
+        RenderSystem.assertOnRenderThread();
+        return shaders.getModel(id) != null;
     }
 
     /** Like {@link #warmup}, for a particle material: one draw of one (empty, so invisible) instance. */
@@ -556,6 +649,7 @@ public final class PostRenderer {
             GL11.glColorMask(true, true, true, true);
             GL30.glBindVertexArray(warmVao);
             GL20.glUseProgram(program.id());
+            binder.begin(program); // samplerBuffers off unit 0 (two sampler types on one unit fail the draw)
             for (int unit = UNIT_INPUT; unit <= UNIT_BLOOM; unit++) {
                 guard.touchUnit(unit);
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
@@ -653,6 +747,121 @@ public final class PostRenderer {
             inH = bloomSize[i][1];
         }
         return upTex[0];
+    }
+
+    /** Screen rect of a model's bounds as placed (no bounds were given). */
+    private ScreenRect modelRect(ModelDraw md, FxModels.Mesh mesh) {
+        float[] a = md.axes();
+        float lx = (mesh.min()[0] + mesh.max()[0]) * 0.5f;
+        float ly = (mesh.min()[1] + mesh.max()[1]) * 0.5f;
+        float lz = (mesh.min()[2] + mesh.max()[2]) * 0.5f;
+        double cx = md.ox() + a[0] * lx + a[3] * ly + a[6] * lz;
+        double cy = md.oy() + a[1] * lx + a[4] * ly + a[7] * lz;
+        double cz = md.oz() + a[2] * lx + a[5] * ly + a[8] * lz;
+        double dx = mesh.max()[0] - mesh.min()[0];
+        double dy = mesh.max()[1] - mesh.min()[1];
+        double dz = mesh.max()[2] - mesh.min()[2];
+        double radius = Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5 * md.scale() + 0.05;
+        return ScreenRect.ofSphere(viewProj, cx, cy, cz, radius, rectScratch);
+    }
+
+    /** Draw one model into the bound target (depth, cull and blend state already set). */
+    private void drawModel(PassListImpl.Entry e, int input, int depth, float time, long now) {
+        ModelDraw md = e.model();
+        FxModels.Mesh mesh = models.get(md.model().file(), now);
+        ShaderProgram program = shaders.getModel(e.shader());
+        if (mesh == null || program == null) {
+            return;
+        }
+        begin(program, input, depth, fxW, fxH, time);
+        FxTexture texture = md.model().texture();
+        if (texture != null) {
+            binder.texture("MTexture", texture);
+        } else {
+            binder.blankTexture("MTexture");
+        }
+        binder.f4("MColor", 1f, 1f, 1f, 1f);
+        binder.f4("MParams", 0f, 0f, 0f, 0f);
+        binder.f4("MMode", 0f, md.light(), e.presence(), 0f);
+        binder.f3("MOrigin", md.ox(), md.oy(), md.oz());
+        boolean instanced = md.instances() != null;
+        binder.f1("MInstanced", instanced ? 1f : 0f);
+        if (instanced) {
+            binder.data("MInstances", md.instances());
+        }
+        int axes = program.location("MAxes");
+        if (axes >= 0) {
+            GL20.glUniformMatrix3fv(axes, false, md.axes());
+        }
+        try {
+            e.setup().accept(binder);
+        } catch (RuntimeException ex) {
+            if (failedModelSetups.add(e.shader())) {
+                BHFxMod.LOGGER.error("bhfx uniform setup for model material {} threw", e.shader(), ex);
+            }
+            return;
+        }
+        if (instanced) {
+            // copies may be mirrored or not: no culling here, the footer drops each copy's back faces itself
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL30.glBindVertexArray(mesh.vao());
+            org.lwjgl.opengl.GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, mesh.vertexCount(), md.count());
+            GL11.glEnable(GL11.GL_CULL_FACE);
+            return;
+        }
+        // a mirrored frame (e.g. a BodyPose's right/up/forward) turns every triangle over: cull the other side
+        float[] a = md.axes();
+        float det = a[0] * (a[4] * a[8] - a[7] * a[5]) - a[3] * (a[1] * a[8] - a[7] * a[2]) + a[6] * (a[1] * a[5] - a[4] * a[2]);
+        if (det < 0f) {
+            GL11.glFrontFace(GL11.GL_CW);
+        }
+        GL30.glBindVertexArray(mesh.vao());
+        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, mesh.vertexCount());
+        if (det < 0f) {
+            GL11.glFrontFace(GL11.GL_CCW);
+        }
+    }
+
+    /** Framebuffers over each ping texture with one shared depth buffer, rebuilt when the targets change. */
+    private void ensureModelTargets() {
+        if (modelDepth != 0 && modelW == fxW && modelH == fxH && modelColor[0] == pingTex[0]
+                && modelColor[1] == pingTex[1]) {
+            return;
+        }
+        releaseModelTargets();
+        modelDepth = GL30.glGenRenderbuffers();
+        GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, modelDepth);
+        GL30.glRenderbufferStorage(GL30.GL_RENDERBUFFER, GL14.GL_DEPTH_COMPONENT24, fxW, fxH);
+        GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, 0);
+        for (int i = 0; i < 2; i++) {
+            modelFbo[i] = GL30.glGenFramebuffers();
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, modelFbo[i]);
+            GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, pingTex[i], 0);
+            GL30.glFramebufferRenderbuffer(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL30.GL_RENDERBUFFER, modelDepth);
+            int status = GL30.glCheckFramebufferStatus(GL30.GL_DRAW_FRAMEBUFFER);
+            if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                throw new IllegalStateException("incomplete model framebuffer (0x" + Integer.toHexString(status) + ")");
+            }
+            modelColor[i] = pingTex[i];
+        }
+        modelW = fxW;
+        modelH = fxH;
+    }
+
+    private void releaseModelTargets() {
+        for (int i = 0; i < 2; i++) {
+            if (modelFbo[i] != 0) {
+                GL30.glDeleteFramebuffers(modelFbo[i]);
+                modelFbo[i] = 0;
+            }
+            modelColor[i] = 0;
+        }
+        if (modelDepth != 0) {
+            GL30.glDeleteRenderbuffers(modelDepth);
+            modelDepth = 0;
+        }
+        modelW = 0;
+        modelH = 0;
     }
 
     /** Draw one particle batch into the bound target (blend state already set). */
@@ -986,6 +1195,9 @@ public final class PostRenderer {
         deleteTex(distortTex);
         distortFbo = distortTex = distortW = distortH = 0;
         particles.releaseAll();
+        tables.releaseAll();
+        releaseModelTargets();
+        models.clear();
         textures.clear();
         timer.delete();
         vao = outFbo = snapshotFbo = snapshotTex = sceneLowFbo = sceneLowTex = 0;

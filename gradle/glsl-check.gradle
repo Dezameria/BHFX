@@ -198,6 +198,8 @@ tasks.register('checkShaders') {
         }
         def particleHeader = null
         def particleFooter = null
+        def modelHeader = null
+        def modelFooter = null
         glslShaderRoots().each { root ->
             fileTree(root) { include 'assets/*/shaders/bhfx/particle/*.fsh' }.each { File fsh ->
                 if (particleHeader == null) {
@@ -223,6 +225,32 @@ tasks.register('checkShaders') {
                 def vert = new File(outDir, "${ns}_particle_${name}.vert")
                 vert.setText(vsh.getText('UTF-8'), 'UTF-8')
                 runGlslang("${ns}:particle/${name}.vsh".toString(), vert, vsh)
+            }
+            // model materials (0.3.12): between bhfx's model _header.glsl and _footer.glsl, like particle materials
+            fileTree(root) { include 'assets/*/shaders/bhfx/model/*.fsh' }.each { File fsh ->
+                if (modelHeader == null) {
+                    modelHeader = readResource('assets/bhfx/shaders/bhfx/model/_header.glsl')
+                    modelFooter = readResource('assets/bhfx/shaders/bhfx/model/_footer.glsl')
+                    if (modelHeader == null || modelFooter == null) {
+                        throw new GradleException('checkShaders: bhfx model _header.glsl/_footer.glsl not found on glslIncludeRoots')
+                    }
+                }
+                def ns = fsh.parentFile.parentFile.parentFile.parentFile.name
+                def name = fsh.name.replaceAll(/\.fsh$/, '')
+                def label = "${ns}:model/${name}".toString()
+                def source = new StringBuilder(modelHeader).append('\n')
+                expand(fsh.getText('UTF-8'), ns, label, source, new HashSet<String>())
+                source.append('#line 1\n').append(modelFooter)
+                def frag = new File(outDir, "${ns}_model_${name}.frag")
+                frag.setText(source.toString(), 'UTF-8')
+                runGlslang(label, frag, fsh)
+            }
+            fileTree(root) { include 'assets/*/shaders/bhfx/model/*.vsh' }.each { File vsh ->
+                def ns = vsh.parentFile.parentFile.parentFile.parentFile.name
+                def name = vsh.name.replaceAll(/\.vsh$/, '')
+                def vert = new File(outDir, "${ns}_model_${name}.vert")
+                vert.setText(vsh.getText('UTF-8'), 'UTF-8')
+                runGlslang("${ns}:model/${name}.vsh".toString(), vert, vsh)
             }
         }
         glslShaderRoots().each { root ->

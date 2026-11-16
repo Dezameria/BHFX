@@ -112,7 +112,8 @@ net.deizyn.bhfx
      │              FrameStats (/bhfx stats), FxBench (/bhfx bench), CameraParamsImpl, CameraMover, test/TestFx
      └─ render/     PostRenderer, GpuTimer, ResolutionController, GlStateGuard, ShaderManager, UniformBinder
 assets/bhfx/shaders/bhfx/
- ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl, ground.glsl, sdf2d.glsl, fog.glsl
+ ├─ include/        scene.glsl, shapes.glsl, light.glsl, noise.glsl, ground.glsl, sdf2d.glsl, fog.glsl, data.glsl, sdf3d.glsl, sdf_march.glsl
+ ├─ model/          vertex.vsh, _header.glsl, _footer.glsl, textured.fsh, glow.fsh, dissolve.fsh
  ├─ bloom_down.fsh, bloom_up.fsh
  ├─ composite.fsh   (ripple, aberration, zoom blur, bloom, desaturate, vignette, tone-map, impact, flash)
  └─ test.fsh

@@ -62,6 +62,17 @@ class FxCommandArgsTest {
     }
 
     @Test
+    void partPicksABodyPoint() throws CommandSyntaxException {
+        FxCommandArgs a = args("{part:right_hand, radius:4}");
+        assertEquals(net.deizyn.bhfx.api.BodyPart.RIGHT_HAND, a.part());
+        assertFalse(a.params().has(FxParam.color("part")));
+        assertEquals(net.deizyn.bhfx.api.BodyPart.FEET, args("{part:\"FEET\"}").part());
+        assertNull(args("{radius:4}").part());
+        assertThrows(CommandSyntaxException.class, () -> args("{part:tail}"));
+        assertThrows(CommandSyntaxException.class, () -> args("{part:3}"));
+    }
+
+    @Test
     void nameIsALabelNotAParam() throws CommandSyntaxException {
         FxCommandArgs a = args("{name:a, radius:4}");
         assertEquals("a", a.name());

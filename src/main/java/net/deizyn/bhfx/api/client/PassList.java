@@ -28,4 +28,32 @@ public interface PassList {
      */
     @ApiStatus.Experimental
     void particles(FxParticles particles, PassOptions options, Consumer<Uniforms> setup);
+
+    /**
+     * Draw a model this frame at {@link PassOptions#PARTICLES} order (see {@link FxModel}). {@code frame}: where it
+     * stands, in world space (not camera-relative): the model's x, y, z go along the frame's axes, its origin (the
+     * model's 0, 0, 0, between its feet in Blockbench) at the frame's origin; its front (Blockbench's north) is the
+     * frame's -z. {@code scale}: 1 = the size it was made at (16 pixels a block). {@code material}: {@link FxModel#TEXTURED},
+     * {@link FxModel#GLOW}, {@link FxModel#DISSOLVE} or your own. {@code setup} sets {@code MColor}, {@code MParams} and
+     * any uniforms of your material. Without {@code within} bounds, it is culled by its own bounds.
+     */
+    @ApiStatus.Experimental
+    default void model(FxModel model, FxFrame frame, float scale, ResourceLocation material, Consumer<Uniforms> setup) {
+        model(model, frame, scale, material, PassOptions.PARTICLES, setup);
+    }
+
+    /** Like {@link #model(FxModel, FxFrame, float, ResourceLocation, Consumer)}, with an order and bounds. */
+    @ApiStatus.Experimental
+    void model(FxModel model, FxFrame frame, float scale, ResourceLocation material, PassOptions options,
+               Consumer<Uniforms> setup);
+
+    /**
+     * Draw {@code count} copies of a model in one go (a thousand swords): copy {@code i} stands where entries
+     * {@code 4i .. 4i + 3} of {@code instances} say ({@link FxData#setInstance}: camera-relative frame times its scale,
+     * then four values its material reads as {@code s.instance}). Give {@code options} {@code within} bounds round all
+     * of them, or they are never culled. Each copy may be mirrored or not; back faces are dropped per copy.
+     */
+    @ApiStatus.Experimental
+    void models(FxModel model, FxData instances, int count, ResourceLocation material, PassOptions options,
+                Consumer<Uniforms> setup);
 }

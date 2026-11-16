@@ -1,6 +1,7 @@
 package net.deizyn.bhfx.impl.net;
 
 import io.netty.buffer.Unpooled;
+import net.deizyn.bhfx.api.BodyPart;
 import net.deizyn.bhfx.api.Follow;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.StopMode;
@@ -20,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NetMeterTest {
     private static S2CFxStart start(int id) {
         return new S2CFxStart(id, new ResourceLocation("bhfx", "test_flow"), new Vec3(1, 2, 3), new Vec3(1, 2, 3),
-                -1, -1, Follow.POSITION, 99L, -1, 0, FxParams.EMPTY);
+                -1, -1, Follow.POSITION, 99L, -1, 0, FxParams.EMPTY, null);
     }
 
     @Test
@@ -31,6 +32,18 @@ class NetMeterTest {
         assertEquals(buf.writerIndex() + NetMeter.OVERHEAD, NetMeter.sizeOf(m));
         assertEquals(0, NetMeter.sizeOf("not a bhfx message"));
         assertTrue(NetMeter.sizeOf(new S2CFxStop(5, StopMode.CANCEL)) < NetMeter.sizeOf(m));
+    }
+
+    @Test
+    void startRoundTripsItsBodyPart() {
+        for (BodyPart part : new BodyPart[]{null, BodyPart.HEAD, BodyPart.FEET}) {
+            S2CFxStart m = new S2CFxStart(7, new ResourceLocation("bhfx", "test"), new Vec3(1, 2, 3), new Vec3(4, 5, 6),
+                    3, 3, Follow.POSITION, 42L, 60, 2, FxParams.EMPTY, part);
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+            m.encode(buf);
+            assertEquals(m, S2CFxStart.decode(buf));
+            assertEquals(0, buf.readableBytes());
+        }
     }
 
     @Test

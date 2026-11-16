@@ -77,7 +77,7 @@ public final class ServerFx {
 
         S2CFxStart packet(int startAge) {
             return new S2CFxStart(id, fxId, spawn.origin(), spawn.target(), spawn.casterId(), spawn.followId(),
-                    spawn.follow(), seed, spawn.duration(), startAge, params);
+                    spawn.follow(), seed, spawn.duration(), startAge, params, spawn.part());
         }
     }
 

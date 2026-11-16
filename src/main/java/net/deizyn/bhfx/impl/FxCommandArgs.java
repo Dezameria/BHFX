@@ -2,6 +2,7 @@ package net.deizyn.bhfx.impl;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import net.deizyn.bhfx.api.BodyPart;
 import net.deizyn.bhfx.api.FxParam;
 import net.deizyn.bhfx.api.FxParams;
 import net.deizyn.bhfx.api.FxSpawn;
@@ -21,13 +22,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.regex.Pattern;
 
 /**
- * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Four names are options of the command itself and never
+ * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Five names are options of the command itself and never
  * reach the effect: {@code hold:true} (play until stopped), {@code duration:N} (seconds), {@code range:N} (broadcast radius,
- * /bhfx_play only) and {@code name:a} (a label for {@code stop name a}; several effects may share one). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
+ * /bhfx_play only), {@code name:a} (a label for {@code stop name a}; several effects may share one) and
+ * {@code part:right_hand} (with {@code attach}: ride on that body part, see {@link BodyPart}). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
  * decimals → float (an int also fills a float key), {@code "#RRGGBB"} → colour.
  */
-public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range, @Nullable String name) {
-    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null);
+public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range, @Nullable String name,
+                            @Nullable BodyPart part) {
+    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null, null);
 
     /** What stop name accepts (brigadier's unquoted word). */
     private static final Pattern LABEL = Pattern.compile("[0-9A-Za-z_.+-]{1,32}");
@@ -45,6 +48,7 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         Float duration = null;
         Double range = null;
         String label = null;
+        BodyPart part = null;
         int count = 0;
         for (String name : tag.getAllKeys()) {
             Tag value = tag.get(name);
@@ -72,6 +76,12 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
                     }
                     label = s.getAsString();
                 }
+                case "part" -> {
+                    part = value instanceof StringTag s ? BodyPart.byId(s.getAsString()) : null;
+                    if (part == null) {
+                        throw BAD.create("part must be one of " + partNames() + ", e.g. {part:right_hand}");
+                    }
+                }
                 default -> {
                     if (name.isEmpty() || name.length() > MAX_NAME) {
                         throw BAD.create("param names must be 1-" + MAX_NAME + " characters");
@@ -88,15 +98,23 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         }
         int ticks = hold ? FxSpawn.UNTIL_STOPPED
                 : duration != null ? Math.max(1, Math.round(duration * 20f)) : FxSpawn.DEFAULT_DURATION;
-        return new FxCommandArgs(params.build(), ticks, range, label);
+        return new FxCommandArgs(params.build(), ticks, range, label, part);
     }
 
     public FxSpawn apply(FxSpawn spawn) {
-        spawn.params(params).duration(durationTicks);
+        spawn.params(params).duration(durationTicks).part(part);
         if (range != null) {
             spawn.range(range);
         }
         return spawn;
+    }
+
+    private static String partNames() {
+        StringBuilder b = new StringBuilder();
+        for (BodyPart p : BodyPart.values()) {
+            b.append(b.length() == 0 ? "" : ", ").append(p.id());
+        }
+        return b.toString();
     }
 
     private static void put(FxParams.Builder params, String name, Tag value) throws CommandSyntaxException {

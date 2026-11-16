@@ -1,5 +1,6 @@
 package net.deizyn.bhfx.api.client;
 
+import net.deizyn.bhfx.api.BodyPart;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.sounds.SoundEvent;
@@ -16,8 +17,14 @@ public interface FxContext {
     /** The caster from {@code FxSpawn.caster}, when this client has it loaded. */
     Optional<Entity> caster();
 
-    /** Current position: the followed entity's position, else the origin. */
+    /** Current position: the followed body part or entity, else the origin. */
     Vec3 position();
+
+    /** Where {@code part} of the followed entity is (newest frame); empty when nothing is followed. */
+    Optional<BodyPose> part(BodyPart part);
+
+    /** Where {@code part} of any entity is (newest frame, else an estimate). */
+    BodyPose part(Entity entity, BodyPart part);
 
     /** Camera position in world space. */
     Vec3 cameraPos();

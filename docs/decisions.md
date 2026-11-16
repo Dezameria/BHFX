@@ -3,6 +3,60 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-16 — Next feature is `FxData` (runtime data tables), not world warp, the block atlas or half-res stages
+- **Decision**: after comparing bhfx with `../orbital-laser` (a Horizon mod whose effects are one big post pass), build
+  `FxData` first: a `GL_TEXTURE_BUFFER` (`RGBA32F`, up to 65,536 texels) that an `Fx` fills in Java and a pass reads as
+  a `samplerBuffer`. Plan: [`plan-fx-data.md`](plan-fx-data.md).
+- **Reason**: it is the one gap that blocks a whole class of effects (per-piece tables, bone tables for SDF bodies,
+  ground heights looked up per piece), and the mechanism already exists inside bhfx for particles. The block atlas is
+  small but only helps block-looking debris. Half-res stages only save GPU time. Bending the world itself needs
+  chunk-renderer mixins that would clash with Sodium-type mods and shader packs, so it is not planned.
+
+## 2026-11-16 — bhfx draws models itself (M1: static), baked like GeckoLib, without depending on it
+- **Decision**: `FxModel` + `PassList.model`: bhfx bakes `.geo.json` itself (`GeoModelLoader`, a copy of GeckoLib 4.8.3's
+  rules) and draws it as its own geometry group in the pass chain with a depth buffer of its own, material shaders
+  like particles (`model/*.fsh`). Steps after this: M2 bones from Java (skinning by `MBone` with matrices from
+  `FxData` / `FxFrame`), M3 `.animation.json` playback, M4 instancing and distortion.
+- **Reason**: the user wants model effects that are cheap: no entity (no server tick, no network, no per-entity
+  GeckoLib bone work), bhfx materials (glow, dissolve, bloom) on the real shape. Copying the bake rules keeps bhfx free
+  of a GeckoLib dependency while textures line up the same; checked against the decompiled classes and all 17 BHSpells
+  models. Each vertex already carries its bone index, so M2 needs no format change. A separate depth renderbuffer, not
+  the world's, because bhfx draws at FX resolution; the world's depth is only sampled to hide the model.
+
+## 2026-11-16 — Named points on entities, apart from body parts; GeckoLib bones reported by BHSpells
+- **Decision**: a second, open-ended set of points (`EntityPoints`, `BHFxClient.point` / `reportPoint`, string names)
+  next to the fixed `BodyPart` enum, sharing only its capture window (entity pass, no mirror reflections). Points are
+  never estimated. bhfx keeps no GeckoLib dependency: BHSpells adds a draw-nothing `GeoRenderLayer` to every
+  `GeoEntityRenderer` through GeckoLib's `GeoRenderEvent.Entity.CompileRenderLayers` (Forge bus, fired lazily on a
+  renderer's first `getRenderLayers()`), reporting each bone's pivot from `renderForBone` (GeckoLib hands layers the
+  bone matrix translated back from the pivot, so the layer translates by `pivot / 16`).
+- **Reason**: the user asked that nothing existing change. A separate store means asking for a bone never turns on the
+  vanilla body-part layer and the reverse; the event means no renderer file is touched; points only exist when an
+  effect asks (one `wantsPoints` check per bone otherwise). Bones have arbitrary names per model, which an enum can't
+  hold. No network change: an effect that rides a bone reads it in `passes()`; `FxSpawn.part` stays body parts only.
+
+## 2026-11-16 — 3D shapes: SDF includes and Java-built bones now, mesh-baked shapes later
+- **Decision**: add `sdf3d.glsl`, `sdf_march.glsl` and `FxFrame` + `FxData.setFrame` (API_PLAN 5.6). Do not build
+  shapes baked from meshes into 3D distance textures yet.
+- **Reason**: shapes and bones cover glowing weapons, limbs, crystals and constructs, cost no new GL path, and leave
+  every existing effect alone. Unlike `../orbital-laser` (the Sky Breaks hand: poses sampled 30 times a second into a
+  table ahead of time, because its WebAssembly has a fuel limit), bhfx's `passes()` runs every frame in Java, so
+  bones are built live and can follow `BodyPose`. Mesh baking (a `sampler3D` loader, a bake script, blending pieces at
+  the joints) is the biggest part and no effect asks for a sculpted shape yet; solid animated models are GeckoLib's
+  job. The march include relies on bhfx pasting includes in place: `map` must be defined above it (GLSL 150 can't pass
+  functions).
+
+## 2026-11-16 — 1.21.1 NeoForge port: one repo, a long-lived branch, 1.21.1 only
+- **Decision** (prepared, not started): port to 1.21.1 NeoForge on a branch `mc/1.21.1-neoforge` with features
+  cherry-picked from `main`; separate artifact `bhfx-neoforge`; no multi-version tooling. Plan:
+  [`plan-neoforge-1.21.1.md`](plan-neoforge-1.21.1.md).
+- **Reason**: bhfx has no mixins and a raw-GL renderer, so 1.21.1 (still classic blaze3d, GL 3.2) is mostly a loader
+  API port. 1.21.2 removes `ShaderInstance` and 1.21.5 replaces the GL layer, so those are not targets.
+
+## 2026-11-13 — Body parts: a render layer for vanilla models, a report hook for everything else
+- **Decision**: body part positions come from what the client actually drew last frame. A draw-nothing `RenderLayer` on every `LivingEntityRenderer` reads the posed `ModelPart` matrices (layers run after `setupAnim`, already in model space, so still no mixin), multiplied by the inverse of the camera rotation captured at `AFTER_SOLID_BLOCKS`. Captures are written only between `AFTER_SOLID_BLOCKS` (after mirror reflections) and the next stage after the entity pass, and only for entities something asked about in the last 200 frames. Without a fresh capture (not drawn, first person, unknown model) the point is estimated from the bounding box and body yaw; first-person hands sit where the view shows them. Renderers that replace the vanilla model report joints through `BHFxClient.reportBodyPart`; reports win over the layer for that frame. The Epic Fight reporter lives in BHSpells (`EpicFightBhfxBodyParts`), not in bhfx. `FEET` is the midpoint of both soles at query time.
+- **Reason**: a server has no model pose, so the client is the only place a hand position exists; reading the drawn model means walking, swinging, crouching and other mods' animations come for free. bhfx stays free of compile dependencies (Epic Fight's joint API has been renamed between versions; BHSpells already pins one). Protocol 3 because `S2CFxStart` carries the part. Cost when nobody asks: one map lookup per drawn living entity.
+
 ## 2026-11-12 — TUMBLE particles instead of mesh particles
 - **Decision** (for BHSpells `glass_shatter`, from the user's "fantasy glass shatter" brief that asked for real 3D shards; `glass_shatter` was removed the same day and its techniques moved into `sky_shatter`, which keeps TUMBLE): add one facing, `TUMBLE`, a flat pane in a real world plane that turns round a per-particle axis, instead of mesh particles with front, back and side faces. Shapes stay in the material (it cuts the quad, e.g. to a Voronoi cell from uniforms). The face normal is packed (octahedral, 2 x 11 bits, `ParticleBatch.packUnit`) into the rotation float and the tumble axis into the link float (unused outside RIBBON); the rate is the spin. `rotation()` is ignored for TUMBLE so it can't clobber them.
 - **Reason**: a shard's thickness (0.01–0.03 blocks) is below a pixel at any distance that matters, so side faces add cost and a new geometry path for nothing visible; a pane with true orientation already gets depth, correct occlusion, fresnel and edge-on thinning. Memory per slot stays 112 bytes. Not done: no side faces (edge on it thins to nothing), no orbit turning of the pane, no sorting between overlapping ALPHA panes. Mesh particles stay in the backlog.

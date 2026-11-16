@@ -6,6 +6,49 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ⏳ Models drawn by bhfx (2026-11-16, build + 8 `GeoModelLoaderTest` cases + glslang; all 17 BHSpells `.geo.json` baked offline without errors)
+1. `/bhfx test bhfx:test_model at ^ ^ ^5`: three swords about 1.7 blocks tall, turning: left as painted (brown grip, gold guard, steel blade, red gem), middle a pulsing cyan glow, right burning away from orange edges and coming back every 4 s. Textures sit right (no stretched or swapped faces), no holes, no inside faces showing.
+2. Walk round and close up; put a block between you and them: hidden correctly; the glow blooms.
+3. `/bhfx test bhfx:test_model attach @s`, F5: one glowing sword in the right hand, blade forward, following the arm; check it is not inside out (the cull flip for mirrored frames).
+4. `/bhfx status` while it runs: "1 model(s)"; about a minute after it ends the model is freed; no GL errors in `latest.log`; nothing about "model ... failed to load".
+5. Together with `test_particles` and `test_data`: particles in front of / behind the swords look right (models draw at the particles' order, as their own group).
+6. Optional: the same in an Fx with a BHSpells model, e.g. `FxModel.geo(bhspells:golden_gate_entity)` with its texture, next to the real entity: the textures should match GeckoLib's.
+
+### ⏳ Named points and GeckoLib bones (2026-11-16, bhfx `build` + BHSpells `compileJava` only; no JUnit: needs a live world)
+Run in the BHSpells dev client (BHSpells reports GeckoLib bones, `compat/bhfx/client/GeckoBhfxPoints`).
+1. Before anything: cast a few BHSpells spells with GeckoLib visuals (e.g. Flames Eagle, Aqua Flower, Eternal Purification) without any bhfx test running: they look and animate exactly as before, no log warnings ("reporting GeckoLib bones to bhfx failed" must not appear).
+2. Summon or cast something with a GeckoLib entity, then `/bhfx test bhfx:test_points attach <that entity>` (`@e[type=...,limit=1,sort=nearest]`): within a frame or two a white orb on every bone pivot, with red (forward), green (up), blue (right) markers; they move with the animation. A grey orb at the entity before the first report.
+3. Attach it to a player or vanilla mob: only the grey orb (nothing reports points for vanilla models; body parts are a different API).
+4. Walk away until the entity is culled / out of view: orbs go back to the grey one, no errors; walk back: bones again.
+5. Mirror next to the GeckoLib entity: orbs stay on the real one, not on the reflection.
+
+### ⏳ SDF shapes and frames (2026-11-16, build + 6 `FxFrameTest` cases + glslang only)
+1. `/bhfx test bhfx:test_sdf at ^ ^ ^5`: a pale blue hand of light about 2.5 blocks tall stands on the spot, fingers up, turning slowly, opening into a flat hand and closing into a fist every ~3.5 s. Fingers bend towards the palm, the thumb folds across; joints look smooth (no seams or holes), rim brighter than the middle, a soft glow round it.
+2. Walk round it and close up: no flicker, no missing slices at the edges of its bounds, nothing drawn through a wall between you and it.
+3. `/bhfx test bhfx:test_sdf attach @s`, F5: a smaller hand of light over your right hand, fingers pointing down the arm's line, following the arm when walking and swinging; then in first person (estimated pose, lower right). With Epic Fight battle mode it should follow the weapon hand (uses `BodyPose`).
+4. `/bhfx bench bhfx:test_sdf` close up (hand filling about a third of the screen): note the GPU ms here. More than ~2 ms at 1080p means effects built this way need lower `SDF_STEPS` or smaller bounds.
+5. `latest.log`: no shader compile error, no GL error.
+
+### ⏳ `FxData` data tables (2026-11-16, build + 7 `DataTableTest` cases + glslang only)
+Same version (0.3.12), so the build already cleared the deobf cache; check `runClient` picked up the new jar (`bhfx-dev-loop`).
+1. `/bhfx test bhfx:test_data at ^ ^ ^8 {radius:6}`: 256 coloured glowing orbs circle the point at different heights and speeds, smoothly (positions rewritten every frame), fade in over 0.5 s, gone after 20 s.
+2. Walk so a wall or hill is between you and some orbs: those are hidden, not drawn through the terrain.
+3. `/bhfx status` while it runs: "1 data table(s)"; about 30 s after it ends, post goes back to idle (no GPU memory held).
+4. `latest.log`: no GL error, no "invalid operation", no bhfx warning about texture units.
+5. Together: `bhfx:test_data` and `bhfx:test_particles` at the same time, plus `bhfx:test`: all three draw; particles look as before (they share unit 5 handling with data tables).
+6. Optional: `/bhfx bench bhfx:test_data` (256 orbs × every pixel inside the bounds) and note the GPU ms here.
+7. Optional, other GPUs (AMD/Intel): buffer textures differ more between drivers than 2D textures.
+
+### ⏳ Body parts (2026-11-13, build + JUnit only)
+Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourself in F5 and on another player or a zombie:
+1. `/bhfx test bhfx:test_particles attach @s {part:right_hand, hold:true}`: sits on the right hand, swings with the arm when walking and hitting; `/bhfx stop`.
+2. Repeat with `head`, `body`, `left_shoulder`, `left_arm`, `left_leg`, `left_foot`, `right_foot`, `feet`: each on its own point (left/right are the entity's own), feet on the ground between the soles; crouch, swim and sleep move them with the model.
+3. First person: `right_hand` shows near the held item at the lower right, not inside the camera.
+4. Mirror next to you: the effect does not jump to the reflection.
+5. Inventory open (player drawn in the GUI): the effect stays on the body in the world.
+6. Epic Fight battle mode with an attack animation (BHSpells loaded): the hand point follows the weapon hand, feet stay at the soles, head on the head. If a point is off, note which and by how much (BHSpells `EpicFightBhfxBodyParts`).
+7. Multiplayer: `/bhfx_play bhfx:test_particles attach <other> {part:left_foot}` is seen on the same foot by both players (protocol 3 on both sides).
+
 ### ⏳ `TUMBLE` particle facing (2026-11-12, build + JUnit + glslang only)
 1. `/bhfx test bhspells:sky_shatter`: the shards are flat panes that tumble round different axes (not turned to the camera); walking round one shows it from the side, edge on it goes thin.
 2. A shard behind a block is hidden by it; one in front of you covers what is behind and bends it.
@@ -188,6 +231,42 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 - ✅ 2026-11-02 `bhspells:purple_flame`, the user reports tested: `/bhfx test bhspells:purple_flame` — one flame, cyan tips / violet body / pink root, colours blend without bands; floor pool only under it; embers; dies down on `/bhfx stop`; `{radius:..,height:..,color:..}` change it; `{density:0}` no embers, `{density:1}` 64; looks right from above and up close.
 
 ## BHSpells spells that use bhfx
+
+### ⏳ `bhspells:thousand_swords` rounds 1–2: a thousand flying swords (bhfx instanced models) (2026-11-16; round 1 seen in game by the user: swords planted under the floor; round 2 ground found from blocks, `compileJava` only)
+1. `/bhfx test bhspells:thousand_swords at ^ ^ ^12`: slim white swords with pink flower guards form one by one in a dome over the spot, tips pointing down at where each will strike; eight volleys draw back and shoot tip first into the ground, white-hot with streaks and sparks; they stay planted, cool, then dissolve from the pommel up. Textures as in `BHSpells/docs/bhfx/thousand_swords_model.png`.
+2. FPS while all 1000 are in the air and then planted; `/bhfx bench bhspells:thousand_swords` GPU ms; `{count:2000}` for the worst case.
+3. Swords hidden behind blocks; planted ones sit on the real ground on a hill (strike heights read per point).
+4. `latest.log`: no model load error, no GL error.
+
+### ⏳ `bhspells:ink_sphere` (was `flame_sphere`) rounds 3–7: grey-blue sphere with fire made of ink (texture `ink_flame.png`) flowing straight up its surface (no sideways swing since round 4; spawn position = centre since round 5; `white` / `black` line params since round 6; texture 256 px since round 7), base glow, refraction (2026-11-14, `compileJava` + glslcheck + browser preview only)
+- Restart `runClient`, then `/bhfx test bhspells:ink_sphere at ^ ^8 ^20` (and `{hold:true}` + `/bhfx stop finish`, `at ~ ~ ~` to stand in the middle, `at ^ ^4 ^12 {radius:4}`, `{white:0.75, black:0.15}`). Checklist (ink-fire look not melon stripes, no seam, strands not flickering far away nor blurry close up at 256 px, see-through bent shell, climb / sink-back timeline, lit ground without white-out, inside not blinding, no fire sounds, `/bhfx stats`) in `BHSpells/docs/bhfx/ink_sphere.md`.
+
+### ⏳ `bhspells:yin_yang_burst` rounds 1–4: thick-paint yin-yang (yin and yang as two bodies since round 4), timed vortex sucking in the surroundings, grey water burst, blackout and grey return (2026-11-14, `compileJava` + glslcheck + browser preview of the ink only; user saw round 2 in game and asked for round 3)
+- Restart `runClient`, then `/bhfx test bhspells:yin_yang_burst attach @s` (and `{swirl:12}`, `{hold:true}` + `/bhfx stop`, `at ^ ^ ^8 {radius:40, scale:1.5}`). Checklist (ink marbling, suction not a smeared double image, block ink light/dark, no aliasing on long swirls, water ball not a flat grey sheet, black → grey → colour, far viewers not blacked out) in `BHSpells/docs/bhfx/yin_yang_burst.md`.
+
+### ⏳ `bhspells:higanbana_domain` rounds 1–4: red-black domain of death — anime cloud ring, smoke vortex, spreading web, thorns (round 4 fixed the ground texture painting the caster) (2026-11-14, `compileJava` + glslcheck + WebGL preview of the pass only)
+- Restart `runClient`, then `/bhfx test bhspells:higanbana_domain at ^ ^ ^10` (and `attach @s`, `attach @s {hold:true}` + `/bhfx stop`, `{radius:48, height:9}`). Checklist (gather → bloom, claw layers and head direction, smoke vortex, web / thorns / flowers, inside sky / ink, outside wall, wither without pops, `/bhfx stats`) in `BHSpells/docs/bhfx/higanbana_domain.md`.
+
+### ⏳ `bhspells:aura_release` rounds 1–2: white aura column erupting from the ground, drawn in meditation_aura style (2026-11-14, `compileJava` + glslcheck only)
+- Restart `runClient`, then `/bhfx test bhspells:aura_release attach @s` (and `{hold:true}`, `at ^ ^ ^8 {radius:2.4, height:18}`). Checklist (column shape, ground cracks/ring/light, screen bloom not white-out, first person, `/bhfx stats`) in `BHSpells/docs/bhfx/aura_release.md`.
+
+### ⏳ `bhspells:meditation_aura` round 1: white aura on the body's shape (2026-11-14, `compileJava` + glslcheck + WebGL preview only)
+- Second BHSpells user of body parts. Restart `runClient`, then `/bhfx test bhspells:meditation_aura attach @s {hold:true}` (and `{hold:true, height:0}`). Checklist (seated pose, wrap-only, breath ring, day/night, first person, `/bhfx stats`) in `BHSpells/docs/bhfx/meditation_aura.md`.
+
+### ⏳ `bhspells:confinement_song` round 1: crystal cage of sound, cracks and burst (2026-11-14, `compileJava` + glslcheck only)
+- `/bhfx test bhspells:confinement_song at ^ ^ ^6 {duration:30}`, then `attach @s {hold:true}` + `/bhfx stop finish`. The checklist (build, pulses and echoes, rings, ground circle, cracks, burst, calm inside, `/bhfx stats`) is in `BHSpells/docs/bhfx/confinement_song.md`.
+
+### ⏳ `bhspells:crimson_mist` round 1: wide thin red mist (2026-11-14, `compileJava` + glslcheck only)
+- In game, on open ground at dusk and at noon: `/bhfx test bhspells:crimson_mist at ~ ~ ~ {hold:true}`.
+  1. Mist rolls out from the centre over ~2.5 s to ~40 blocks with a ragged edge (no circle, no rectangle cut when walking round it or looking from above).
+  2. Thin: a mob or player 10–15 blocks away inside it stays clearly visible; billowing banks of different heights drift slowly; brighter pale-red pockets near the ground.
+  3. Red light on the ground under it; no white blow-out on a bright day sky; faint red vignette only while standing inside.
+  4. (round 2) `{density:0.1}` a trace, `{density:1}` clearly thicker with fewer gaps, `{density:3}` heavy; each step visibly different; `{radius:80, height:10}` no gaps, far side fades past ~90 blocks.
+  5. `/bhfx stop` thins it away in 2.5 s; `/bhfx stats` GPU ms (compare with `shadow_domain` 3.5–4.8 ms).
+- Notes: `BHSpells/docs/bhfx/crimson_mist.md`.
+
+### ⏳ `bhspells:arm_shatter` round 5: cracks painted on the arm through depth (6 faces), new crack texture; round 4: visible break, `gone`, Epic Fight upper/lower arm (2026-11-14, `compileJava` + glslcheck only)
+- First BHSpells user of body parts; doubles as their visual test. Commands and checklist: `BHSpells/docs/bhfx/arm_shatter.md`.
 
 ### ⏳ `bhspells:impact_frame` round 1: long white impact frame (2026-11-12, `compileJava` + glslcheck only)
 1. `/bhfx test bhspells:impact_frame at ^ ^ ^12`: a white ball bursts out of the point; 0.2 s of flipping cels with a white flash and jolt, then the screen holds white paper / black ink with focus lines on the point (lines shift every few ticks), ~3 s, then fades. The ball itself reads pure white inside the frame.

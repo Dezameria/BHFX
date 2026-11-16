@@ -321,7 +321,7 @@ public final class ClientFxManager {
         }
         long seed = spawn.seed() != null ? spawn.seed() : RandomSource.create().nextLong();
         FxInit init = new FxInit(fxId, id, spawn.origin(), spawn.target(), spawn.casterId(), spawn.followId(),
-                spawn.follow(), seed, spawn.duration(), 0, spawn.builtParams());
+                spawn.follow(), seed, spawn.duration(), 0, spawn.builtParams(), spawn.part());
         Entry e = add(init, mayHide);
         return e != null && (e.fx != null || mayHide) ? new LocalFxHandle(id) : LocalFxHandle.NONE;
     }
@@ -376,7 +376,8 @@ public final class ClientFxManager {
         FxInit init = e.init;
         if (!onTime || e.params != init.params()) {
             init = new FxInit(init.id(), init.handleId(), init.origin(), init.target(), init.casterId(), init.followId(),
-                    init.follow(), init.seed(), init.duration(), onTime ? init.startAge() : e.ageNow(), e.params);
+                    init.follow(), init.seed(), init.duration(), onTime ? init.startAge() : e.ageNow(), e.params,
+                    init.part());
         }
         Fx fx;
         long t0 = System.nanoTime();
@@ -649,6 +650,8 @@ public final class ClientFxManager {
         if (level != lastLevel) {
             // respawn / dimension change / disconnect: the server re-sends what is still playing
             clear();
+            BodyParts.clear();
+            EntityPoints.clear();
             BENCH.cancel();
             if (lastLevel == null && level != null) {
                 scheduleWarmup(); // joined a world

@@ -4,6 +4,40 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.12 — unreleased (protocol 3)
+- **Added**: body parts. `BodyPart` (`HEAD`, `BODY`, `LEFT_/RIGHT_SHOULDER`, `LEFT_/RIGHT_ARM`, `LEFT_/RIGHT_HAND`, `LEFT_/RIGHT_LEG`,
+  `LEFT_/RIGHT_FOOT`, `FEET`). `FxSpawn.follow(e, mode).part(BodyPart.RIGHT_HAND)` makes the effect ride on that point
+  (`position()` follows the posed model); `FrameContext.part(...)` / `FxContext.part(...)` and
+  `BHFxClient.bodyPart(...)` give any part's `BodyPose` (position, forward, up, right, exact). Read from vanilla
+  models with a render layer (no mixin); estimated when the entity is not drawn or in first person.
+  `BHFxClient.wantsBodyParts` / `reportBodyPart` (experimental) let renderers that replace the model (Epic Fight)
+  report joints. Commands: `{part:right_hand}` with `attach`.
+- **Added** (experimental): data tables. `Fx.createData(size)` gives an `FxData` of up to 65,536 `vec4` entries that
+  the effect fills in Java (`set`, `put`, `fill`) and its shaders read: `Uniforms.data("Name", table)` binds it to
+  `uniform samplerBuffer Name;`, and `fxData(Name, i)` from the new include `bhfx:data.glsl` reads entry `i`. Only what
+  changed is sent to the GPU. For per-piece tables, bone frames, object lists too big for uniforms. Test effect
+  `bhfx:test_data`.
+- **Added** (experimental): 3D shapes from signed distances. Includes `bhfx:sdf3d.glsl` (spheres, boxes, capsules,
+  tapered capsules, cylinders, cones, rings, crystals; smooth joins; turns, repeats, twists) and
+  `bhfx:sdf_march.glsl` (define `float map(vec3 p)` above it, then `sdfMarch`, `sdfNormal`, `sdfShadow`, `sdfAO`).
+  `FxFrame` builds bones in Java (move, turn, follow a `BodyPose`, two-bone IK) and `FxData.setFrame` hands them to the
+  shader (`fxFrame`, `fxToLocal` in `bhfx:data.glsl`). Test effect `bhfx:test_sdf`, a hand of light that opens and
+  closes, on your right hand when attached.
+- **Added** (experimental): named points on entities. Renderers report points by name
+  (`BHFxClient.wantsPoints` / `reportPoint`), effects read them with `frame.point("name")`, `frame.points()` or
+  `BHFxClient.point(entity, name)`, e.g. to ride on a bone of a GeckoLib model and follow its animation. Separate from
+  body parts; nothing is reported until an effect asks. Test effect `bhfx:test_points` shows every reported point.
+- **Added** (experimental): models drawn by bhfx. `FxModel.geo("ns:name")` loads a Blockbench / GeckoLib
+  `.geo.json` (baked the way GeckoLib bakes it, so its texture lines up), and `PassList.model(model, frame, scale,
+  material, setup)` draws it inside bhfx's frame with a material shader: `FxModel.TEXTURED`, `GLOW`, `DISSOLVE` or your
+  own `shaders/bhfx/model/<name>.fsh`. No entity, nothing sent over the network. Static for now (rest pose). Test effect
+  `bhfx:test_model`. `PassList.models(model, instances, count, ...)` draws thousands of copies in one draw, each placed
+  by `FxData.setInstance` with four values of its own for the material (`s.instance`).
+- **Fixed**: after a particle material's setup bound a texture, the particle ring's buffer texture was unbound from the
+  wrong texture unit (harmless so far; now unbound from its own unit, and every buffer-texture unit is cleared when bhfx
+  hands the GL state back).
+- **Protocol 3**: `S2CFxStart` carries the body part, so client and server must both run 0.3.12.
+
 ## 0.3.11 — 2026-11-12 (protocol 2)
 - **Added** (experimental): particle facing `TUMBLE`, a pane lying in a real plane of the world (not turned to the
   camera) that tumbles round its own axis: `axis(dir, length)` = long side at birth, `normal(n)` = face at birth,

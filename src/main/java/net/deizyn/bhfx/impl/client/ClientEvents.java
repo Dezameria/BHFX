@@ -43,6 +43,12 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onRenderStage(RenderLevelStageEvent event) {
         RenderLevelStageEvent.Stage stage = event.getStage();
+        boolean cutout = stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_MIPPED_BLOCKS_BLOCKS
+                || stage == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS;
+        if (!cutout) {
+            // body part captures only during the world's entity pass, which runs between solid blocks and AFTER_ENTITIES
+            BodyParts.closeWindow();
+        }
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY || stage == RenderLevelStageEvent.Stage.AFTER_SOLID_BLOCKS) {
             // these stages carry the camera-rotation pose stack (AFTER_LEVEL carries the projection stack instead)
             ClientFxManager.captureMatrices(event.getPoseStack().last().pose(), event.getProjectionMatrix());
@@ -50,6 +56,8 @@ public final class ClientEvents {
                 ClientFxManager.captureFog();
                 MirrorRenderer.drawReflectionsInLevel(event.getPoseStack(), event.getCamera(), event.getFrustum(),
                         event.getPartialTick());
+                // after the reflections, so mirror draws never write captures
+                BodyParts.openWindow(event.getPoseStack().last().pose(), event.getCamera());
             }
         } else if (stage == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
             MirrorRenderer.composite(event.getPoseStack(), event.getCamera());
@@ -100,6 +108,8 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientFxManager.clear();
+        BodyParts.clear();
+        EntityPoints.clear();
         ClientFxCommands.clear();
         MirrorTracker.clear();
     }

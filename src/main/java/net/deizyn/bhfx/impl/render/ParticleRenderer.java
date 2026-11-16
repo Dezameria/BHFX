@@ -1,6 +1,7 @@
 package net.deizyn.bhfx.impl.render;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
@@ -47,7 +48,7 @@ final class ParticleRenderer {
             long bytes = (long) b.capacityValue() * ParticleBatch.FLOATS * 4;
             GL15.glBufferData(GL31.GL_TEXTURE_BUFFER, bytes, GL15.GL_DYNAMIC_DRAW);
             b.gpuTexture = GL11.glGenTextures();
-            guard.touchUnit(UNIT_DATA);
+            guard.touchBufferUnit(UNIT_DATA);
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, b.gpuTexture);
             GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, b.gpuBuffer);
             b.needsFull = true;
@@ -55,7 +56,7 @@ final class ParticleRenderer {
             resident.add(b);
         }
         upload(b);
-        guard.touchUnit(UNIT_DATA);
+        guard.touchBufferUnit(UNIT_DATA);
         GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, b.gpuTexture);
         int loc = program.location("PData");
         if (loc >= 0) {
@@ -66,6 +67,8 @@ final class ParticleRenderer {
 
     /** Leave no buffer texture bound (Minecraft never uses them, but keep the state clean). */
     void unbind() {
+        // the setup may have left another unit active (a texture or data bind)
+        GL13.glActiveTexture(GL13.GL_TEXTURE0 + UNIT_DATA);
         GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, 0);
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
     }

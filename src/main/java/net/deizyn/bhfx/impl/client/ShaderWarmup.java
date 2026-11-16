@@ -20,6 +20,7 @@ final class ShaderWarmup {
     private static final String ROOT = "shaders/bhfx/";
     private static final String SUFFIX = ".fsh";
     private static final String PARTICLE = "particle/";
+    private static final String MODEL = "model/";
 
     private final Deque<ResourceLocation> queue = new ArrayDeque<>();
     private int total;
@@ -73,6 +74,8 @@ final class ShaderWarmup {
         long start = System.nanoTime();
         boolean ok = id.getPath().startsWith(PARTICLE)
                 ? renderer.warmupParticle(new ResourceLocation(id.getNamespace(), id.getPath().substring(PARTICLE.length())))
+                : id.getPath().startsWith(MODEL)
+                ? renderer.warmupModel(new ResourceLocation(id.getNamespace(), id.getPath().substring(MODEL.length())))
                 : renderer.warmup(id);
         if (!ok) {
             failed++;

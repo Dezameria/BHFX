@@ -131,6 +131,7 @@ FxSpawn.at(Vec3 origin)                      // start point (required)
     .target(Vec3 target)                     // target point (default = origin)
     .caster(Entity caster)                   // caster → the client uses it for position/pose
     .follow(Entity entity, Follow mode)      // POSITION | POSITION_AND_LOOK  (for auras/charges)
+    .part(BodyPart part)                     // (0.3.12) ride on HEAD, BODY, LEFT_/RIGHT_SHOULDER, _ARM, _HAND, _LEG, _FOOT or FEET of the followed entity
     .seed(long seed)                         // default = random from the level
     .param(FxParam<T> key, T value)
     .params(FxParams params)
@@ -268,6 +269,8 @@ public abstract class Fx {
     protected void passes(FrameContext f, PassList out) {}    // shader passes and particle batches
     @ApiStatus.Experimental                                   // (0.3.9) see 5.4; freed when the Fx ends
     protected final FxParticles createParticles(ResourceLocation material, int capacity);
+    @ApiStatus.Experimental                                   // (0.3.12) see 5.5; freed when the Fx ends
+    protected final FxData createData(int size);              // vec4 entries, 1..65536
     protected void screen(FrameContext f, ScreenParams s) {}  // screen effects
     protected void camera(FrameContext f, CameraParams c) {}  // (v0.3)
     protected void hud(GuiGraphics g, FrameContext f) {}
@@ -286,7 +289,9 @@ public abstract class Fx {
 public interface FxContext {
     ClientLevel level();
     Optional<Entity> caster();
-    Vec3 position();                                   // current point (follows, if set)
+    Vec3 position();                                   // current point (follows, if set; the body part when FxSpawn.part is set)
+    Optional<BodyPose> part(BodyPart part);            // (0.3.12) a body part of the followed entity
+    BodyPose part(Entity entity, BodyPart part);       // (0.3.12) any entity's
     Vec3 cameraPos();
     void sound(SoundEvent s, Vec3 at, float volume, float pitch);
     SoundHandle loopSound(SoundEvent s, Supplier<Vec3> at, float volume);   // stops automatically in onRemoved
@@ -300,12 +305,27 @@ public interface FrameContext {
     float partialTick();
     Vec3 cameraPos();
     Vec3 rel(Vec3 world);                    // world - camera (what shaders use)
-    Vec3 position();                         // interpolated follow position
+    Vec3 position();                         // interpolated follow position (the body part when set)
+    Optional<BodyPose> part(BodyPart part);  // (0.3.12) followed entity's part this frame
+    BodyPose part(Entity entity, BodyPart part);
     Optional<Vector2f> screenUv(Vec3 world); // empty when behind the camera
     int width();  int height();
     FxSettings settings();
 }
 ```
+
+**Body parts (0.3.12).** `BodyPose(position, forward, up, right, exact)` in world space; `local(x, y, z)` offsets in the part's frame. `exact` is false for estimates (entity not drawn, first person, models without humanoid parts). The first ask about an entity may be an estimate; bhfx captures it from the next frame. `BHFxClient.bodyPart(entity, part, partial)` is the same outside an Fx. Renderers that replace the vanilla model call `BHFxClient.wantsBodyParts(entity)` / `reportBodyPart(entity, part, poseOnStack)` (Experimental) from inside the entity render. Why: [`decisions.md`](decisions.md) 2026-11-13.
+
+**Named points (0.3.12, Experimental).** Any point a renderer names on an entity: a GeckoLib bone, a weapon's tip.
+`frame.point("name")` (followed entity), `frame.point(entity, "name")`, `frame.points()` (all, by name),
+`BHFxClient.point(entity, name)` / `points(entity)` outside an Fx: `Optional<BodyPose>`, never estimated, empty when
+nothing reported it in the last 3 frames (the first ask is usually empty: asking is what starts the reports).
+Reporters call `BHFxClient.wantsPoints(entity)` and `reportPoint(entity, name, poseOnStack)` (axes: forward = -z,
+up = +y, right = +x, as in Blockbench / GeckoLib bone space) or `reportPoint(entity, name, worldPose)` from inside the
+world's entity pass; at most 128 points per entity. Kept apart from body parts (`impl/client/EntityPoints`, sharing
+only `BodyParts`' capture window): asking for points never turns on body-part capture. Test effect `bhfx:test_points`
+(attach it to an entity: a white orb on each reported point, red/green/blue markers along forward/up/right). BHSpells
+reports every GeckoLib entity's bones ([`integrations/bhspells.md`](integrations/bhspells.md)).
 
 ### 4.4 `PassList`, `PassOptions`, `Uniforms`
 
@@ -343,6 +363,8 @@ public interface Uniforms {
     Uniforms floats(String name, float[] values);       // uniform array (vec4[N])
     @ApiStatus.Experimental                             // (0.3.9) see 5.4
     Uniforms texture(String name, FxTexture texture);   // sampler2D; reads zero until loaded
+    @ApiStatus.Experimental                             // (0.3.12) see 5.5
+    Uniforms data(String name, FxData data);            // samplerBuffer; sends what changed first
 }
 ```
 
@@ -482,9 +504,12 @@ Analytic shapes (rays against cylinders, spheres, etc.) must use `Eye` (or `Scen
 | `shapes.glsl` | `rayLine`, `raySphere`, `rayCylinderY`, `rayPlane`, `rayAxisY` |
 | `light.glsl` | `glowGauss`, `glowExp`, `glowExp2` (two-layer haze), `lineLight` (1/d), `blackbody`, `tonemapSoft` |
 | `ground.glsl` (0.3, include `scene.glsl` first) | `groundAA`, `groundBand`, `groundDistance`, `groundRing`, `groundDisc`, `groundDecal`, `shockRing` |
-| `noise.glsl` | `hash11/12/13/22`, `vnoise2/3`, `fbm2/3` |
+| `noise.glsl` | `hash11`, `hash12`, `hash13`, `vnoise2`, `fbm2` (2D only; corrected 2026-11-16, this row used to list 3D noise that never existed: `model/dissolve.fsh` has a 3D value noise to copy) |
 | `fog.glsl` (0.3.8, include `scene.glsl` first) | `fogDistance`, `fogAmount` (how much of a far pixel is fog), `refog` (swap that fog for another colour, e.g. a sky a pass replaces) |
 | `sdf2d.glsl` (0.3) | `sdCircle`, `sdBox`, `sdSegment`, `sdPolygon` (≤ 8 corners), `sdStar`, `aaFill`, `aaLine`, `rotate2` |
+| `data.glsl` (0.3.12) | `fxData(samplerBuffer, i)` (vec4(0) outside the table), `fxDataSize`; frames: struct `FxFrame`, `fxFrame(table, first)`, `fxToLocal`, `fxToWorld`, `fxDirToWorld` |
+| `sdf3d.glsl` (0.3.12) | shapes `sdSphere`, `sdBox` (vec3), `sdRoundBox`, `sdSegment` (vec3), `sdCapsule`, `sdRoundCone`, `sdCylinder`, `sdCappedCone`, `sdTorus`, `sdEllipsoid`, `sdOctahedron`, `sdHexPrism`; combining `opSubtract`, `opIntersect`, `smin`, `sminMix`, `smax`, `smoothSubtract`, `opRound`, `opOnion`; space `rotX/Y/Z`, `rotAxis`, `opRepeatAround`, `opRepeat`, `opTwistY`, `opBendX` |
+| `sdf_march.glsl` (0.3.12) | needs `float map(vec3 p)` defined **above** the include; `sdfMarch` returns `SdfHit` (hit, t, pos, minDist, minT); `sdfNormal`, `sdfShadow`, `sdfAO`; `#define SDF_STEPS` / `SDF_STEP` / `SDF_SHADOW_STEPS` before it |
 | `particle.glsl` (0.3.9, particle materials only) | `fadeInOut`, `radialMask`, `sphereNormal`, `wrapLight`, `spriteUv`, `flipbookUv`, `flipbook`, `erode` |
 
 ### 5.4 Textures and GPU particles (0.3.9, Experimental)
@@ -556,6 +581,91 @@ seconds, blocks, blocks/s. Draw with `PassList.particles(batch[, options, setup]
 - **Limits**: draws over water and glass (`AFTER_LEVEL`, like passes); off while post is off (shader pack with
   `offWithShaderpack`, quality OFF, GL error). No mesh particles, attraction to a point, collision or
   GPU simulation yet (see `roadmap.md`).
+
+### 5.5 Data tables (`FxData`, 0.3.12, Experimental)
+`Fx.createData(size)` returns an `FxData` of `size` `vec4` entries (1..65,536, clamped and logged; all zero), freed
+with the effect. Write with `set(i, x, y, z, w)`, `set(i, Vec3, w)`, `put(i, float[])` (4 floats per entry),
+`fill(from, to, ...)`; read back with `get(i, component)`. Out of range throws. Bind with
+`Uniforms.data("Name", table)` to `uniform samplerBuffer Name;` and read with `fxData(Name, i)` from
+`bhfx:data.glsl`. Works in passes and in particle-material setups.
+- **GPU side** (`impl/render/DataTables`): one `GL_TEXTURE_BUFFER` + `RGBA32F` texture per table, made on the first
+  bind. Each bind sends only the range written since the last upload (`DataTable.uploadFrom/uploadTo`, one merged span).
+  Not bound for 5 s, or effect ended: freed (the next bind sends everything). Counted in `/bhfx status` ("data
+  table(s)") and in the held bytes.
+- **Units**: a data bind takes the next unit from 6..15, shared with `texture(...)`.
+- **Unbound `samplerBuffer`s**: `UniformBinder.begin` points every active `samplerBuffer` uniform
+  (`ShaderProgram.bufferSamplers`) at unit 5 with no buffer bound, so they read zero in a pass. Left at their default unit
+  0 they would sit on the same unit as `DiffuseSampler`, and two sampler types on one unit make the draw an invalid
+  operation. In a particle material unit 5 is the particle ring (`PData`), so an unbound table there reads particle data.
+- `GlStateGuard.touchBufferUnit` marks units that got a buffer texture; `restore` unbinds it there.
+- Nothing is sent over the network: fill tables from `random()`, params or world reads, so every client matches.
+- Floats only (GLSL 150 has no `floatBitsToUint`); integers are exact up to 2^24.
+- Test effect: `bhfx:test_data` (`impl/client/test/DataTestFx`, `test_data.fsh`).
+- **Frames** (bones): `FxData.setFrame(first, FxFrame)` writes three entries, (x axis, origin.x), (y axis, origin.y),
+  (z axis, origin.z); `fxFrame(table, first)` reads them back. Write camera-relative frames (`FxFrame.rel(frame)`).
+
+### 5.7 Models drawn by bhfx (`FxModel`, 0.3.12, Experimental)
+A Blockbench / GeckoLib `.geo.json` drawn by bhfx itself with a material shader: no entity, nothing over the network.
+- **API**: `FxModel.geo("ns:name")` → `assets/ns/geo/name.geo.json` (GeckoLib's place), `FxModel.file(rl)`;
+  `.texture(rl)` (nearest, clamped) or `.texture(FxTexture)` → `MTexture`. Draw with
+  `PassList.model(model, frame, scale, material[, options], setup)`: `frame` a world-space `FxFrame` (model x, y, z
+  along its axes; the model's origin at its origin; Blockbench's north = -z), `scale` 1 = 16 pixels a block. Default
+  order `PassOptions.PARTICLES`; culled by its baked bounds unless `within` is given.
+- **Materials**: `assets/<ns>/shaders/bhfx/model/<name>.fsh` defines `vec4 material(Surface s)` (uv, pos, normal,
+  local, bone, view, light, seconds), between `model/_header.glsl` and `model/_footer.glsl`, linked with
+  `model/vertex.vsh`. Output premultiplied like particles (rgb on the image, a = coverage); `#define BHFX_ADD` adds
+  instead. Uniforms from bhfx: `MTexture`, `MColor` (default 1), `MParams` (default 0), `MMode` (y world light at the
+  origin 0..1, z presence), `MOrigin`, `MAxes`. Built-ins: `FxModel.TEXTURED` (`bhfx:textured`: texture × `MColor`,
+  two-light entity shading, world light, alpha cut at 0.1), `GLOW` (`bhfx:glow`, adds: rim-bright shell in `MColor`,
+  `MParams.x` pulse), `DISSOLVE` (`bhfx:dissolve`: `MParams.x` 0 whole .. 1 gone, `.y` edge width, `.z` noise scale,
+  `MColor` edge colour). `checkShaders` checks `model/*.fsh` and `model/*.vsh`; `ShaderWarmup` compiles them.
+- **Baking** (`impl/render/GeoModelLoader`, pure Java, JUnit `GeoModelLoaderTest`): copied from GeckoLib 4.8.3's
+  `BakedModelFactory` / `GeoQuad` / `RenderUtils` (read from its decompiled classes on 2026-11-16): x mirrored,
+  pixels / 16, the `VertexSet` corner order, box UV layout (sizes floored), per-face UVs and `uv_rotation`, cube
+  `mirror` (swaps west/east, and up/down for per-face UVs) and `inflate` (cube, else bone), cube and bone rotations
+  Z then Y then X round their pivots with x and y negated, parents first, `neverRender` bones left out. Each quad
+  becomes two triangles wound counter-clockwise round their outward normal. Format 1.12.0+ only. Checked: all 17
+  BHSpells models bake (12 to 2,208 triangles).
+- **GPU** (`impl/render/FxModels`): baked on `Util.backgroundExecutor()`, uploaded the next frame into a VAO
+  (attributes `MPos`, `MNormal`, `MUv`, `MBone` bound to 0..3 for every program in `ShaderManager.link`), freed 60 s
+  after the last draw, on reload and in `release()`. In `PostRenderer` a run of model entries shares one copy of the
+  input into the next ping target, drawn through `modelFbo` (the ping texture + one `DEPTH_COMPONENT24` renderbuffer at
+  FX size), depth test `LEQUAL` (the old depth func restored), back faces culled (front face flipped for a frame whose
+  axes are mirrored, e.g. a `BodyPose`'s), premultiplied blending; the footer discards what the world's depth hides.
+- **Instanced** (`PassList.models(model, FxData instances, count, material, options, setup)`): one
+  `glDrawArraysInstanced`; copy `i` reads entries `4i .. 4i + 3` (`FxData.setInstance(i, relFrame, scale, a, b, c, d)`:
+  axes × scale with the origin in `w`, then four values the material gets as `s.instance`; `s.index` = `i`). Drawn
+  without culling: the footer drops each copy's back faces with `gl_FrontFacing` against the sign of its axes'
+  determinant, so copies may be mirrored. Give `within` bounds (otherwise never culled). Light: one value at the
+  bounds' centre. First user: BHSpells `bhspells:thousand_swords` (1000 copies of a 708-triangle sword).
+- **Limits**: bones stay in their rest pose (no animation yet); no world shadows, one light value per model; off with
+  the rest of bhfx's drawing (quality OFF, shader pack, GL error), so anything players must see stays an entity.
+- Test effect: `bhfx:test_model` (`impl/client/test/ModelTestFx`, `geo/test_model.geo.json`,
+  `textures/fx/test_model.png`): a sword three times, textured / glowing / dissolving; attached, a glowing sword in
+  the entity's right hand.
+
+### 5.6 3D shapes from signed distances (0.3.12, Experimental)
+Shapes measured by a distance function and drawn by sphere tracing inside a pass. Pieces:
+- `sdf3d.glsl` and `sdf_march.glsl` (5.3). A pass defines `float map(vec3 p)` (camera-relative point, distance in
+  blocks), then `#include "bhfx:sdf_march.glsl"`: bhfx's includes are pasted in place, so the march calls that `map`.
+  `sdfMarch(ro, rd, tmin, tmax, pixelAngle(texCoord))` stops at a pixel's width, so far shapes take fewer steps.
+- `FxFrame` (`api/client`, Experimental): a record (origin, x, y, z) for bones built in Java. `at`, `of(BodyPose)`
+  (x right, y up, z forward), `looking(origin, forward, up)`; `point`, `dir`, `toLocal`; `moved(lx, ly, lz)`,
+  `withOrigin`; `turnedX` (y towards z), `turnedY` (z towards x), `turnedZ` (x towards y), `turned(worldAxis, angle)`;
+  `rel(FrameContext)`, `relativeTo(camera)`; `twoBoneJoint(root, target, upper, lower, pole)` for elbows and knees.
+  Turns are in the frame's own axes, so they mean the same whichever way its axes are handed (`BodyPose`'s are
+  left-handed in world terms: facing +z, right is -x).
+- How a moving body is drawn: `passes()` builds the bones every frame (forward kinematics from a root `FxFrame`, or
+  `FxFrame.of(BodyPose)` to follow a real arm), writes them with `setFrame` / `set`, and the pass loads them once per
+  pixel into globals before marching (not inside `map`, which runs every step).
+- Cost: keep `map` small, march only inside a bounding ball (`raySphere` gives `tmin`/`tmax`), bound the pass with
+  `PassOptions.within`, stop at `s.dist` so blocks in front hide the shape. No world lighting or shadows reach the
+  shape (it suits glowing things); `sdfShadow` is only the shape's own.
+- Not built yet (decided 2026-11-16): shapes baked from a mesh into 3D distance textures (`sampler3D`); see
+  [`decisions.md`](decisions.md).
+- Test effect: `bhfx:test_sdf` (`impl/client/test/SdfTestFx`, `test_sdf.fsh`), a hand of light: palm `sdRoundBox` in
+  the hand's frame plus 15 `sdRoundCone` bones joined with `smin`, opening and closing; on the right hand of the
+  followed entity, or standing at the target.
 
 ---
 

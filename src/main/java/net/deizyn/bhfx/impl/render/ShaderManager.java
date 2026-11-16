@@ -61,11 +61,16 @@ final class ShaderManager {
     private static final ResourceLocation PARTICLE_VERTEX = new ResourceLocation("bhfx", "shaders/bhfx/particle/vertex.vsh");
     private static final ResourceLocation PARTICLE_HEADER = new ResourceLocation("bhfx", "shaders/bhfx/particle/_header.glsl");
     private static final ResourceLocation PARTICLE_FOOTER = new ResourceLocation("bhfx", "shaders/bhfx/particle/_footer.glsl");
+    private static final ResourceLocation MODEL_VERTEX = new ResourceLocation("bhfx", "shaders/bhfx/model/vertex.vsh");
+    private static final ResourceLocation MODEL_HEADER = new ResourceLocation("bhfx", "shaders/bhfx/model/_header.glsl");
+    private static final ResourceLocation MODEL_FOOTER = new ResourceLocation("bhfx", "shaders/bhfx/model/_footer.glsl");
 
     private final Map<ResourceLocation, ShaderProgram> programs = new HashMap<>();
     private final Set<ResourceLocation> broken = new HashSet<>();
     private final Map<ResourceLocation, ShaderProgram> particlePrograms = new HashMap<>();
     private final Set<ResourceLocation> brokenParticles = new HashSet<>();
+    private final Map<ResourceLocation, ShaderProgram> modelPrograms = new HashMap<>();
+    private final Set<ResourceLocation> brokenModels = new HashSet<>();
 
     ShaderProgram get(ResourceLocation id) {
         ShaderProgram program = programs.get(id);
@@ -115,6 +120,34 @@ final class ShaderManager {
         return program;
     }
 
+    /**
+     * A model material: "ns:name" → assets/ns/shaders/bhfx/model/name.fsh between bhfx's model header and footer,
+     * linked with the shared model vertex shader (attributes MPos, MNormal, MUv, MBone at 0..3). Cached like passes.
+     */
+    ShaderProgram getModel(ResourceLocation id) {
+        ShaderProgram program = modelPrograms.get(id);
+        if (program != null || brokenModels.contains(id)) {
+            return program;
+        }
+        List<ResourceLocation> files = new ArrayList<>();
+        try {
+            StringBuilder source = new StringBuilder(read(MODEL_HEADER));
+            source.append('\n');
+            ResourceLocation file = new ResourceLocation(id.getNamespace(), "shaders/bhfx/model/" + id.getPath() + ".fsh");
+            files.add(file);
+            append(source, file, files, new HashSet<>(), 1);
+            files.add(MODEL_FOOTER);
+            source.append("#line 1 ").append(files.size()).append('\n').append(read(MODEL_FOOTER));
+            program = link(id, read(MODEL_VERTEX), source.toString(), files);
+            modelPrograms.put(id, program);
+            BHFxMod.LOGGER.debug("bhfx compiled model material {}", id);
+        } catch (IOException | IllegalStateException e) {
+            brokenModels.add(id);
+            BHFxMod.LOGGER.error("bhfx model material {} is broken and will be skipped until reload: {}", id, e.getMessage());
+        }
+        return program;
+    }
+
     boolean isBroken(ResourceLocation id) {
         return broken.contains(id);
     }
@@ -126,10 +159,13 @@ final class ShaderManager {
         particlePrograms.values().forEach(ShaderProgram::delete);
         particlePrograms.clear();
         brokenParticles.clear();
+        modelPrograms.values().forEach(ShaderProgram::delete);
+        modelPrograms.clear();
+        brokenModels.clear();
     }
 
     int compiledCount() {
-        return programs.size() + particlePrograms.size();
+        return programs.size() + particlePrograms.size() + modelPrograms.size();
     }
 
     private static ResourceLocation toPass(ResourceLocation id) {
@@ -185,6 +221,11 @@ final class ShaderManager {
         GL20.glAttachShader(program, vs);
         GL20.glAttachShader(program, fs);
         GL30.glBindFragDataLocation(program, 0, "fragColor");
+        // model vertex attributes (FxModels' layout); names a program doesn't have are ignored
+        GL20.glBindAttribLocation(program, 0, "MPos");
+        GL20.glBindAttribLocation(program, 1, "MNormal");
+        GL20.glBindAttribLocation(program, 2, "MUv");
+        GL20.glBindAttribLocation(program, 3, "MBone");
         GL20.glLinkProgram(program);
         boolean ok = GL20.glGetProgrami(program, GL20.GL_LINK_STATUS) != 0;
         String log = ok ? "" : GL20.glGetProgramInfoLog(program, 16384);

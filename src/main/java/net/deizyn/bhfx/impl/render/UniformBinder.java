@@ -2,10 +2,12 @@ package net.deizyn.bhfx.impl.render;
 
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.BHFxMod;
+import net.deizyn.bhfx.api.client.FxData;
 import net.deizyn.bhfx.api.client.FxTexture;
 import net.deizyn.bhfx.api.client.Uniforms;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL31;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -18,20 +20,64 @@ final class UniformBinder implements Uniforms {
 
     private final GlStateGuard guard;
     private final FxTextures textures;
+    private final DataTables tables;
     private final Set<String> warned = new HashSet<>();
     private ShaderProgram program;
     private int nextUnit;
     private long now;
 
-    UniformBinder(GlStateGuard guard, FxTextures textures) {
+    UniformBinder(GlStateGuard guard, FxTextures textures, DataTables tables) {
         this.guard = guard;
         this.textures = textures;
+        this.tables = tables;
     }
 
+    /** Call with {@code program} in use. */
     void begin(ShaderProgram program) {
         this.program = program;
         this.nextUnit = FIRST_TEXTURE_UNIT;
         this.now = System.nanoTime();
+        int[] buffers = program.bufferSamplers();
+        if (buffers.length > 0) {
+            // every samplerBuffer the effect doesn't bind reads an empty buffer unit (zero), never unit 0's sampler2D;
+            // a particle draw binds its own ring there right after (PData)
+            guard.touchBufferUnit(ParticleRenderer.UNIT_DATA);
+            GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, 0);
+            for (int loc : buffers) {
+                GL20.glUniform1i(loc, ParticleRenderer.UNIT_DATA);
+            }
+        }
+    }
+
+    /** Bind the 1x1 transparent black texture to {@code name}, so a declared sampler never reads unit 0. */
+    void blankTexture(String name) {
+        int loc = program.location(name);
+        if (loc < 0 || nextUnit > LAST_TEXTURE_UNIT) {
+            return;
+        }
+        int unit = nextUnit++;
+        guard.touchUnit(unit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, textures.blank());
+        GL20.glUniform1i(loc, unit);
+    }
+
+    @Override
+    public Uniforms data(String name, FxData data) {
+        int loc = program.location(name);
+        if (loc < 0 || !(data instanceof DataTable table)) {
+            return this;
+        }
+        if (nextUnit > LAST_TEXTURE_UNIT) {
+            if (warned.add(name)) {
+                BHFxMod.LOGGER.warn("bhfx: more than {} textures and data tables in one pass; {} is not bound",
+                        LAST_TEXTURE_UNIT - FIRST_TEXTURE_UNIT + 1, name);
+            }
+            return this;
+        }
+        int unit = nextUnit++;
+        tables.bind(table, unit, now);
+        GL20.glUniform1i(loc, unit);
+        return this;
     }
 
     @Override

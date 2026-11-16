@@ -25,6 +25,8 @@ public final class FxSpawn {
     private int followId = -1;
     private Follow follow = Follow.NONE;
     @Nullable
+    private BodyPart part;
+    @Nullable
     private Long seed;
     private final FxParams.Builder params = FxParams.builder();
     private int duration = DEFAULT_DURATION;
@@ -55,6 +57,16 @@ public final class FxSpawn {
     public FxSpawn follow(Entity entity, Follow mode) {
         this.followId = mode == Follow.NONE ? -1 : entity.getId();
         this.follow = mode;
+        return this;
+    }
+
+    /**
+     * Ride on one point of the followed entity's body instead of its feet position, e.g.
+     * {@code .follow(caster, Follow.POSITION).part(BodyPart.RIGHT_HAND)}. The effect's {@code position()} becomes that
+     * point and moves with the posed model. Needs {@link #follow}; ignored without it. {@code null} clears it.
+     */
+    public FxSpawn part(@Nullable BodyPart part) {
+        this.part = part;
         return this;
     }
 
@@ -118,6 +130,8 @@ public final class FxSpawn {
     public int casterId() { return casterId; }
     public int followId() { return followId; }
     public Follow follow() { return follow; }
+    /** The followed body point, or null for the entity's position. Null whenever nothing is followed. */
+    @Nullable public BodyPart part() { return followId >= 0 ? part : null; }
     @Nullable public Long seed() { return seed; }
     public FxParams builtParams() { return params.build(); }
     public int duration() { return duration; }
