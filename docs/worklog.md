@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage B: in-place runs, rect copies, uniform cache (0.3.18)
+- bhfx: `PostRenderer.render` (particle / model runs in place when the input is an effect target and no material reads `DiffuseSampler`; a bounded pass copies only the last pass's rect, `otherAll` / `ox0..oy1`; `lastCopyCount` in `/bhfx status`), `ShaderProgram` (`Slot`, `set1`..`set4`, `setInt`, `setMatrix`), `UniformBinder.f1`..`f4`, `PostRenderer.begin` / `bindUnit`. 0.3.17 → 0.3.18.
+- result: build + JUnit passed; in game by Claude (new and old code, same script): same look, no errors, **no measurable gain** (table in [`testing.md`](testing.md)). BHSpells untouched (`libs/` restored).
+- next: find where render CPU per batch goes (split timing), make stress runs repeatable (fixed spots, fixed resolution); then stage C1 (`FxLights`).
+
+---
+
 ## 2026-11-17 — Stage A: measuring tools and baseline (0.3.17)
 - bhfx: `FrameStats` (fps, longest frame, slots drawn, thinning, `report(now, window)`), `ClientFxManager.statsLines(seconds)`, `PostRenderer.lastParticleCount()`, `DevControl` lines `stats [s]` and `fps`; JUnit `FrameStatsTest` (2). 0.3.16 → 0.3.17.
 - result: build + JUnit passed; baseline measured in game by Claude through dev control (two runs), table in [`testing.md`](testing.md). At 70 effects: 186 fps, render CPU 1.23 ms, GPU 1.53 ms. BHSpells untouched (`libs/` restored).

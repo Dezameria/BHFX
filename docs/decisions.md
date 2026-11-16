@@ -3,6 +3,14 @@
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 
+## 2026-11-17 — Uniform values are cached per program
+- **Decision**: `ShaderProgram.set1` .. `setMatrix` remember the last value sent and skip the GL call when it is the
+  same (uniforms stay in a program between draws and frames). A uniform goes either through these (everything in
+  `Uniforms.f1` .. `f4`, the frame constants, the 2D sampler units) or directly by location (`floats`, textures and
+  data tables, `PData`, `MBones`, `MAxes`), never both, or the cache goes stale.
+- **Reason**: about half of the GL calls per batch repeat the same value. Kept although it measured no gain on the dev
+  machine (2026-11-17, [`testing.md`](testing.md)): it is small and safe.
+
 ## 2026-11-16 — Next feature is `FxData` (runtime data tables), not world warp, the block atlas or half-res stages
 - **Decision**: after comparing bhfx with `../orbital-laser` (a Horizon mod whose effects are one big post pass), build
   `FxData` first: a `GL_TEXTURE_BUFFER` (`RGBA32F`, up to 65,536 texels) that an `Fx` fills in Java and a pass reads as
