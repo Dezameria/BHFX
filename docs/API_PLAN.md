@@ -782,6 +782,24 @@ out.particles(bolts);
 - Limits: a beam that follows a moving caster must be redrawn (points don't move with the caster); redrawing with
   overlapping lives adds brightness, so use `life` ≤ the redraw interval for an even beam.
 
+### 5.11 Half-resolution layers (`PassOptions.halfRes`, 0.3.23, Experimental)
+```java
+out.add(MIST, PassOptions.DEFAULT.within(centre, radius).halfRes(), u -> ...);
+```
+```glsl
+// the shader writes the layer, not the image: premultiplied light and coverage
+fragColor = vec4(light, coverage);   // result = image * (1 - coverage) + light; vec4(0) leaves the image alone
+```
+- bhfx draws the pass into a quarter-size RGBA16F target (cleared to 0, scissored to the bounds), then draws
+  `bhfx:layer_resolve` as the pass proper: each pixel takes the four layer texels round it weighted by how close their
+  depth is to its own, so the layer does not bleed across the edge of something nearer or farther.
+- For soft things only: mist, light shafts, glows marched through a volume. A shape with a sharp outline of its own
+  (an SDF solid) would get a half-resolution outline. `OutSize` is the layer's size; `sceneAt(texCoord)` works as usual.
+- Cost: the heavy shader runs on a quarter of the pixels, plus one cheap resolve. Measured 2026-11-17 with eight mist
+  balls of 40 march steps: 1.05 ms against 1.37 ms GPU ([`testing.md`](testing.md)); the gain grows with the cost of
+  the shader and the screen area it covers.
+- Counts as one pass for `maxPassesPerFrame`. Other shares than 0.5 are not offered yet (`layer` holds the share).
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

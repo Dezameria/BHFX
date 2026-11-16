@@ -31,7 +31,13 @@ public final class PassListImpl implements PassList {
      */
     public record Entry(ResourceLocation shader, int order, int seq, double distance, Consumer<Uniforms> setup,
                         double bx, double by, double bz, double radius, @Nullable ParticleBatch particles, float time,
-                        float presence, @Nullable ModelDraw model) {
+                        float presence, @Nullable ModelDraw model, float layer) {
+        public Entry(ResourceLocation shader, int order, int seq, double distance, Consumer<Uniforms> setup,
+                     double bx, double by, double bz, double radius, @Nullable ParticleBatch particles, float time,
+                     float presence, @Nullable ModelDraw model) {
+            this(shader, order, seq, distance, setup, bx, by, bz, radius, particles, time, presence, model, 0f);
+        }
+
         /** Not a full-screen pass: a particle batch or a model. */
         public boolean drawsGeometry() {
             return particles != null || model != null;
@@ -397,11 +403,11 @@ public final class PassListImpl implements PassList {
         PassOptions.Bounds b = options.bounds();
         if (b == null) {
             entries.add(new Entry(shader, options.order(), entries.size(), distance, setup, 0, 0, 0, 0, null, 0f, presence,
-                    null));
+                    null, options.layer()));
         } else {
             Vec3 c = b.center();
             entries.add(new Entry(shader, options.order(), entries.size(), distance, setup,
-                    c.x - camera.x, c.y - camera.y, c.z - camera.z, b.radius(), null, 0f, presence, null));
+                    c.x - camera.x, c.y - camera.y, c.z - camera.z, b.radius(), null, 0f, presence, null, options.layer()));
         }
     }
 

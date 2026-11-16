@@ -6,6 +6,26 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Half-resolution layers, `bhfx:test_volume` / `test_volume_full` (2026-11-17, 0.3.23; build + glslang + JUnit `PassOptionsTest` (1); in game by Claude through dev control, at dusk, `fps unlimited`, MEDIUM, 1600x900, effect resolution 100 % in both runs)
+- Look: the mist ball drawn as a half-resolution layer and as an ordinary pass look the same (shots of both at 1 s
+  and 2.5 s); no blocky edge where it meets the grass; the house behind it stays sharp.
+- GPU, `/bhfx stress 8 6 0` (eight balls, 9 passes with the lights pass), `stats 5`: half 1.05 ms, full 1.37 ms
+  (-23 %); render CPU 0.35 against 0.28 ms (one more draw per layer). A modest gain: the balls are small on screen
+  and the 40-step shader is cheap on this GPU.
+- Seen in both versions, so not from the layer: a faint horizontal line through the ball at the horizon.
+- First run void for the look: the test shader declared `Tint` as `vec3` while `Uniforms.color` sends a `vec4`, so the
+  tint stayed 0 (grey mist with a black rim). Fixed in the shader. glslang cannot catch this (types match on neither
+  side); `Uniforms.color` needs a `vec4`.
+- Not checked: a layer in front of / behind entities and particles, at LOW quality (lower effect resolution), a
+  full-screen (unbounded) layer, two different layer passes in one frame (they share the target one after another).
+
+### ✅ No hitch when 70 effects start in one tick (2026-11-17, 0.3.22; in game by Claude through dev control, `fps unlimited`)
+- `/bhfx stress 70 32 0` (flow, vortex, particles) three times, `stats 4`: 43–56 starts in the busiest tick cost
+  2.0–2.2 ms constructing; longest frame 9.8–14.7 ms, the same as with one effect running (8–16 ms); render CPU max
+  4.5–6.8 ms on the frame the batches are first drawn. 445 batches, 307 k slots, 33 MB heap, 65 MB GPU.
+- So the plan's stage D (pooling particle storage) is not needed for hitches (the bar was 50 ms); it would only
+  save memory, and the test effects' oversized capacities are the bigger part of that.
+
 ### ✅ Bolts and beams, `bhfx:test_bolt` (2026-11-17, 0.3.22; build + glslang + JUnit `FxBoltTest` (2); in game by Claude through dev control: `/bhfx shoot` at night and at noon)
 - The forked bolt has a different jagged shape in each of the four shots, forks leave the main line and end in the
   air, it reaches the ground and its light flashes there; the thin arc between two points in the air has no forks;

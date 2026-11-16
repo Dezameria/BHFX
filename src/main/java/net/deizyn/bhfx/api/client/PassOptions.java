@@ -9,7 +9,11 @@ import org.jetbrains.annotations.Nullable;
  *               overlays 100.
  * @param bounds world-space sphere the pass stays inside, or null for the whole screen (see {@link #within})
  */
-public record PassOptions(int order, @Nullable Bounds bounds) {
+public record PassOptions(int order, @Nullable Bounds bounds, float layer) {
+    public PassOptions(int order, @Nullable Bounds bounds) {
+        this(order, bounds, 0f);
+    }
+
     public static final PassOptions DEFAULT = new PassOptions(0);
     public static final PassOptions OVERLAY = new PassOptions(100);
     /** Default order of particle batches: over world-space passes, under overlays. */
@@ -29,7 +33,20 @@ public record PassOptions(int order, @Nullable Bounds bounds) {
      */
     @ApiStatus.Experimental
     public PassOptions within(Vec3 center, double radius) {
-        return new PassOptions(order, new Bounds(center, radius));
+        return new PassOptions(order, new Bounds(center, radius), layer);
+    }
+
+    /**
+     * Draw this pass as a layer at half resolution (a quarter of the pixels) and lay it over the image with a
+     * depth-aware upsample: for soft, costly things (mist, light shafts, glows marched through a volume), not for
+     * anything with a sharp outline of its own. The shader must then output the layer, not the finished image:
+     * {@code fragColor = vec4(light, coverage)} with premultiplied colour, so the result is
+     * {@code image * (1 - coverage) + light}; (0, 0, 0, 0) leaves the image alone. {@code OutSize} is the layer's
+     * size. Only for passes added with {@link PassList#add}; {@link #layer} is the resolution share (0 = not a layer).
+     */
+    @ApiStatus.Experimental
+    public PassOptions halfRes() {
+        return new PassOptions(order, bounds, 0.5f);
     }
 
     @ApiStatus.Experimental

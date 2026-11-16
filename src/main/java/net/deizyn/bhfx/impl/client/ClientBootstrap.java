@@ -61,6 +61,8 @@ public final class ClientBootstrap {
             ClientFxManager.register(BHFxMod.id("test_lights"), net.deizyn.bhfx.impl.client.test.LightsTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_decals"), net.deizyn.bhfx.impl.client.test.DecalsTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_bolt"), net.deizyn.bhfx.impl.client.test.BoltTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_volume"), init -> new net.deizyn.bhfx.impl.client.test.VolumeTestFx(init, true));
+            ClientFxManager.register(BHFxMod.id("test_volume_full"), init -> new net.deizyn.bhfx.impl.client.test.VolumeTestFx(init, false));
             ClientFxManager.register(BHFxMod.id("test_sdf"), SdfTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_points"), PointsTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_model"), ModelTestFx::new);

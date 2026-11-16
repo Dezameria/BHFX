@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.22 — unreleased (protocol 3)
+## 0.3.23 — unreleased (protocol 3)
+- **Added** (Experimental): `PassOptions.halfRes()`: a pass drawn as a layer at half resolution and laid over the
+  image with a depth-aware upsample (`layer_resolve.fsh`), for soft costly passes (mist, shafts, marched glows). The
+  shader outputs premultiplied light and coverage instead of the finished image. `PassOptions` gained the component
+  `layer`; the two-argument constructor stays. Test effects `bhfx:test_volume` (half) and `bhfx:test_volume_full`.
+
+## 0.3.22 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `FxBolt`: lightning bolts and beams drawn as ribbons between two points (`segments`,
   `jitter`, `forks`, `forkLength`, `width`, `taper`, `color`, `life`, `delay`, `draw(batch, random)`); `jitter(0)` is a
   straight beam. Built-in ribbon material `FxParticles.BEAM` (`bhfx:beam`): a repeating texture along the strip, with

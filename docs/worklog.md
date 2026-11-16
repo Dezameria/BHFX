@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Half-resolution layers (0.3.23); stage D measured and dropped
+- bhfx: `PassOptions` (`layer`, `halfRes()`), `PassListImpl.Entry.layer`, `PostRenderer` (`layerFbo`, `ensureLayer`, layer branch in the pass path, `LAYER_RESOLVE`), `layer_resolve.fsh`, `test_volume.fsh`, `VolumeTestFx` (`bhfx:test_volume`, `bhfx:test_volume_full`); JUnit `PassOptionsTest` (1). 0.3.22 → 0.3.23.
+- result: build + glslang + JUnit passed; in game by Claude: half and full look the same, 1.05 against 1.37 ms GPU for eight mist balls. Before that: measured starts of 70 effects in one tick, no hitch, so stage D was dropped. BHSpells untouched (`libs/` restored).
+- next: left in E: opt-in particle count LOD, near-camera fade, overdraw view. F: light shafts. C4 / C5: mesh particles, model afterimages. Or a first BHSpells effect on lights / decals / bolts (needs the user's go-ahead).
+
+---
+
 ## 2026-11-17 — Stage C3: bolts and beams (0.3.22)
 - bhfx: `FxBolt` (api), `FxParticles.BEAM` + `particle/beam.fsh`, `BoltTestFx` (`bhfx:test_bolt`), `ClientBootstrap`; JUnit `FxBoltTest` (2). 0.3.21 → 0.3.22.
 - result: build + glslang + JUnit passed; shot in game by Claude (night, noon): works. Stress with 71 effects: 0.63 ms GPU, 0.65 ms CPU. Removed the two rows of grass blocks the wall tests had left in the `bhfx/run` test world. BHSpells untouched (`libs/` restored).

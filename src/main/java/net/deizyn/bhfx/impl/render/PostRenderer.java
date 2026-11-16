@@ -50,6 +50,7 @@ public final class PostRenderer {
     private static final ResourceLocation BLOOM_DOWN = BHFxMod.id("bloom_down");
     private static final ResourceLocation BLOOM_UP = BHFxMod.id("bloom_up");
     private static final ResourceLocation PARTICLE_RESOLVE = BHFxMod.id("particle_resolve");
+    private static final ResourceLocation LAYER_RESOLVE = BHFxMod.id("layer_resolve");
     private static final int BLOOM_LEVELS = 5;
     private static final int UNIT_INPUT = 0;
     private static final int UNIT_SCENE = 1;
@@ -105,6 +106,11 @@ public final class PostRenderer {
     private int fxW;
     private int fxH;
     private int distortFbo;
+    /** Target of low-resolution layer passes (PassOptions.halfRes), RGBA16F. */
+    private int layerFbo;
+    private int layerTex;
+    private int layerW;
+    private int layerH;
     private int distortTex;
     private int distortW;
     private int distortH;
@@ -189,7 +195,7 @@ public final class PostRenderer {
             return 0L;
         }
         long bytes = (long) fullW * fullH * 4 + (long) fxW * fxH * (8 * 2 + 4)
-                + (long) distortW * distortH * 4 + textures.heldBytes() + particles.heldBytes()
+                + (long) distortW * distortH * 4 + (long) layerW * layerH * 8 + textures.heldBytes() + particles.heldBytes()
                 + tables.heldBytes() + models.heldBytes() + (modelDepth != 0 ? (long) modelW * modelH * 4 : 0L);
         if (bloomForW > 0) {
             for (int i = 0; i < BLOOM_LEVELS; i++) {
@@ -536,6 +542,42 @@ public final class PostRenderer {
                     continue;
                 }
                 boolean scissor = !rect.full();
+                ShaderProgram resolve = pass.layer() > 0f ? shaders.get(LAYER_RESOLVE) : null;
+                if (resolve != null) {
+                    // a layer: draw the pass small into its own target, then the pass proper is the upsample over the image
+                    ensureLayer(pass.layer());
+                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, layerFbo);
+                    GL11.glViewport(0, 0, layerW, layerH);
+                    if (scissor) {
+                        int lx0 = Math.max(0, (int) Math.floor(rect.minU() * layerW) - RECT_PAD);
+                        int ly0 = Math.max(0, (int) Math.floor(rect.minV() * layerH) - RECT_PAD);
+                        int lx1 = Math.min(layerW, (int) Math.ceil(rect.maxU() * layerW) + RECT_PAD);
+                        int ly1 = Math.min(layerH, (int) Math.ceil(rect.maxV() * layerH) + RECT_PAD);
+                        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                        GL11.glScissor(lx0, ly0, lx1 - lx0, ly1 - ly0);
+                    }
+                    GL30.glClearBufferfv(GL11.GL_COLOR, 0, ZERO4);
+                    begin(program, input, depth, layerW, layerH, time);
+                    boolean ok = true;
+                    try {
+                        pass.setup().accept(binder);
+                    } catch (RuntimeException e) {
+                        ok = false;
+                        if (failedSetups.add(pass.shader())) {
+                            BHFxMod.LOGGER.error("bhfx uniform setup for {} threw", pass.shader(), e);
+                        }
+                    }
+                    if (ok) {
+                        binder.f1("Presence", pass.presence());
+                        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
+                    }
+                    GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                    GL11.glViewport(0, 0, fxW, fxH);
+                    if (!ok) {
+                        continue;
+                    }
+                    program = resolve;
+                }
                 if (scissor) {
                     // the pass shades only its rect, so first make the rest of the target equal to the input. From
                     // the full-resolution snapshot, copy the composite's own low-res scene 1:1: a scaled blit straight
@@ -566,15 +608,20 @@ public final class PostRenderer {
                 }
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
                 begin(program, input, depth, fxW, fxH, time);
-                try {
-                    pass.setup().accept(binder);
-                } catch (RuntimeException e) {
-                    if (failedSetups.add(pass.shader())) {
-                        BHFxMod.LOGGER.error("bhfx uniform setup for {} threw", pass.shader(), e);
+                if (resolve != null) {
+                    bindUnit(UNIT_AUX, layerTex, program, "AuxSampler");
+                    binder.f2("LayerSize", layerW, layerH);
+                } else {
+                    try {
+                        pass.setup().accept(binder);
+                    } catch (RuntimeException e) {
+                        if (failedSetups.add(pass.shader())) {
+                            BHFxMod.LOGGER.error("bhfx uniform setup for {} threw", pass.shader(), e);
+                        }
+                        continue;
                     }
-                    continue;
+                    binder.f1("Presence", pass.presence());
                 }
-                binder.f1("Presence", pass.presence());
                 if (scissor) {
                     int x0 = Math.max(0, (int) Math.floor(rect.minU() * fxW) - RECT_PAD);
                     int y0 = Math.max(0, (int) Math.floor(rect.minV() * fxH) - RECT_PAD);
@@ -1104,6 +1151,23 @@ public final class PostRenderer {
         };
     }
 
+    private void ensureLayer(float share) {
+        int lw = Math.max(2, Math.round(fxW * share));
+        int lh = Math.max(2, Math.round(fxH * share));
+        if (layerW == lw && layerH == lh && layerFbo != 0) {
+            return;
+        }
+        guard.touchUnit(0);
+        if (layerFbo == 0) {
+            layerFbo = GL30.glGenFramebuffers();
+            layerTex = GL11.glGenTextures();
+        }
+        texture(layerTex, lw, lh, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+        attach(layerFbo, layerTex, "layer");
+        layerW = lw;
+        layerH = lh;
+    }
+
     private void ensureDistort() {
         if (distortW == fxW && distortH == fxH && distortFbo != 0) {
             return;
@@ -1318,6 +1382,9 @@ public final class PostRenderer {
         deleteFbo(distortFbo);
         deleteTex(distortTex);
         distortFbo = distortTex = distortW = distortH = 0;
+        deleteFbo(layerFbo);
+        deleteTex(layerTex);
+        layerFbo = layerTex = layerW = layerH = 0;
         particles.releaseAll();
         tables.releaseAll();
         releaseModelTargets();
