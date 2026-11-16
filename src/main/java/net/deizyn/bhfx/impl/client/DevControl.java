@@ -31,7 +31,8 @@ import java.util.Set;
  * {@code inbox/done/}, and what each line did goes to {@code bhfx_dev/outbox/<file>.log}.
  * <p>
  * Lines: {@code # comment}; {@code wait <seconds>}; {@code camera first|back|front}; {@code status} (logs fps and
- * {@code /bhfx status} now); {@code quit} (closes the game);
+ * {@code /bhfx status} now); {@code stats [seconds]} (logs {@code /bhfx stats} averaged over the last 1..10 s);
+ * {@code fps <10..260>|unlimited|restore} (frame cap and vsync, put back by restore or quit); {@code quit} (closes the game);
  * otherwise a command, with or without its slash, whose first word is in {@link #ALLOWED} ({@code bhfx}, {@code tp},
  * {@code time}, {@code weather}, {@code fill} ...), sent as if typed in chat. A line waits while a /bhfx shoot is taking
  * shots, so a list of shoots runs one by one. Nothing runs before the player is in a world.
@@ -59,6 +60,9 @@ final class DevControl {
     private static String file;
     private static final Deque<String> LINES = new ArrayDeque<>();
     private static int lineNo;
+    /** Frame cap and vsync before the first {@code fps} line; -1 when untouched. */
+    private static int savedFps = -1;
+    private static boolean savedVsync;
 
     private DevControl() {
     }
@@ -191,7 +195,41 @@ final class DevControl {
                 log(dir, lineNo + " status: fps " + mc.getFps() + " | " + ClientFxManager.status().replace('\n', ' '));
                 return;
             }
+            case "stats" -> {
+                double s = words.length > 1 ? parse(words[1]) : 10.0;
+                if (!(s >= 1.0) || s > 10.0) {
+                    log(dir, lineNo + " refused (stats 1..10 s): " + line);
+                    return;
+                }
+                log(dir, lineNo + " stats:");
+                for (String l : ClientFxManager.statsLines(s)) {
+                    log(dir, "    " + l);
+                }
+                return;
+            }
+            case "fps" -> {
+                String arg = words.length > 1 ? words[1].toLowerCase(Locale.ROOT) : "";
+                if (arg.equals("restore")) {
+                    restoreFps(mc);
+                    log(dir, lineNo + " " + line);
+                    return;
+                }
+                double n = arg.equals("unlimited") ? 260.0 : parse(arg);
+                if (!(n >= 10.0) || n > 260.0) {
+                    log(dir, lineNo + " refused (fps 10..260|unlimited|restore): " + line);
+                    return;
+                }
+                if (savedFps < 0) {
+                    savedFps = mc.options.framerateLimit().get();
+                    savedVsync = mc.options.enableVsync().get();
+                }
+                mc.options.enableVsync().set(false);
+                mc.options.framerateLimit().set((int) n);
+                log(dir, lineNo + " " + line + " (vsync off; was " + savedFps + (savedVsync ? ", vsync on)" : ", vsync off)"));
+                return;
+            }
             case "quit" -> {
+                restoreFps(mc);
                 log(dir, lineNo + " quit");
                 LINES.clear();
                 mc.stop();
@@ -208,6 +246,14 @@ final class DevControl {
         }
         player.connection.sendCommand(command);
         log(dir, lineNo + " sent: /" + command);
+    }
+
+    private static void restoreFps(Minecraft mc) {
+        if (savedFps >= 0) {
+            mc.options.framerateLimit().set(savedFps);
+            mc.options.enableVsync().set(savedVsync);
+            savedFps = -1;
+        }
     }
 
     private static double parse(String s) {

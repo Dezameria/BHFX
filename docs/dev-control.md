@@ -30,6 +30,10 @@ Lines:
 - `wait <seconds>` (0–600).
 - `camera first|back|front`.
 - `status`: logs the last second's fps and `/bhfx status` into the outbox (readings to compare runs by).
+- `stats [seconds]` (1–10, default 10): logs the `/bhfx stats` lines averaged over that time: frames per second and
+  longest frame, particle slots drawn and thinning, render CPU, GPU, tick CPU. Use this, not `status`, to compare runs.
+- `fps <10..260>|unlimited|restore`: frame cap (vsync off), so frame cost shows instead of the cap. `restore` and
+  `quit` put the old cap and vsync back.
 - `quit`: closes the game.
 - A command, with or without `/`, whose first word is one of `bhfx tp teleport time weather gamemode gamerule summon
   kill effect difficulty fill setblock clear give` (`DevControl.ALLOWED`); sent as if typed. Anything else is refused.

@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.16 — unreleased (protocol 3)
+## 0.3.17 — unreleased (protocol 3)
+- **Added**: `/bhfx stats` shows frames per second while effects ran, the longest frame, and particle slots drawn
+  (average, most, strongest thinning).
+- **Added** (dev client only): dev control lines `stats [seconds]` (the `/bhfx stats` lines averaged over the last
+  1–10 s) and `fps <10..260>|unlimited|restore` (frame cap and vsync, put back on `restore` or `quit`).
+
+## 0.3.16 — 2026-11-16, built locally, not published (protocol 3)
 - **Changed** (performance): particle batches draw only their live window, from the oldest particle not yet dead to the
   newest, instead of every slot ever written. Long-running effects draw 73–91 % fewer instances (bhfx test effects at
   25 s: `test_vortex` 3840 → 576, `test_particles` 3317 → 311), so less vertex work and less thinning when many effects

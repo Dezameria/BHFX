@@ -820,7 +820,9 @@ public final class ClientFxManager {
         double gpu = renderFrame(camera, partial);
         BENCH.gpu(gpu);
         long end = System.nanoTime();
-        STATS.frame(end, end - start, gpu, builtCount(), lastPassCount);
+        PostRenderer r = renderer;
+        STATS.frame(end, end - start, gpu, builtCount(), lastPassCount, r != null ? r.lastParticleCount() : 0,
+                r != null ? r.particleStride() : 1);
     }
 
     /** Returns a GPU measurement that finished this frame, or -1. */
@@ -967,7 +969,12 @@ public final class ClientFxManager {
     }
 
     static List<String> statsLines() {
-        List<String> lines = new ArrayList<>(List.of(STATS.report(System.nanoTime())));
+        return statsLines(10.0);
+    }
+
+    /** /bhfx stats over the last {@code seconds} (at most 10). */
+    static List<String> statsLines(double seconds) {
+        List<String> lines = new ArrayList<>(List.of(STATS.report(System.nanoTime(), (long) (seconds * 1e9))));
         String held = renderer != null && renderer.allocated()
                 ? String.format("  GPU memory: ~%d MB held, effect resolution %d%% of budget", renderer.heldBytes() >> 20,
                 Math.round(renderer.resolutionShare() * 100))

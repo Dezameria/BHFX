@@ -34,7 +34,7 @@ Rules for every step: bhfx only; a performance step must not change the look (sa
 code, through dev control) and is measured before / after; anything that can change a look is opt-in and off by
 default; one version bump per finished stage. Review notes: [`worklog.md`](worklog.md) 2026-11-16.
 
-- [ ] **A. Measure properly first (0.3.17).** The 2026-11-16 stress run could not show frame cost (fps at the 119 cap,
+- [x] 2026-11-17 **A. Measure properly first (0.3.17).** Done: `/bhfx stats` already had render / tick CPU and peak alive vs capacity (A1, A3); added fps, longest frame, slots and thinning, a time window, dev-control `stats` and `fps`; baseline in [`testing.md`](testing.md). Finding: render CPU is as large as GPU time with many effects, so B3 / B4 are not optional. Planned text: The 2026-11-16 stress run could not show frame cost (fps at the 119 cap,
   single-frame GPU readings, no CPU number).
   - [ ] A1. CPU ms of bhfx per frame (tick part and render part) in `/bhfx status` and the dev-control `status` line.
   - [ ] A2. Dev-control line to lift the fps cap (`fps unlimited|<n>`), and GPU / CPU ms averaged over the time between

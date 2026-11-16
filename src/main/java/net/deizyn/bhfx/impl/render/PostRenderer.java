@@ -992,6 +992,11 @@ public final class PostRenderer {
         return runs[1] + runs[2];
     }
 
+    /** Particle slots drawn last frame. */
+    public int lastParticleCount() {
+        return lastParticleCount;
+    }
+
     /** Current particle stride, for /bhfx status. */
     public int particleStride() {
         return particleStride;

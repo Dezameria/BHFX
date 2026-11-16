@@ -6,6 +6,28 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Stage A baseline (2026-11-17, 0.3.17; JUnit `FrameStatsTest` (2); in game by Claude through dev control, `fps unlimited`, MEDIUM, 1600x900, post 1359x764, open field, no `broken` / exception in the log)
+Numbers to compare stage B against. `stats` averages; the game alone runs at about 460–530 fps here.
+
+| run | fx | fps | render CPU avg | GPU avg | tick CPU avg | slots drawn avg | thinning |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `/bhfx stress 70 32 10` (flow, vortex, particles), 3 s at the peak | 63–70 | 186 | 1.23 ms | 1.53 ms | 0.41 ms | 15537 | 1 in 5 |
+| same, 3 s later | 41–62 | 220 | 0.96 ms | 1.14 ms | 0.19 ms | 13624 | 1 in 3 |
+| `/bhfx stress 70 32 30` (starts spread over 30 s), 10 s | 28–29 | 304 | 0.75 ms | 0.47 ms | 0.20 ms | 12814 | none |
+| `test_flow` alone, 10 s | 1 | 418 | 0.30 ms | 0.54 ms | 0.01 ms | 1011 | none |
+| `test_vortex` alone | 1 | 419 | 0.29 ms | 0.53 ms | 0.01 ms | 753 | none |
+| `test_particles` alone | 1 | 439 | 0.29 ms | 0.27 ms | 0.01 ms | 355 | none |
+| `test_swirl` alone | 1 | 460 | 0.21 ms | 0.36 ms | 0.01 ms | 416 | none |
+
+- Render CPU is as large as GPU time with many effects (29 fx / 182 batches: 0.75 ms CPU against 0.47 ms GPU), and one
+  effect alone already costs 0.2–0.3 ms CPU. So the uniform work per draw (plan B3, B4) matters as much as the copies
+  (B1, B2).
+- Longest frames 8–16 ms in every run, also with one effect: not from bhfx load. Slowest constructor 11 ms (`test_flow`,
+  first one).
+- Capacities: 131 of 177 stress batches never passed 25 % of their capacity (`test_ember` 2048 slots for about 240
+  alive): the test effects could be made smaller; matters for memory (plan D), not for draw cost since 0.3.16.
+- `fps restore` on quit worked (`options.txt` back to 120, vsync on).
+
 ### ✅ Particle live window (2026-11-16, 0.3.16; JUnit `ParticleWindowTest` (4) + `ParticleBatchTest` (19); in game by Claude through dev control: the same 30 s runs shot at 5 / 10 / 20 / 25 s on the old code (stashed) and the new)
 | effect | slots drawn at 25 s, old → new | look |
 | :--- | :--- | :--- |

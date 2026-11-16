@@ -11,6 +11,14 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage A: measuring tools and baseline (0.3.17)
+- bhfx: `FrameStats` (fps, longest frame, slots drawn, thinning, `report(now, window)`), `ClientFxManager.statsLines(seconds)`, `PostRenderer.lastParticleCount()`, `DevControl` lines `stats [s]` and `fps`; JUnit `FrameStatsTest` (2). 0.3.16 → 0.3.17.
+- result: build + JUnit passed; baseline measured in game by Claude through dev control (two runs), table in [`testing.md`](testing.md). At 70 effects: 186 fps, render CPU 1.23 ms, GPU 1.53 ms. BHSpells untouched (`libs/` restored).
+- note: `/bhfx stress <count> <radius> <seconds>`: seconds is the time the starts are spread over; 10 gives all 70 at once, 30 only about 29.
+- next: stage B (in-place particle / model runs, rect-only copies, frame uniforms once per program, resolved locations), compared against this baseline and by sheets.
+
+---
+
 ## 2026-11-16 — Review and plan: performance and new effect forms
 - bhfx: read `PostRenderer` (frame loop, `begin`, `drawBatch`, bloom, composite), `ParticleRenderer`, `UniformBinder`, the particle / model shader headers and includes. No code change.
 - found: every particle / model run copies the whole input target first; a bounded pass copies the whole target before shading its rect; frame-constant uniforms are set again on every draw; built-in uniforms go through `String` lookups per batch; there is no CPU time reading and fps is capped in the stress runs. Fine as is: bloom, snapshot copy, particle upload, GPU timer.
