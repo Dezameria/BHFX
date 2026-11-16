@@ -6,6 +6,32 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Where render CPU goes (2026-11-17, 0.3.19; in game by Claude through dev control, `fps unlimited`, MEDIUM, 1600x900; three runs, seeded stress, no `broken` / exception)
+`stats 3` at the peak, average ms per frame:
+
+| phase | `/bhfx stress 70 32 10` flow, vortex, particles (about 370 batches drawn, 1 run) | `/bhfx stress 40 24 10` model, sdf, particles, data (22 passes) |
+| :--- | :--- | :--- |
+| effects' frame code (`Fx.passes` / `screen`) | 0.11 | 0.15 |
+| stride (window, cull rect per batch) | 0.07 | 0.01 |
+| particle upload | 0.04 | 0.00 |
+| particle uniforms (program, state, about 25 values per batch) | 0.25–0.29 | 0.06 |
+| particle draw call | 0.02 | 0.00 |
+| passes + models + copies | 0.14 | 0.44–0.49 |
+| sweep | 0.01 | 0.00 |
+| bloom | 0.00 | 0.01 |
+| composite (one draw, then the timer end) | 0.41 | 0.13 |
+| frame setup (state capture, targets, snapshot) | 0.08 | 0.07 |
+| **total** | **1.13–1.16** | **0.87–0.94** |
+
+- The cost is per draw call, mostly inside the driver: about 2–3 µs per particle batch, and the 0.4 ms in "composite"
+  is one draw, so it is the driver working through what was queued before it (it grows with the number of draws:
+  0.13 ms after about 60, 0.41 ms after about 370).
+- Tried on this: uniforms by index instead of by name (particle uniforms 0.29 → 0.25–0.27 ms, inside the spread);
+  not drawing empty batches (the stress had none: no change). Neither gives a measurable gain.
+- What would: fewer draw calls, that is merging batches of one material from many effects into one draw (shared
+  buffer, per-particle batch values). A big change; **not worth it now**: 70 effects cost 1.15 ms CPU and about 1 ms GPU.
+- The seeded stress repeats: the mixed run gave 22 passes, 63 % resolution and 3.06 / 3.08 ms GPU twice.
+
 ### ✅ Stage B: in-place runs, rect copies, unchanged uniforms skipped (2026-11-17, 0.3.18; build + JUnit; in game by Claude through dev control, the same script on the new code and on 0.3.17 (stashed), `fps unlimited`, MEDIUM, 1600x900; no `broken` / exception in the log)
 | run | | fps | render CPU avg | GPU avg | effect resolution |
 | :--- | :--- | :--- | :--- | :--- | :--- |

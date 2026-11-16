@@ -133,6 +133,18 @@ public final class PostRenderer {
     private int lastSkippedCount;
     private int lastParticleCount;
     private int lastCopyCount;
+    private int lastIdleBatches;
+
+    /** Where the last frame's CPU time went, in nanoseconds; see {@link #PHASE_NAMES}. */
+    public static final String[] PHASE_NAMES = {"stride", "particle upload", "particle uniforms", "particle draw",
+            "passes+models+copies", "sweep", "bloom", "composite", "frame setup"};
+    private static final int PH_STRIDE = 0, PH_UPLOAD = 1, PH_UNIFORM = 2, PH_PDRAW = 3, PH_LOOP = 4, PH_SWEEP = 5,
+            PH_BLOOM = 6, PH_POST = 7, PH_SETUP = 8;
+    private final long[] phases = new long[PHASE_NAMES.length];
+
+    public long[] phases() {
+        return phases;
+    }
     /** Every non-ribbon batch draws one slot in this many when the frame wants more slots than the cap (1 = all). */
     private int particleStride = 1;
     private int strideLowFrames;
@@ -216,6 +228,7 @@ public final class PostRenderer {
                 + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "")
                 + (lastParticleCount > 0 ? ", " + lastParticleCount + " particle slot(s)" : "")
                 + ", " + lastCopyCount + " full copy(ies)"
+                + (lastIdleBatches > 0 ? ", " + lastIdleBatches + " empty batch(es) not drawn" : "")
                 + (particleStride > 1 ? ", particles thinned to 1 in " + particleStride : "")
                 + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "")
                 + (tables.count() > 0 ? ", " + tables.count() + " data table(s)" : "")
@@ -269,6 +282,7 @@ public final class PostRenderer {
             mainH = main.height;
         }
         long now = System.nanoTime();
+        java.util.Arrays.fill(phases, 0L);
         guard.capture();
         try {
             int w = main.width;
@@ -317,11 +331,16 @@ public final class PostRenderer {
             boolean otherAll = true;
             int ox0 = 0, oy0 = 0, ox1 = 0, oy1 = 0;
             int copies = 0;
+            int idle = 0;
             GL11.glViewport(0, 0, fxW, fxH);
             boolean bounds = BHFxConfig.PASS_BOUNDS.get();
             int particleBudget = particleCap(quality);
             int particleSlots = 0;
+            long t1 = System.nanoTime();
+            phases[PH_SETUP] = t1 - now;
             updateParticleStride(passes, particleBudget);
+            long t2 = System.nanoTime();
+            phases[PH_STRIDE] = t2 - t1;
             int ribbonDrawn = 0;
             for (int index = 0; index < passes.size(); index++) {
                 PassListImpl.Entry pass = passes.get(index);
@@ -415,6 +434,10 @@ public final class PostRenderer {
                         PassListImpl.Entry e = passes.get(j);
                         ParticleBatch b = e.particles();
                         boolean ribbon = b.facing == FxParticles.Facing.RIBBON;
+                        if (b.live == 0 && !b.closed()) {
+                            idle++; // nothing alive or waiting to be born: no state, no draw call
+                            continue;
+                        }
                         if (b.closed() || shaders.getParticle(e.shader()) == null
                                 || (ribbon && ribbonDrawn + b.live > particleBudget)) {
                             skipped++;
@@ -582,16 +605,23 @@ public final class PostRenderer {
             lastSkippedCount = skipped;
             lastParticleCount = particleSlots;
             lastCopyCount = copies;
+            lastIdleBatches = idle;
+            long t3 = System.nanoTime();
+            phases[PH_LOOP] = t3 - t2 - phases[PH_UPLOAD] - phases[PH_UNIFORM] - phases[PH_PDRAW];
             particles.sweep(now);
             textures.sweep(now);
             tables.sweep(now);
             models.sweep(now);
+            long t4 = System.nanoTime();
+            phases[PH_SWEEP] = t4 - t3;
 
             int bloom = 0;
             if (drawn > 0 && quality.bloom && BHFxConfig.BLOOM.get() && screen.bloomStrength() > 0.001f) {
                 bloom = bloom(input, depth, screen, time);
             }
 
+            long t5 = System.nanoTime();
+            phases[PH_BLOOM] = t5 - t4;
             boolean upscaled = drawn > 0 && (fxW != w || fxH != h);
             if (upscaled && !sceneLowReady) {
                 blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
@@ -608,6 +638,7 @@ public final class PostRenderer {
             if (work) {
                 timer.end();
             }
+            phases[PH_POST] = System.nanoTime() - t5;
 
         } catch (RuntimeException e) {
             disable(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), e);
@@ -949,39 +980,43 @@ public final class PostRenderer {
         if (program == null) {
             return;
         }
+        long p0 = System.nanoTime();
         begin(program, input, depth, fxW, fxH, time);
+        long p1 = System.nanoTime();
         particles.bind(b, program);
-        binder.f3("POrigin", (float) (b.ox - camera.x), (float) (b.oy - camera.y), (float) (b.oz - camera.z));
-        binder.f1("PTime", e.time());
-        binder.f4("PMotion", b.gx, b.gy, b.gz, b.drag);
-        binder.f4("PShape", b.facing.ordinal(), b.stretch, b.pivot, 0f);
-        binder.f4("PMode", b.blend.ordinal(), b.softness, b.distortion, e.presence());
-        binder.f3("POrbit", b.orbitX(), b.orbitY(), b.orbitZ());
-        binder.f3("POrbitAxis", b.oax, b.oay, b.oaz);
-        binder.f3("PRibbonNormal", b.rnx, b.rny, b.rnz);
-        binder.f4("PTurb", b.turbAmp, b.turbFreq, b.turbScale, 0f);
-        binder.f4("PRing", b.capacityValue(), b.filled, strideOf(b), 0f);
+        long p2 = System.nanoTime();
+        phases[PH_UPLOAD] += p2 - p1;
+        program.set3(ShaderProgram.U_POrigin, (float) (b.ox - camera.x), (float) (b.oy - camera.y), (float) (b.oz - camera.z));
+        program.set1(ShaderProgram.U_PTime, e.time());
+        program.set4(ShaderProgram.U_PMotion, b.gx, b.gy, b.gz, b.drag);
+        program.set4(ShaderProgram.U_PShape, b.facing.ordinal(), b.stretch, b.pivot, 0f);
+        program.set4(ShaderProgram.U_PMode, b.blend.ordinal(), b.softness, b.distortion, e.presence());
+        program.set3(ShaderProgram.U_POrbit, b.orbitX(), b.orbitY(), b.orbitZ());
+        program.set3(ShaderProgram.U_POrbitAxis, b.oax, b.oay, b.oaz);
+        program.set3(ShaderProgram.U_PRibbonNormal, b.rnx, b.rny, b.rnz);
+        program.set4(ShaderProgram.U_PTurb, b.turbAmp, b.turbFreq, b.turbScale, 0f);
+        program.set4(ShaderProgram.U_PRing, b.capacityValue(), b.filled, strideOf(b), 0f);
         ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
-        binder.f4("PWindow", runs[0], runs[1], 0f, 0f);
+        program.set4(ShaderProgram.U_PWindow, runs[0], runs[1], 0f, 0f);
         float colourMode = b.colorKeyCount;
         if (b.ramp != null) {
             // binding is what uploads a decoded texture (FxTextures.get); until then the 1x1 fallback is bound unused
             binder.texture("PRamp", b.ramp);
             if (textureReady(b.ramp)) {
-                binder.f2("PRampRange", b.rampFrom, b.rampTo);
+                program.set2(ShaderProgram.U_PRampRange, b.rampFrom, b.rampTo);
                 colourMode = -1f;
             }
         }
-        binder.f4("PCurves", colourMode, b.alphaKeyCount, b.sizeKeyCount, 0f);
+        program.set4(ShaderProgram.U_PCurves, colourMode, b.alphaKeyCount, b.sizeKeyCount, 0f);
         if (b.colorKeyCount > 0) {
             float[] k = b.colorKeys;
-            binder.f3("PColorKey0", k[0], k[1], k[2]);
-            binder.f3("PColorKey1", k[3], k[4], k[5]);
-            binder.f3("PColorKey2", k[6], k[7], k[8]);
-            binder.f3("PColorKey3", k[9], k[10], k[11]);
+            program.set3(ShaderProgram.U_PColorKey0, k[0], k[1], k[2]);
+            program.set3(ShaderProgram.U_PColorKey1, k[3], k[4], k[5]);
+            program.set3(ShaderProgram.U_PColorKey2, k[6], k[7], k[8]);
+            program.set3(ShaderProgram.U_PColorKey3, k[9], k[10], k[11]);
         }
-        binder.f4("PAlphaKeys", b.alphaKeys[0], b.alphaKeys[1], b.alphaKeys[2], b.alphaKeys[3]);
-        binder.f4("PSizeKeys", b.sizeKeys[0], b.sizeKeys[1], b.sizeKeys[2], b.sizeKeys[3]);
+        program.set4(ShaderProgram.U_PAlphaKeys, b.alphaKeys[0], b.alphaKeys[1], b.alphaKeys[2], b.alphaKeys[3]);
+        program.set4(ShaderProgram.U_PSizeKeys, b.sizeKeys[0], b.sizeKeys[1], b.sizeKeys[2], b.sizeKeys[3]);
         try {
             e.setup().accept(binder);
         } catch (RuntimeException ex) {
@@ -991,8 +1026,11 @@ public final class PostRenderer {
             particles.unbind();
             return;
         }
+        long p3 = System.nanoTime();
+        phases[PH_UNIFORM] += (p1 - p0) + (p3 - p2);
         particles.draw(b, instances(b));
         particles.unbind();
+        phases[PH_PDRAW] += System.nanoTime() - p3;
     }
 
     /**
@@ -1090,19 +1128,19 @@ public final class PostRenderer {
     private void begin(ShaderProgram program, int input, int depth, int outW, int outH, float time) {
         GL20.glUseProgram(program.id());
         binder.begin(program);
-        bindUnit(UNIT_INPUT, input, program, "DiffuseSampler");
-        bindUnit(UNIT_SCENE, snapshotTex, program, "SceneSampler");
-        bindUnit(UNIT_DEPTH, depth, program, "DepthSampler");
+        bindUnit(UNIT_INPUT, input, program, ShaderProgram.U_DiffuseSampler);
+        bindUnit(UNIT_SCENE, snapshotTex, program, ShaderProgram.U_SceneSampler);
+        bindUnit(UNIT_DEPTH, depth, program, ShaderProgram.U_DepthSampler);
         // unchanged values are not sent again (ShaderProgram keeps what each program last got)
-        program.setMatrix("InvProj", invProj, matrixBuf);
-        program.setMatrix("InvView", invView, matrixBuf);
-        program.setMatrix("ViewProj", viewProj, matrixBuf);
-        binder.f2("OutSize", outW, outH);
-        binder.f2("ScreenSize", fullW, fullH);
-        binder.f1("GameTime", time);
-        binder.f3("Eye", eye.x, eye.y, eye.z);
-        binder.f4("FogColor", fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
-        binder.f4("FogRange", fogRange[0], fogRange[1], fogRange[2], 0f);
+        program.setMatrix(ShaderProgram.U_InvProj, invProj, matrixBuf);
+        program.setMatrix(ShaderProgram.U_InvView, invView, matrixBuf);
+        program.setMatrix(ShaderProgram.U_ViewProj, viewProj, matrixBuf);
+        program.set2(ShaderProgram.U_OutSize, outW, outH);
+        program.set2(ShaderProgram.U_ScreenSize, fullW, fullH);
+        program.set1(ShaderProgram.U_GameTime, time);
+        program.set3(ShaderProgram.U_Eye, eye.x, eye.y, eye.z);
+        program.set4(ShaderProgram.U_FogColor, fogColor[0], fogColor[1], fogColor[2], fogColor[3]);
+        program.set4(ShaderProgram.U_FogRange, fogRange[0], fogRange[1], fogRange[2], 0f);
     }
 
     /**
@@ -1129,6 +1167,12 @@ public final class PostRenderer {
             return;
         }
         invView.transformPosition(eye.set(eyeClip.x / eyeClip.w, eyeClip.y / eyeClip.w, eyeClip.z / eyeClip.w));
+    }
+
+    private void bindUnit(int unit, int texture, ShaderProgram program, int sampler) {
+        guard.touchUnit(unit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        program.setInt(sampler, unit);
     }
 
     private void bindUnit(int unit, int texture, ShaderProgram program, String sampler) {

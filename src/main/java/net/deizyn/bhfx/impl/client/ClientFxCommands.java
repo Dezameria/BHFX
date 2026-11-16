@@ -195,7 +195,9 @@ final class ClientFxCommands {
             ctx.getSource().sendFailure(Component.literal("bhfx stress: no effects registered"));
             return 0;
         }
-        FxStress plan = new FxStress(ids, mc.player.position(), radius, count, seconds, mc.level.random.nextLong());
+        // the same command gives the same layout every time, so two runs can be compared
+        long seed = 31L * (31L * (31L * count + Double.hashCode(radius)) + seconds) + ids.toString().hashCode();
+        FxStress plan = new FxStress(ids, mc.player.position(), radius, count, seconds, seed);
         StressRun run = new StressRun(plan, ctx.getSource(), mc.level.dimension().location());
         ClientFxManager.resetCounters();
         ctx.getSource().sendSuccess(() -> Component.literal("bhfx stress: " + plan.describe()

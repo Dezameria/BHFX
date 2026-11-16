@@ -35,6 +35,50 @@ final class ShaderProgram {
         }
     }
 
+    /** Uniforms set on every draw, by index: no name lookup ({@link #FAST} holds the names). */
+    static final String[] FAST = {"InvProj", "InvView", "ViewProj", "OutSize", "ScreenSize", "GameTime", "Eye", "FogColor", "FogRange", "DiffuseSampler", "SceneSampler", "DepthSampler", "POrigin", "PTime", "PMotion", "PShape", "PMode", "POrbit", "POrbitAxis", "PRibbonNormal", "PTurb", "PRing", "PWindow", "PRampRange", "PCurves", "PColorKey0", "PColorKey1", "PColorKey2", "PColorKey3", "PAlphaKeys", "PSizeKeys"};
+    static final int U_InvProj = 0;
+    static final int U_InvView = 1;
+    static final int U_ViewProj = 2;
+    static final int U_OutSize = 3;
+    static final int U_ScreenSize = 4;
+    static final int U_GameTime = 5;
+    static final int U_Eye = 6;
+    static final int U_FogColor = 7;
+    static final int U_FogRange = 8;
+    static final int U_DiffuseSampler = 9;
+    static final int U_SceneSampler = 10;
+    static final int U_DepthSampler = 11;
+    static final int U_POrigin = 12;
+    static final int U_PTime = 13;
+    static final int U_PMotion = 14;
+    static final int U_PShape = 15;
+    static final int U_PMode = 16;
+    static final int U_POrbit = 17;
+    static final int U_POrbitAxis = 18;
+    static final int U_PRibbonNormal = 19;
+    static final int U_PTurb = 20;
+    static final int U_PRing = 21;
+    static final int U_PWindow = 22;
+    static final int U_PRampRange = 23;
+    static final int U_PCurves = 24;
+    static final int U_PColorKey0 = 25;
+    static final int U_PColorKey1 = 26;
+    static final int U_PColorKey2 = 27;
+    static final int U_PColorKey3 = 28;
+    static final int U_PAlphaKeys = 29;
+    static final int U_PSizeKeys = 30;
+    private final Slot[] fast = new Slot[FAST.length];
+
+    private Slot fast(int index) {
+        Slot s = fast[index];
+        if (s == null) {
+            s = slot(FAST[index]);
+            fast[index] = s;
+        }
+        return s;
+    }
+
     private final Map<String, Slot> slots = new HashMap<>();
     private final float[] matrixScratch = new float[16];
     private int[] bufferSamplers;
@@ -64,7 +108,14 @@ final class ShaderProgram {
     // The setters below need this program in use. NaN never equals itself, so it is always sent.
 
     void set1(String name, float x) {
-        Slot s = slot(name);
+        set1(slot(name), x);
+    }
+
+    void set1(int index, float x) {
+        set1(fast(index), x);
+    }
+
+    private static void set1(Slot s, float x) {
         if (s.loc >= 0 && !(s.n == 1 && s.x == x)) {
             GL20.glUniform1f(s.loc, x);
             s.n = 1;
@@ -73,7 +124,14 @@ final class ShaderProgram {
     }
 
     void set2(String name, float x, float y) {
-        Slot s = slot(name);
+        set2(slot(name), x, y);
+    }
+
+    void set2(int index, float x, float y) {
+        set2(fast(index), x, y);
+    }
+
+    private static void set2(Slot s, float x, float y) {
         if (s.loc >= 0 && !(s.n == 2 && s.x == x && s.y == y)) {
             GL20.glUniform2f(s.loc, x, y);
             s.n = 2;
@@ -83,7 +141,14 @@ final class ShaderProgram {
     }
 
     void set3(String name, float x, float y, float z) {
-        Slot s = slot(name);
+        set3(slot(name), x, y, z);
+    }
+
+    void set3(int index, float x, float y, float z) {
+        set3(fast(index), x, y, z);
+    }
+
+    private static void set3(Slot s, float x, float y, float z) {
         if (s.loc >= 0 && !(s.n == 3 && s.x == x && s.y == y && s.z == z)) {
             GL20.glUniform3f(s.loc, x, y, z);
             s.n = 3;
@@ -94,7 +159,14 @@ final class ShaderProgram {
     }
 
     void set4(String name, float x, float y, float z, float w) {
-        Slot s = slot(name);
+        set4(slot(name), x, y, z, w);
+    }
+
+    void set4(int index, float x, float y, float z, float w) {
+        set4(fast(index), x, y, z, w);
+    }
+
+    private static void set4(Slot s, float x, float y, float z, float w) {
         if (s.loc >= 0 && !(s.n == 4 && s.x == x && s.y == y && s.z == z && s.w == w)) {
             GL20.glUniform4f(s.loc, x, y, z, w);
             s.n = 4;
@@ -106,7 +178,14 @@ final class ShaderProgram {
     }
 
     void setInt(String name, int v) {
-        Slot s = slot(name);
+        setInt(slot(name), v);
+    }
+
+    void setInt(int index, int v) {
+        setInt(fast(index), v);
+    }
+
+    private static void setInt(Slot s, int v) {
         if (s.loc >= 0 && !(s.n == 5 && s.i == v)) {
             GL20.glUniform1i(s.loc, v);
             s.n = 5;
@@ -115,8 +194,8 @@ final class ShaderProgram {
     }
 
     /** {@code buffer}: scratch for 16 floats. */
-    void setMatrix(String name, Matrix4f matrix, FloatBuffer buffer) {
-        Slot s = slot(name);
+    void setMatrix(int index, Matrix4f matrix, FloatBuffer buffer) {
+        Slot s = fast(index);
         if (s.loc < 0) {
             return;
         }

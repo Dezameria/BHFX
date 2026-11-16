@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Where render CPU goes (0.3.19)
+- bhfx: `PostRenderer` (`phases()`, `PHASE_NAMES`, timing round stride / batch upload / uniforms / draw / loop / sweep / bloom / composite; empty batches skipped, `lastIdleBatches`), `FrameStats` (phase sums, split line), `ClientFxManager.renderFrame` (`lastCollectNanos`, `lastDrew`), `ShaderProgram` (`FAST`, `U_*`, index setters), `ClientFxCommands.stress` (seed from the arguments). 0.3.18 → 0.3.19.
+- result: build + JUnit passed; three runs in game by Claude. The CPU cost is per draw call in the driver; uniforms by index and skipping empty batches measured no gain. Table in [`testing.md`](testing.md). BHSpells untouched.
+- next: stage C1 (`FxLights`). CPU: nothing more unless a real scene needs it (batch merging).
+
+---
+
 ## 2026-11-17 — Stage B: in-place runs, rect copies, uniform cache (0.3.18)
 - bhfx: `PostRenderer.render` (particle / model runs in place when the input is an effect target and no material reads `DiffuseSampler`; a bounded pass copies only the last pass's rect, `otherAll` / `ox0..oy1`; `lastCopyCount` in `/bhfx status`), `ShaderProgram` (`Slot`, `set1`..`set4`, `setInt`, `setMatrix`), `UniformBinder.f1`..`f4`, `PostRenderer.begin` / `bindUnit`. 0.3.17 → 0.3.18.
 - result: build + JUnit passed; in game by Claude (new and old code, same script): same look, no errors, **no measurable gain** (table in [`testing.md`](testing.md)). BHSpells untouched (`libs/` restored).

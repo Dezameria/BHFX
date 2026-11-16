@@ -121,6 +121,8 @@ public final class ClientFxManager {
     private static final Matrix4f VIEW_PROJ = new Matrix4f();
     private static final ShaderWarmup WARMUP = new ShaderWarmup();
     private static final FrameStats STATS = new FrameStats();
+    private static long lastCollectNanos;
+    private static boolean lastDrew;
     private static final FxBench BENCH = new FxBench();
     private static final CameraParamsImpl CAMERA = new CameraParamsImpl();
 
@@ -821,12 +823,16 @@ public final class ClientFxManager {
         BENCH.gpu(gpu);
         long end = System.nanoTime();
         PostRenderer r = renderer;
+        STATS.phaseNames(PostRenderer.PHASE_NAMES);
         STATS.frame(end, end - start, gpu, builtCount(), lastPassCount, r != null ? r.lastParticleCount() : 0,
-                r != null ? r.particleStride() : 1);
+                r != null ? r.particleStride() : 1, lastCollectNanos, r != null && lastDrew ? r.phases() : null);
     }
 
     /** Returns a GPU measurement that finished this frame, or -1. */
     private static double renderFrame(Camera camera, float partial) {
+        long collectStart = System.nanoTime();
+        lastDrew = false;
+        lastCollectNanos = 0L;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         VIEW_PROJ.set(PROJ).mul(VIEW);
@@ -858,6 +864,7 @@ public final class ClientFxManager {
             p.apply(SCREEN, partial);
         }
         frameShake = SCREEN.shakeValue();
+        lastCollectNanos = System.nanoTime() - collectStart;
         if ((PASSES.isEmpty() && SCREEN.imageIdle()) || ShaderpackDetector.blocksPost()) {
             return -1;
         }
@@ -867,7 +874,9 @@ public final class ClientFxManager {
         }
         List<PassListImpl.Entry> draw = PASSES.drawList(BHFxConfig.MAX_PASSES_PER_FRAME.get());
         float time = ((level.getGameTime() % 24000L) + partial) / 20f;
+        lastCollectNanos = System.nanoTime() - collectStart; // with the draw list (sorting, pass cap)
         r.render(draw, SCREEN, PROJ, VIEW, cam, time, effectiveQuality());
+        lastDrew = true;
         lastPassCount = r.lastPassCount();
         lastPostNanos = System.nanoTime();
         checkBudget(r, lastPostNanos);

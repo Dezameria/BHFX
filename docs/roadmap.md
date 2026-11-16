@@ -55,6 +55,9 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     stamp per `ShaderProgram`; set sampler units once after link. `OutSize` stays per draw.
   - [ ] B4. Built-in particle / model uniforms through locations resolved once per program, not about 20 `String` map
     lookups per batch (`ShaderProgram.location`). Only if A1 shows the CPU part matters.
+- [x] 2026-11-17 **B+. Where render CPU goes (0.3.19).** `/bhfx stats` phase split, seeded `/bhfx stress`; result in
+  [`testing.md`](testing.md): the cost is the driver's work per draw call (2–3 µs per batch), not bhfx's own code.
+  Not planned unless a real scene needs it: merging batches of one material across effects into one draw.
 - [ ] **C. New forms that are shared by design (0.3.19–0.3.2x).** A custom pass costs one screen pass per effect and
   only 8 fit a frame (`maxPassesPerFrame`); these collect every effect's items into one built-in pass or reuse the
   particle path, so they stay cheap with many players. All new API, `@ApiStatus.Experimental`, each with a test effect.

@@ -4,7 +4,14 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.18 — unreleased (protocol 3)
+## 0.3.19 — unreleased (protocol 3)
+- **Added**: `/bhfx stats` splits render CPU by phase (effects' frame code, stride, particle upload / uniforms / draw,
+  passes, sweep, bloom, composite, frame setup).
+- **Changed**: `/bhfx stress` with the same arguments lays out the same effects every time (client), so two runs can be
+  compared. Particle batches with nothing alive are not set up or drawn; `/bhfx status` counts them. The uniforms sent
+  on every draw are looked up by index, not by name (internal).
+
+## 0.3.18 — 2026-11-17, built locally, not published (protocol 3)
 - **Changed** (internal, no look change): particle and model runs draw onto the current effect target instead of
   copying it first (when no material in the run reads `DiffuseSampler`); a bounded pass copies only the rect the pass
   before it shaded; a uniform whose value did not change is not sent again. `/bhfx status` shows the full copies of the
