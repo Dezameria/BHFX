@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C3: bolts and beams (0.3.22)
+- bhfx: `FxBolt` (api), `FxParticles.BEAM` + `particle/beam.fsh`, `BoltTestFx` (`bhfx:test_bolt`), `ClientBootstrap`; JUnit `FxBoltTest` (2). 0.3.21 → 0.3.22.
+- result: build + glslang + JUnit passed; shot in game by Claude (night, noon): works. Stress with 71 effects: 0.63 ms GPU, 0.65 ms CPU. Removed the two rows of grass blocks the wall tests had left in the `bhfx/run` test world. BHSpells untouched (`libs/` restored).
+- next: stage D (particle storage pool) or E (opt-in LOD, near-camera fade, half-res stage), or C4 / C5 (mesh particles, model afterimages); the user picks.
+
+---
+
 ## 2026-11-17 — Stage C2: marks on surfaces (0.3.21)
 - bhfx: `FxDecal` + `PassList.decal`, `MAX_DECALS`, `MAX_DECAL_TEXTURES` (api), `PassListImpl` (`DecalCursor`, `decalRaw` → `decals`, `decalsEntry`), `decals.fsh`, `DecalsTestFx` (`bhfx:test_decals`), `textures/fx/magic_circle.png` (drawn by a script), `DevControl` (waits while minimised); JUnit `PassListDecalsTest` (2). 0.3.20 → 0.3.21.
 - result: build + glslang + JUnit passed; shot in game by Claude (noon, night, ground and wall): works. Stress with 71 effects: 0.47 ms GPU. The first in-game run was void (window minimised). BHSpells untouched (`libs/` restored).

@@ -762,6 +762,26 @@ protected void passes(FrameContext frame, PassList out) {
 - Limits: the square's edge is hard unless the texture fades out itself; entities standing on a mark take it too
   (it is the depth buffer); no shader of your own in this path (use `groundDecal` in a pass for that).
 
+### 5.10 Bolts and beams (`FxBolt`, `FxParticles.BEAM`, 0.3.22, Experimental)
+```java
+// constructor
+bolts = createParticles(FxParticles.RIBBON, 1024).facing(FxParticles.Facing.RIBBON).blend(FxParticles.Blend.ADD);
+// tick(), every 2-3 ticks while it lasts: a new shape each time makes it flicker
+FxBolt.between(hand, target).jitter(0.8f).forks(3).width(0.12f).color(0xA0C8FF, 1f).life(0.12f).draw(bolts, random());
+// passes()
+out.particles(bolts);
+```
+- `FxBolt` only spawns ribbon points (main line by midpoint halving, each round 0.55 as far; forks bent 15–45 degrees,
+  0.55 as wide, 0.6 as bright): no renderer of its own, any ribbon material works. Shape comes from the `RandomSource`
+  given, so `random()` keeps clients alike when started together. `points()` = batch slots one draw uses
+  (segments round up to a power of two; each fork has a quarter of them); size the capacity for the bolts alive at
+  once (`points()` × draws per `life`).
+- Beam: `jitter(0)`, `taper(1)`, a long `life`, drawn once, in a batch with material `FxParticles.BEAM`:
+  `u.texture("Sprite", repeatingTexture).f4("BeamUv", repeatsPerBlock, scrollPerSecond, mask, core)`.
+- Add `out.light(...)` at the ends for the flash on the ground (see `BoltTestFx`).
+- Limits: a beam that follows a moving caster must be redrawn (points don't move with the caster); redrawing with
+  overlapping lives adds brightness, so use `life` ≤ the redraw interval for an even beam.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

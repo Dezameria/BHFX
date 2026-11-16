@@ -44,6 +44,12 @@ public interface FxParticles {
     ResourceLocation SPRITE = new ResourceLocation("bhfx", "sprite");
     /** Built-in material: a soft band for {@link Facing#RIBBON}, brighter in the middle. */
     ResourceLocation RIBBON = new ResourceLocation("bhfx", "ribbon");
+    /**
+     * Built-in material: a texture laid along a {@link Facing#RIBBON} strip (beams, energy bands). Bind a repeating
+     * texture as {@code "Sprite"}; optional {@code BeamUv} = (repeats per block, scroll per second, mask 0/1, core
+     * 0..1), see {@code particle/beam.fsh}.
+     */
+    ResourceLocation BEAM = new ResourceLocation("bhfx", "beam");
 
     /** How a particle's quad is turned. */
     enum Facing {

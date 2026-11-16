@@ -65,7 +65,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     and drawn by one pass that lights the world from depth. Spells light the ground and walls round them.
   - [x] 2026-11-17 C2 done as `PassList.decal` / `FxDecal` (0.3.21), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.9). Later if wanted: a soft edge option, a ramp over the mask, more than 8 textures (an atlas). Planned text: `FxDecals`: textured marks on the ground and walls (magic circles, scorch, cracks; rotation, fade, flipbook,
     ramp), all in one pass, built on `groundDecal`. No shader to write for the common case.
-  - [ ] C3. Bolts and beams: a Java builder for lightning / beam polylines (jitter, branches, travel) on the existing
+  - [x] 2026-11-17 C3 done as `FxBolt` and `FxParticles.BEAM` (0.3.22), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.10). Later if wanted: a beam that follows two moving points without redrawing, travel along the bolt (`delay` per point). Planned text: Bolts and beams: a Java builder for lightning / beam polylines (jitter, branches, travel) on the existing
     ribbons, plus the built-in textured-ribbon material from the backlog. No new renderer.
   - [ ] C4. Mesh particles: a particle batch whose pieces are an `FxModel` (shards, debris, blades) moved by the GPU
     particle motion. Uses the particle data buffer with the model draw.

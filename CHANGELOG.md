@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.21 — unreleased (protocol 3)
+## 0.3.22 — unreleased (protocol 3)
+- **Added** (Experimental): `FxBolt`: lightning bolts and beams drawn as ribbons between two points (`segments`,
+  `jitter`, `forks`, `forkLength`, `width`, `taper`, `color`, `life`, `delay`, `draw(batch, random)`); `jitter(0)` is a
+  straight beam. Built-in ribbon material `FxParticles.BEAM` (`bhfx:beam`): a repeating texture along the strip, with
+  scroll, mask and core (`BeamUv`). Test effect `bhfx:test_bolt`.
+
+## 0.3.21 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `PassList.decal(texture, center, size)` returning an `FxDecal` (`rotation`, `color`,
   `glow`, `mask`, `facing`, `depth`, `frame`): textured marks on the ground and on walls. The marks of every effect
   are drawn in one built-in pass (`bhfx:decals`, after the lights, before all other passes), outside

@@ -6,6 +6,18 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Bolts and beams, `bhfx:test_bolt` (2026-11-17, 0.3.22; build + glslang + JUnit `FxBoltTest` (2); in game by Claude through dev control: `/bhfx shoot` at night and at noon)
+- The forked bolt has a different jagged shape in each of the four shots, forks leave the main line and end in the
+  air, it reaches the ground and its light flashes there; the thin arc between two points in the air has no forks;
+  the beam is straight, even in width, with a bright core and the noise texture along it, its orange light on the
+  ground. Reads well both at night and against the day sky.
+- Load: `/bhfx stress 70 32 10 bhfx:test_bolt` (71 effects, about 10.9 k ribbon points drawn, 2 passes): 241 fps,
+  render CPU 0.65 ms, GPU 0.63 ms, no thinning. No `broken` / exception in the log.
+- Not checked: the beam's scroll in motion (stills only), a bolt on a moving caster, bolts under ribbon budget
+  pressure (a ribbon batch over the cap is skipped whole), in BHSpells.
+- World cleanup: the wall tests of the two sections below had left two rows of grass blocks at y -60 (the ground top
+  is y -61) and turned the grass under them to dirt; both put right 2026-11-17 (checked by a top-down shot). For wall tests: build on y -60 and up, and restore with `fill ... grass_block replace dirt` at y -61.
+
 ### ✅ Marks on surfaces, `bhfx:test_decals` (2026-11-17, 0.3.21; build + glslang + JUnit `PassListDecalsTest` (2); in game by Claude through dev control: `/bhfx shoot` at noon and at night, looking north at a stone wall filled in 4 blocks behind the target and removed after)
 - Ground: the big circle grows and turns, the small one turns the other way inside it, lines stay sharp at a low
   angle; the flipbook mark steps through its cells; the paint mark darkens the grass. Wall: the circle sits on the
