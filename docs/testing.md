@@ -14,11 +14,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 5. Together with `test_particles` and `test_data`: particles in front of / behind the swords look right (models draw at the particles' order, as their own group).
 6. Optional: the same in an Fx with a BHSpells model, e.g. `FxModel.geo(bhspells:golden_gate_entity)` with its texture, next to the real entity: the textures should match GeckoLib's.
 
-### ⏳ Posed models, M2 (2026-11-16, build + `BoneRigTest` (7) + glslang only)
+### ⏳ Posed and animated models, M2 + M3 (2026-11-16, build + `BoneRigTest` (7) + `GeoAnimationLoaderTest` (9) + `MolangTest` (4) + glslang; all 15 BHSpells animation files load with no warnings, offline)
 1. `/bhfx test bhfx:test_model`: a fourth sword, furthest right (textured): the blade swings ±35° round the guard and stretches, the gem spins, bobs and vanishes for half a second every 3 s; the other three swords as before (not posed).
 2. Walk round it and close up: the swinging blade is not cut off at the screen edge or culled while visible (bounds grow with the pose); faces stay solid (no inside-out faces), light on the blade changes as it turns.
 3. `/bhfx status` with it running: no GL errors; frame time no different from the three static swords alone.
 4. `bhspells:thousand_swords` still draws the same (instanced, no pose).
+5. The fifth sword (furthest right) plays `test_model.animation.json` "swing" on a 2 s loop: blade eases to one side, swings smoothly through the other and back; the gem spins steadily and jumps up at 1 s, drops back by 2 s; the whole sword swells about 15 % at 1 s. Moving from the first frame (loaded in the constructor), no warnings in `latest.log`.
+6. F3+T while it plays: still animates (the file is read again).
 
 ### ⏳ Travelling waves and ground lookups (2026-11-16, build + `WavesTest` (4) + `FxGroundTest` (3) only)
 1. `/bhfx test bhfx:test_wave at ~ ~ ~30`: flash at once, a bending ring runs out, boom and shake about 0.1 s later (a sharp explosion within 64 blocks).

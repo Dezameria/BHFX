@@ -670,7 +670,21 @@ A Blockbench / GeckoLib `.geo.json` drawn by bhfx itself with a material shader:
   pose is read at draw time (same frame): two poses in one frame need two `FxPose`s. Negative scales turn faces inside
   out. JUnit `BoneRigTest` (7: posing equals re-baking with that rotation, pixel positions, hide, cache, reach holds
   every vertex, parent loops / NaN harmless).
-- **Limits**: no `.animation.json` playback yet (M3); no world shadows, one light value per model; off with
+- **Animations (M3)** (`FxAnimation.of("ns:name")` → `assets/ns/animations/name.animation.json`, `FxAnimation.file(rl)`;
+  `apply(clip, seconds, pose[, weight])`, `load()`, `ready()`, `has`, `length`, `loops`, `done`, `clips`): plays a
+  Blockbench / GeckoLib clip into an `FxPose` (clip by full name or the part after the last dot when unique).
+  `impl/render/GeoAnimationLoader` (pure Java): constants, keyframe maps, `vector` / `pre` + `post`; between keys like
+  Blockbench: `step` holds, `catmullrom` on either end, `bezier` on either end (handles `left` / `left_time` / `right` /
+  `right_time`, plain keys ±0.1 s flat), else the later key's GeckoLib `easing` (linear, step, In / Out / InOut of Sine
+  Quad Cubic Quart Quint Expo Circ Back Elastic Bounce; `easingArgs[0]`). `loop: true` wraps, `false` /
+  `"hold_on_last_frame"` hold the last frame. `impl/render/Molang`: numbers, arithmetic, comparisons, `&& || ! ?:`,
+  `query.anim_time` / `q.anim_time` / `life_time` (the clip's time), `math.pi`, `math.sin / cos` (degrees) `abs floor
+  ceil round trunc sqrt exp ln pow min max clamp lerp mod`; anything else logs one warning and reads 0 (1 for scale).
+  `impl/render/AnimationLibrary`: parsed once on `Util.backgroundExecutor()`, shared, cleared on resource reload
+  (`ClientBootstrap`). Sampling allocates nothing (binary search per channel); 0.17 µs per `apply` for BHSpells'
+  `dafeng_bamboo` "Bloom" (2026-11-16, desktop JVM). All 15 BHSpells `animations/*.json` load with no warnings. JUnit
+  `GeoAnimationLoaderTest` (9), `MolangTest` (4).
+- **Limits**: no world shadows, one light value per model; off with
   the rest of bhfx's drawing (quality OFF, shader pack, GL error), so anything players must see stays an entity.
 - Test effect: `bhfx:test_model` (`impl/client/test/ModelTestFx`, `geo/test_model.geo.json`,
   `textures/fx/test_model.png`): a sword three times, textured / glowing / dissolving; attached, a glowing sword in

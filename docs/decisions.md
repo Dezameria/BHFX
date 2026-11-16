@@ -12,6 +12,16 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
   small but only helps block-looking debris. Half-res stages only save GPU time. Bending the world itself needs
   chunk-renderer mixins that would clash with Sodium-type mods and shader packs, so it is not planned.
 
+## 2026-11-16 — Animations (M3) sampled on the CPU into `FxPose`, Blockbench's interpolation rules
+- **Decision**: `FxAnimation` parses `.animation.json` itself (no GeckoLib) into arrays and writes the sampled values into
+  the same `FxPose` M2 uses; the GPU side is unchanged. Interpolation follows Blockbench (what the artist saw:
+  catmullrom / bezier when either end has it, step holds), easing follows GeckoLib (the later key's). Only a Molang
+  subset, compiled once to a tree. Non-looping clips hold their last frame (effects usually end on a pose, unlike
+  GeckoLib's reset).
+- **Reason**: sampling is tiny next to drawing (0.17 µs per clip apply), so no GPU keyframe textures; one pose path for
+  hand-written and file-driven motion means blending (`weight`) and code overrides mix freely. A full Molang VM is not
+  worth it: none of BHSpells' 15 animation files use Molang at all.
+
 ## 2026-11-16 — Model bones posed on the GPU by uniform matrices (M2), Blockbench numbers
 - **Decision**: `FxPose` (by bone name, Blockbench animation units) → `BoneRig` makes one 3x4 matrix per bone on the
   CPU (posed × rest⁻¹) → a `vec4 MBones[192]` uniform → the vertex shader moves each vertex by its bone. Not an

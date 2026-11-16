@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Animated models (M3): `FxAnimation`
+- bhfx: `api/client/FxAnimation` (new), `impl/render/GeoAnimationLoader` (new: clips, channels, interpolation, easing, bezier), `impl/render/Molang` (new: compiled subset), `impl/render/AnimationLibrary` (new: background load, cache, reload), `ClientBootstrap` (reload listener), `assets/bhfx/animations/test_model.animation.json` (new: "swing", "pop"), `ModelTestFx` (fifth, animated sword); JUnit `GeoAnimationLoaderTest` (9), `MolangTest` (4). Offline: all 15 BHSpells animation files load with no warnings; 0.17 µs per `apply` of `dafeng_bamboo` "Bloom".
+- result: bhfx `gradlew build publishToMavenLocal` passed. Not run in game.
+- next: in-game check ([`testing.md`](testing.md)).
+
+---
+
 ## 2026-11-16 — Posed models (M2): `FxPose`, bones moved on the GPU
 - bhfx: `api/client/FxPose` (new), `PassList.model(..., pose, ...)` / `models(..., pose, ...)` (old overloads now defaults with no pose), `impl/render/BoneRig` (new), `GeoModelLoader.Data` + `boneParents` / `bonePivots` / `boneRotations`, `FxModels.Mesh.rig`, `ModelDraw.pose`, `PostRenderer` (`MBones` / `MBoneCount` upload, cull sphere grown by `BoneRig.reach`), `model/vertex.vsh` (per-bone 3x4), `_header.glsl` (`s.local` note), `ModelTestFx` (fourth, posed sword); JUnit `BoneRigTest` (7). Performance choices in [`decisions.md`](decisions.md).
 - BHSpells: `libs/bhfx-0.3.12.jar` refreshed; `compileJava` passed (no source change).

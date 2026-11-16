@@ -8,6 +8,9 @@ server must use the same one.
 - **Added** (experimental): posed models. `FxPose` turns, moves, scales or hides a model's bones by name, in
   Blockbench's animation numbers, and `PassList.model(..., pose, ...)` / `models(..., pose, ...)` draw it posed. Moved on
   the GPU: no re-bake, no extra draw call, nothing uploaded when nothing moved. Up to 64 bones.
+- **Added** (experimental): `FxAnimation` plays Blockbench / GeckoLib `.animation.json` clips into an `FxPose`
+  (linear, step, smooth, bezier, GeckoLib easings, pre/post keys, a small part of Molang; loops, held ends, blending
+  by weight). Loaded once in the background, re-read on F3+T.
 - **Added**: body parts. `BodyPart` (`HEAD`, `BODY`, `LEFT_/RIGHT_SHOULDER`, `LEFT_/RIGHT_ARM`, `LEFT_/RIGHT_HAND`, `LEFT_/RIGHT_LEG`,
   `LEFT_/RIGHT_FOOT`, `FEET`). `FxSpawn.follow(e, mode).part(BodyPart.RIGHT_HAND)` makes the effect ride on that point
   (`position()` follows the posed model); `FrameContext.part(...)` / `FxContext.part(...)` and

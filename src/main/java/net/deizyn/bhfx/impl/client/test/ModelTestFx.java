@@ -8,6 +8,7 @@ import net.deizyn.bhfx.api.client.FrameContext;
 import net.deizyn.bhfx.api.client.Fx;
 import net.deizyn.bhfx.api.client.FxFrame;
 import net.deizyn.bhfx.api.client.FxInit;
+import net.deizyn.bhfx.api.client.FxAnimation;
 import net.deizyn.bhfx.api.client.FxModel;
 import net.deizyn.bhfx.api.client.FxPose;
 import net.deizyn.bhfx.api.client.PassList;
@@ -20,16 +21,22 @@ import java.util.Optional;
  * side at the target, turning: {@link FxModel#TEXTURED} (left), {@link FxModel#GLOW} (middle, cyan, pulsing) and
  * {@link FxModel#DISSOLVE} (right, burning away and back every 4 s), and a fourth one further right posed by an
  * {@link FxPose} (textured): the blade swings and stretches, the gem spins, bobs and hides for a moment every 3 s.
+ * A fifth, furthest right, plays {@code animations/test_model.animation.json} through {@link FxAnimation} ("swing", a
+ * 2 s loop: eased and smooth blade swings, a Molang-spun gem that jumps up at 1 s, a bezier-breathing root).
  * Attached to an entity, one glowing sword is held in its right hand instead ({@link BodyPart#RIGHT_HAND}).
  */
 public final class ModelTestFx extends Fx {
     private static final FxModel SWORD = FxModel.geo(BHFxMod.id("test_model"))
             .texture(BHFxMod.id("textures/fx/test_model.png"));
 
+    private static final FxAnimation ANIM = FxAnimation.of(BHFxMod.id("test_model"));
+
     private final FxPose pose = new FxPose();
+    private final FxPose played = new FxPose();
 
     public ModelTestFx(FxInit init) {
         super(init);
+        ANIM.load();
     }
 
     @Override
@@ -66,6 +73,9 @@ public final class ModelTestFx extends Fx {
                 .position("gem", 0f, 1.5f * (float) Math.sin(t * 4.0), 0f)
                 .scale("gem", (t % 3f) > 2.5f ? 0f : 1f); // 0 = hidden
         out.model(SWORD, FxFrame.at(base.add(3.2, 0, 0)).turnedY(turn), 1f, pose, FxModel.TEXTURED,
+                u -> u.f4("MColor", 1f, 1f, 1f, fade));
+        ANIM.apply("swing", t, played);
+        out.model(SWORD, FxFrame.at(base.add(4.8, 0, 0)).turnedY(turn), 1f, played, FxModel.TEXTURED,
                 u -> u.f4("MColor", 1f, 1f, 1f, fade));
     }
 }

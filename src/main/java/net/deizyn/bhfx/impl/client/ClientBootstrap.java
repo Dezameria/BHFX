@@ -3,6 +3,7 @@ package net.deizyn.bhfx.impl.client;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.deizyn.bhfx.impl.render.AnimationLibrary;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.world.entity.EntityType;
@@ -105,5 +106,7 @@ public final class ClientBootstrap {
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
         // F3+T: drop compiled shaders so edited .fsh / .glsl files take effect
         event.registerReloadListener((ResourceManagerReloadListener) manager -> ClientFxManager.reloadShaders());
+        // and re-read model animations (FxAnimation)
+        event.registerReloadListener((ResourceManagerReloadListener) manager -> AnimationLibrary.clear());
     }
 }
