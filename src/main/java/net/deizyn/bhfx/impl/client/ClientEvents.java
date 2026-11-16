@@ -93,6 +93,14 @@ public final class ClientEvents {
         }
     }
 
+    /** After the whole frame (world, bhfx, hand, GUI): /bhfx shoot takes its screenshots here. */
+    @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            FxShots.onFrameEnd();
+        }
+    }
+
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
         ClientFxManager.renderHud(event.getGuiGraphics(), event.getPartialTick());
@@ -136,6 +144,7 @@ public final class ClientEvents {
                                         .executes(ctx -> bench(ctx, ResourceLocationArgument.getId(ctx, "fx"),
                                                 IntegerArgumentType.getInteger(ctx, "seconds"))))))
                 .then(ClientFxCommands.test())
+                .then(ClientFxCommands.shoot())
                 .then(ClientFxCommands.stop())
                 .then(ClientFxCommands.stress())
                 .then(Commands.literal("reload").executes(ctx -> {

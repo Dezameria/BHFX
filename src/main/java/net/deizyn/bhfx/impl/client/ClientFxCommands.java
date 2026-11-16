@@ -45,6 +45,36 @@ final class ClientFxCommands {
                 false, ClientFxCommands::play));
     }
 
+    /**
+     * /bhfx shoot &lt;fx&gt; [at &lt;pos&gt; | attach &lt;entities&gt;] [{params, shots:"0.2,0.5,1", gui:true}]: plays the
+     * effect like test, then saves screenshots at those seconds ({@link FxShots}).
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> shoot() {
+        return Commands.literal("shoot").then(FxCommands.play(
+                (ctx, builder) -> SharedSuggestionProvider.suggestResource(ClientFxManager.registeredIds(), builder),
+                false, ClientFxCommands::shoot));
+    }
+
+    private static int shoot(CommandContext<CommandSourceStack> ctx, FxCommands.Shape shape) throws CommandSyntaxException {
+        FxCommandArgs args = FxCommands.args(ctx, shape);
+        int started = play(ctx, shape);
+        if (started <= 0) {
+            return started;
+        }
+        ResourceLocation fx = ResourceLocationArgument.getId(ctx, "fx");
+        try {
+            java.nio.file.Path dir = FxShots.start(fx, args.shots(), args.gui(), ctx.getInput());
+            float[] times = args.shots() != null ? args.shots() : FxShots.DEFAULT;
+            ctx.getSource().sendSuccess(() -> Component.literal("bhfx shoot: " + times.length + " shot(s) up to "
+                    + times[times.length - 1] + " s into screenshots/bhfx/" + dir.getFileName()
+                    + (args.gui() ? "" : " (GUI hidden until done)") + ". Keep the camera still."), false);
+        } catch (java.io.IOException ex) {
+            ctx.getSource().sendFailure(Component.literal("bhfx shoot: " + ex.getMessage()));
+            return 0;
+        }
+        return started;
+    }
+
     static LiteralArgumentBuilder<CommandSourceStack> stop() {
         return FxCommands.stop(STARTED, ClientFxCommands::stop);
     }
@@ -52,6 +82,7 @@ final class ClientFxCommands {
     static void clear() {
         STARTED.clear();
         STRESS.clear();
+        FxShots.clear();
     }
 
     // ------------------------------------------------------------------ stress

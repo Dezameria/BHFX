@@ -6,6 +6,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ⏳ `/bhfx shoot` (2026-11-16, build + `FxCommandArgsShotsTest` (3) only)
+1. `/bhfx shoot bhfx:test_model at ^ ^ ^6`: chat says 8 shots into `screenshots/bhfx/bhfx_test_model_<date-time>`; the hotbar and hand vanish for about 3 s, then come back with a clickable "bhfx shoot: 8 of 8 shot(s) in ..." line.
+2. That folder (in `BHSpells/run/screenshots/bhfx/`): `01_t0.10s.png` .. `08_t3.00s.png`, the swords visible, no GUI; `shots.txt` with the command, camera, window, bhfx status and each shot's requested and taken time (taken within a frame of requested); `latest.txt` names the folder.
+3. `/bhfx shoot bhspells:thousand_swords at ^ ^ ^12 {shots:"0.5,1.7,2.0,2.4,3", gui:true}`: 5 shots with the GUI showing.
+4. Press Esc during a run: shots wait while paused, the count still completes after.
+5. Change dimension mid-run: "stopped: the world changed", GUI back.
+
 ### ✅ Models drawn by bhfx (2026-11-16, build + 8 `GeoModelLoaderTest` cases + glslang; all 17 BHSpells `.geo.json` baked offline without errors)
 **Passed in game 2026-11-16** (the user ran the checklist and reported "passed"; no item-by-item notes).
 1. `/bhfx test bhfx:test_model at ^ ^ ^5`: three swords about 1.7 blocks tall, turning: left as painted (brown grip, gold guard, steel blade, red gem), middle a pulsing cyan glow, right burning away from orange edges and coming back every 4 s. Textures sit right (no stretched or swapped faces), no holes, no inside faces showing.

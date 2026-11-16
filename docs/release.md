@@ -18,7 +18,7 @@ glslang is found automatically in `ironspell_more/tools/glslang` (see [`shaders.
 | bhfx | `bhfx/build/libs/bhfx-<version>.jar` (not the `-sources.jar`) |
 | BHSpells | `BHSpells/build/libs/bhspells-1.20.1-<version>-forge.jar` (not the `-sources.jar`) |
 
-Release jars are production builds. They include the player commands `/bhfx on|off|stats|status|bench|reload|test|stop` and the op-2 server command `/bhfx_play`.
+Release jars are production builds. They include the player commands `/bhfx on|off|stats|status|bench|shoot|reload|test|stop` and the op-2 server command `/bhfx_play`.
 
 Version steps: raise the patch version (`gradle.properties` `mod_version`) with each finished batch of features, not
 only at release (the user's rule, 2026-11-16), so a rebuilt jar never hides behind ForgeGradle's cached copy of the same

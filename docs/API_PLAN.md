@@ -981,6 +981,7 @@ Benefit: **no need to write every effect twice**. Removing bhfx only loses the a
 | A line in F3 | `bhfx: 3 fx, 4 pass, 2.1 ms GPU, 78% res, 72 MB` | 0.2 |
 | `/bhfx stats` | Average/max GPU and CPU time per frame, VRAM, Fx/pass counts over the last 10 seconds | 0.3 |
 | `/bhfx bench [fx] [seconds]` | Plays the chosen Fx repeatedly while toggling bhfx drawing, then reports average frame time, the worst 1% and the difference | 0.3 |
+| `/bhfx shoot <fx> [at|attach] [{shots:"0.2,0.5,1", gui:true}]` | Plays the Fx and saves screenshots at those seconds (game clock, one per frame, GUI hidden unless `gui:true`) into `screenshots/bhfx/<fx>_<date-time>/` + `shots.txt`; `latest.txt` names the newest. For tuning effects from pictures (Claude reads them) | 0.3.14 |
 | `/bhfx off` / `/bhfx on` | Toggle while playing to compare by eye | 0.1 |
 | `/bhfx reload` | Reload shaders | 0.1 |
 

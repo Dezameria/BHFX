@@ -4,7 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.13 — unreleased (protocol 3)
+## 0.3.14 — unreleased (protocol 3)
+- **Added**: `/bhfx shoot <fx> [at | attach] [{params, shots:"0.2,0.5,1", gui:true}]` plays an effect and saves
+  screenshots at those seconds after it starts (on the game clock) into `screenshots/bhfx/<fx>_<date-time>/`, with a
+  `shots.txt` of the command, camera and times. The GUI is hidden while it shoots unless `gui:true`.
+
+## 0.3.13 — 2026-11-16, built locally, not published (protocol 3)
 - **Added** (experimental): posed models. `FxPose` turns, moves, scales or hides a model's bones by name, in
   Blockbench's animation numbers, and `PassList.model(..., pose, ...)` / `models(..., pose, ...)` draw it posed. Moved on
   the GPU: no re-bake, no extra draw call, nothing uploaded when nothing moved. Up to 64 bones.

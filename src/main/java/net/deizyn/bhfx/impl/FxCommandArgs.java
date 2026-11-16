@@ -25,12 +25,18 @@ import java.util.regex.Pattern;
  * The {@code {...}} of /bhfx test and /bhfx_play fx, as SNBT. Five names are options of the command itself and never
  * reach the effect: {@code hold:true} (play until stopped), {@code duration:N} (seconds), {@code range:N} (broadcast radius,
  * /bhfx_play only), {@code name:a} (a label for {@code stop name a}; several effects may share one) and
- * {@code part:right_hand} (with {@code attach}: ride on that body part, see {@link BodyPart}). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
+ * {@code part:right_hand} (with {@code attach}: ride on that body part, see {@link BodyPart}); and, read by /bhfx shoot
+ * only, {@code shots:[0.2d,0.5d,1d]} or {@code shots:"0.2,0.5,1"} (seconds after the start) and {@code gui:true} (keep
+ * the hotbar, hand and HUD in the shots). Everything else becomes an effect param: {@code true}/{@code false} → bool, whole numbers → int,
  * decimals → float (an int also fills a float key), {@code "#RRGGBB"} → colour.
  */
 public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double range, @Nullable String name,
-                            @Nullable BodyPart part) {
-    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null, null);
+                            @Nullable BodyPart part, @Nullable float[] shots, boolean gui) {
+    public static final FxCommandArgs NONE = new FxCommandArgs(FxParams.EMPTY, FxSpawn.DEFAULT_DURATION, null, null, null,
+            null, false);
+    /** Most shots one /bhfx shoot takes; latest second a shot may be at. */
+    public static final int MAX_SHOTS = 32;
+    public static final float MAX_SHOT_SECONDS = 600f;
 
     /** What stop name accepts (brigadier's unquoted word). */
     private static final Pattern LABEL = Pattern.compile("[0-9A-Za-z_.+-]{1,32}");
@@ -49,6 +55,8 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         Double range = null;
         String label = null;
         BodyPart part = null;
+        float[] shots = null;
+        boolean gui = false;
         int count = 0;
         for (String name : tag.getAllKeys()) {
             Tag value = tag.get(name);
@@ -76,6 +84,8 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
                     }
                     label = s.getAsString();
                 }
+                case "shots" -> shots = shots(value);
+                case "gui" -> gui = bool(name, value);
                 case "part" -> {
                     part = value instanceof StringTag s ? BodyPart.byId(s.getAsString()) : null;
                     if (part == null) {
@@ -98,7 +108,48 @@ public record FxCommandArgs(FxParams params, int durationTicks, @Nullable Double
         }
         int ticks = hold ? FxSpawn.UNTIL_STOPPED
                 : duration != null ? Math.max(1, Math.round(duration * 20f)) : FxSpawn.DEFAULT_DURATION;
-        return new FxCommandArgs(params.build(), ticks, range, label, part);
+        return new FxCommandArgs(params.build(), ticks, range, label, part, shots, gui);
+    }
+
+    /** Seconds from a list of numbers or a "0.2,0.5,1" string: sorted, 1..MAX_SHOTS of them, each 0..MAX_SHOT_SECONDS. */
+    static float[] shots(Tag value) throws CommandSyntaxException {
+        java.util.List<Float> out = new java.util.ArrayList<>();
+        if (value instanceof net.minecraft.nbt.CollectionTag<?> list) {
+            for (Object t : list) {
+                if (!(t instanceof net.minecraft.nbt.NumericTag n)) {
+                    throw BAD.create("shots must be numbers of seconds, e.g. {shots:[0.2d,0.5d,1d]} or {shots:\"0.2,0.5,1\"}");
+                }
+                out.add(n.getAsFloat());
+            }
+        } else if (value instanceof StringTag s) {
+            for (String part : s.getAsString().split("[,\\s]+")) {
+                if (part.isEmpty()) {
+                    continue;
+                }
+                try {
+                    out.add(Float.parseFloat(part));
+                } catch (NumberFormatException ex) {
+                    throw BAD.create("shots: '" + part + "' is not a number of seconds");
+                }
+            }
+        } else if (value instanceof net.minecraft.nbt.NumericTag n) {
+            out.add(n.getAsFloat());
+        } else {
+            throw BAD.create("shots must be a list of seconds, e.g. {shots:\"0.2,0.5,1\"}");
+        }
+        if (out.isEmpty() || out.size() > MAX_SHOTS) {
+            throw BAD.create("shots takes 1 to " + MAX_SHOTS + " times");
+        }
+        float[] times = new float[out.size()];
+        for (int i = 0; i < times.length; i++) {
+            float t = out.get(i);
+            if (!(t >= 0f) || t > MAX_SHOT_SECONDS) {
+                throw BAD.create("shot times must be 0 to " + (int) MAX_SHOT_SECONDS + " seconds");
+            }
+            times[i] = t;
+        }
+        java.util.Arrays.sort(times);
+        return times;
     }
 
     public FxSpawn apply(FxSpawn spawn) {

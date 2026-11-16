@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — `/bhfx shoot`, version 0.3.14; model LOD not needed
+- Bench by the user: `bhspells:thousand_swords` bhfx GPU 1.12–1.16 ms avg, +0.00–0.02 ms per frame at 137 fps (two runs, 20 s). Under the 1.5 ms bar, so no model LOD.
+- bhfx: `impl/client/FxShots` (new), `ClientFxCommands.shoot`, `ClientEvents` (`shoot` registered, `RenderTickEvent` END hook), `FxCommandArgs` (`shots`, `gui` reserved keys); JUnit `FxCommandArgsShotsTest` (3). README / API_PLAN command tables, `release.md`. 0.3.13 → 0.3.14 (BHSpells `build.gradle` too; `mods.toml` unchanged).
+- result: build passed. Not run in game.
+
+---
+
 ## 2026-11-16 — runClient crash: test animation unreadable by GeckoLib
 - bhfx: `assets/bhfx/animations/test_model.animation.json` (`"2.0": 1` → `[1, 1, 1]`), `GeoAnimationLoader` (warns on one-number keyframes), `GeoAnimationLoaderTest` (10). Details in [`bugs.md`](bugs.md).
 - result: build passed; BHSpells runClient then loaded to the title screen and into a world (22:29), `bhfx warmed up 104 shader(s)`, no `broken`, no bhfx errors; the only `GL ERROR`s were `65539: Invalid key 0` (typing commands). The user started `bhfx:test_model` and `bhspells:thousand_swords`; how they look is not reported yet.

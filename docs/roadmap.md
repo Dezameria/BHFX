@@ -45,7 +45,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
   glslang); left: in-game check. Next, when wanted: model LOD, per-copy poses for instances, M4 distortion.
 - [ ] Travelling waves (`soundWave`, `shakeWave`, `waveDelay`) and `FxGround` (surface + paced batch), from the
   orbital-laser review (items 2 and 3): code done 2026-11-16 (build + JUnit); left: [`testing.md`](testing.md). Next from
-  that review, when wanted (shadows dropped 2026-11-16, see [`decisions.md`](decisions.md)): `/bhfx shoot` timed screenshots, per-stream seeded
+  that review, when wanted (shadows dropped 2026-11-16, see [`decisions.md`](decisions.md); `/bhfx shoot` done 2026-11-16, 0.3.14; model LOD not needed: `thousand_swords` 1.1 ms GPU): per-stream seeded
   random (`FxRandom`) for server/visual sync, half-res stages, model smear (motion blur).
 - [ ] Named points / GeckoLib bones (`BHFxClient.point`, `reportPoint`, `bhfx:test_points`; BHSpells `GeckoBhfxPoints`):
   code done 2026-11-16 (bhfx build + BHSpells `compileJava`); left: the in-game checklist in [`testing.md`](testing.md),
