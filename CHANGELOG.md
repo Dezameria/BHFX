@@ -33,6 +33,11 @@ server must use the same one.
   own `shaders/bhfx/model/<name>.fsh`. No entity, nothing sent over the network. Static for now (rest pose). Test effect
   `bhfx:test_model`. `PassList.models(model, instances, count, ...)` draws thousands of copies in one draw, each placed
   by `FxData.setInstance` with four values of its own for the material (`s.instance`).
+- **Added** (experimental): travelling waves. `ctx.soundWave(...)` and `ctx.shakeWave(...)` arrive when their wave
+  reaches the player (distance / 343 blocks a second), so far players see the flash first and hear and feel it after;
+  a near / mid / far choice of sounds by distance; `ctx.waveDelay(at)`. Test effect `bhfx:test_wave`.
+- **Added** (experimental): `FxGround`: ground height from the client's blocks (`surface`), and `batch` to look up many
+  points a few at a time within a time budget.
 - **Fixed**: after a particle material's setup bound a texture, the particle ring's buffer texture was unbound from the
   wrong texture unit (harmless so far; now unbound from its own unit, and every buffer-texture unit is cleared when bhfx
   hands the GL state back).

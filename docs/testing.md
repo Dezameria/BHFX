@@ -14,6 +14,12 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 5. Together with `test_particles` and `test_data`: particles in front of / behind the swords look right (models draw at the particles' order, as their own group).
 6. Optional: the same in an Fx with a BHSpells model, e.g. `FxModel.geo(bhspells:golden_gate_entity)` with its texture, next to the real entity: the textures should match GeckoLib's.
 
+### ⏳ Travelling waves and ground lookups (2026-11-16, build + `WavesTest` (4) + `FxGroundTest` (3) only)
+1. `/bhfx test bhfx:test_wave at ~ ~ ~30`: flash at once, a bending ring runs out, boom and shake about 0.1 s later (a sharp explosion within 64 blocks).
+2. Fly about 150 blocks away (`at ~150 ~ ~`): the flash, then thunder and shake about 0.45 s later, as the ring passes you; at about 400 blocks, about 1.2 s and low thunder. Volumes far off may be faint (Minecraft's sound range).
+3. Quit or change dimension while a shake is on its way: nothing fires later in the new world.
+4. `bhspells:thousand_swords` round 3 (uses both): no stall at the start (ground looked up over the first ticks); swords strike the surface on a hill and in a dip; impact sounds and shakes come later the further away you are.
+
 ### ⏳ Named points and GeckoLib bones (2026-11-16, bhfx `build` + BHSpells `compileJava` only; no JUnit: needs a live world)
 Run in the BHSpells dev client (BHSpells reports GeckoLib bones, `compat/bhfx/client/GeckoBhfxPoints`).
 1. Before anything: cast a few BHSpells spells with GeckoLib visuals (e.g. Flames Eagle, Aqua Flower, Eternal Purification) without any bhfx test running: they look and animate exactly as before, no log warnings ("reporting GeckoLib bones to bhfx failed" must not appear).

@@ -646,12 +646,14 @@ public final class ClientFxManager {
     static void tick(Minecraft mc) {
         rollStartCounters();
         clientTicks++;
+        Waves.tick();
         ClientLevel level = mc.level;
         if (level != lastLevel) {
             // respawn / dimension change / disconnect: the server re-sends what is still playing
             clear();
             BodyParts.clear();
             EntityPoints.clear();
+            Waves.clear();
             BENCH.cancel();
             if (lastLevel == null && level != null) {
                 scheduleWarmup(); // joined a world

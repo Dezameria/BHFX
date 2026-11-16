@@ -3,6 +3,8 @@ package net.deizyn.bhfx.api.client;
 import net.deizyn.bhfx.api.BodyPart;
 import net.deizyn.bhfx.impl.client.BodyParts;
 import net.deizyn.bhfx.impl.client.EntityPoints;
+import net.deizyn.bhfx.impl.client.Waves;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import org.joml.Matrix4f;
@@ -55,6 +57,36 @@ public final class BHFxClient {
     /** Camera shake on this client, 0..1, fading with the camera's distance from {@code source} out to {@code range}. */
     public static void shake(Vec3 source, float amount, double range) {
         ClientFxManager.shake(source, amount, range);
+    }
+
+    /** {@link FxContext#soundWave(SoundEvent, Vec3, float, float, float)} outside an effect. */
+    @ApiStatus.Experimental
+    public static void soundWave(SoundEvent sound, Vec3 at, float volume, float pitch, float speed) {
+        Waves.sound(sound, at, volume, pitch, speed);
+    }
+
+    /** {@link FxContext#soundWave(SoundEvent, SoundEvent, SoundEvent, double, double, Vec3, float, float)} outside an effect. */
+    @ApiStatus.Experimental
+    public static void soundWave(SoundEvent near, SoundEvent mid, SoundEvent far, double midFrom, double farFrom,
+                                 Vec3 at, float volume, float pitch) {
+        if (at == null) {
+            return;
+        }
+        double d = Waves.delayToCamera(at, 1f); // distance, at 1 block per second
+        SoundEvent pick = d < midFrom ? near : d < farFrom ? mid : far;
+        Waves.sound(pick != null ? pick : near, at, volume, pitch, Waves.SPEED_OF_SOUND);
+    }
+
+    /** {@link FxContext#shakeWave(Vec3, float, double, float)} outside an effect. */
+    @ApiStatus.Experimental
+    public static void shakeWave(Vec3 source, float amount, double range, float speed) {
+        Waves.shake(source, amount, range, speed);
+    }
+
+    /** Seconds a wave from {@code at} takes to reach the camera at {@code speed} blocks per second. */
+    @ApiStatus.Experimental
+    public static double waveDelay(Vec3 at, float speed) {
+        return Waves.delayToCamera(at, speed);
     }
 
     /** The player's effect settings (quality after any automatic downgrade, comfort options). */

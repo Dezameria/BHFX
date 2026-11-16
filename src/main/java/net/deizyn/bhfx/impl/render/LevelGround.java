@@ -10,7 +10,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** {@link net.deizyn.bhfx.api.client.FxEmitter.Shape#onGround} against the client world. Render thread. */
-final class LevelGround {
+public final class LevelGround {
     private static final BlockPos.MutableBlockPos POS = new BlockPos.MutableBlockPos();
 
     private LevelGround() {
@@ -21,7 +21,7 @@ final class LevelGround {
      * the top of the column it is in (searching up); otherwise the top of the first block or fluid below it. NaN when none is within
      * {@code search} blocks, or no world.
      */
-    static double surface(double x, double y, double z, double search) {
+    public static double surface(double x, double y, double z, double search) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) {
             return Double.NaN;

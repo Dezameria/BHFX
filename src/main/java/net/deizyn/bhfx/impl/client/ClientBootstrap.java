@@ -24,6 +24,7 @@ import net.deizyn.bhfx.impl.client.test.DataTestFx;
 import net.deizyn.bhfx.impl.client.test.ModelTestFx;
 import net.deizyn.bhfx.impl.client.test.PointsTestFx;
 import net.deizyn.bhfx.impl.client.test.SdfTestFx;
+import net.deizyn.bhfx.impl.client.test.WaveTestFx;
 import net.deizyn.bhfx.impl.client.test.SwirlTestFx;
 import net.deizyn.bhfx.impl.client.test.VortexTestFx;
 import net.deizyn.bhfx.impl.client.test.TestFx;
@@ -59,6 +60,7 @@ public final class ClientBootstrap {
             ClientFxManager.register(BHFxMod.id("test_sdf"), SdfTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_points"), PointsTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_model"), ModelTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_wave"), WaveTestFx::new);
             ModLoader.get().postEvent(new RegisterFxEvent());
         });
     }

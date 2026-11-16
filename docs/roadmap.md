@@ -41,6 +41,10 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
   2026-11-16 in 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md). Next steps
   ([`decisions.md`](decisions.md) 2026-11-16): M2 bones from Java (skinning), M3 `.animation.json` playback, M4
   distortion. Instancing (`PassList.models`) done 2026-11-16 for BHSpells `thousand_swords`.
+- [ ] Travelling waves (`soundWave`, `shakeWave`, `waveDelay`) and `FxGround` (surface + paced batch), from the
+  orbital-laser review (items 2 and 3): code done 2026-11-16 (build + JUnit); left: [`testing.md`](testing.md). Next from
+  that review, when wanted: `SunDir` uniform + SDF ground shadows, `/bhfx shoot` timed screenshots, per-stream seeded
+  random (`FxRandom`) for server/visual sync, half-res stages, model smear (motion blur).
 - [ ] Named points / GeckoLib bones (`BHFxClient.point`, `reportPoint`, `bhfx:test_points`; BHSpells `GeckoBhfxPoints`):
   code done 2026-11-16 (bhfx build + BHSpells `compileJava`); left: the in-game checklist in [`testing.md`](testing.md),
   then a spell whose effect rides a bone of its GeckoLib model. Later if wanted: GeckoLib armour / item / replaced

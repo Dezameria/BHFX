@@ -316,6 +316,24 @@ public interface FrameContext {
 
 **Body parts (0.3.12).** `BodyPose(position, forward, up, right, exact)` in world space; `local(x, y, z)` offsets in the part's frame. `exact` is false for estimates (entity not drawn, first person, models without humanoid parts). The first ask about an entity may be an estimate; bhfx captures it from the next frame. `BHFxClient.bodyPart(entity, part, partial)` is the same outside an Fx. Renderers that replace the vanilla model call `BHFxClient.wantsBodyParts(entity)` / `reportBodyPart(entity, part, poseOnStack)` (Experimental) from inside the entity render. Why: [`decisions.md`](decisions.md) 2026-11-13.
 
+**Travelling waves (0.3.12, Experimental).** `FxContext.soundWave(sound, at, volume, pitch[, speed])`,
+`soundWave(near, mid, far, midFrom, farFrom, at, volume, pitch)` (picks by this player's distance),
+`shakeWave(source, amount, range[, speed])`, `waveDelay(at)` (seconds until the wave reaches the camera; time other
+things with it), `FxContext.SPEED_OF_SOUND` = 343 blocks/s; `BHFxClient.soundWave` / `shakeWave` / `waveDelay` outside
+an effect. The delay is `distance to the camera / speed`, worked out when called, rounded to ticks: sounds go through
+Minecraft's `SoundManager.playDelayed`, shakes wait in `impl/client/Waves` (at most 256, fired on the client tick they
+arrive, cleared with the world). Light (flashes, passes) stays instant, so a far player sees the flash first. Test
+effect `bhfx:test_wave`. Idea from `../orbital-laser` (its booms, dust fronts and knockback arrive at
+`impact + distance / 343`).
+
+**Ground lookups (0.3.12, Experimental).** `FxGround.surface(x, y, z, search)`: the nearest surface on this client's
+blocks (`impl/render/LevelGround`, the lookup `Shape.onGround` uses: collision-shape top or fluid surface, leaves count;
+inside a block it climbs, else it looks down; NaN when none within `search`). `FxGround.batch(capacity, search)`:
+points `add`ed and resolved in order by `update(maxMillis)` (at least one per call) or `finish()`; `resolvedCount`,
+`resolved(i)`, `surface(i)`, `surfaceOr(i, fallback)`. Use it instead of heightmaps: the client only has the
+`WORLD_SURFACE` and `MOTION_BLOCKING` ones (BHSpells `thousand_swords` round 1 put swords under the floor with
+`MOTION_BLOCKING_NO_LEAVES`). JUnit `FxGroundTest` (fake probe and clock).
+
 **Named points (0.3.12, Experimental).** Any point a renderer names on an entity: a GeckoLib bone, a weapon's tip.
 `frame.point("name")` (followed entity), `frame.point(entity, "name")`, `frame.points()` (all, by name),
 `BHFxClient.point(entity, name)` / `points(entity)` outside an Fx: `Optional<BodyPose>`, never estimated, empty when

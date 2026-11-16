@@ -11,6 +11,14 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Travelling waves and `FxGround` (orbital-laser review items 2 and 3)
+- Checkpoint commits first: bhfx `b6d64ba` (all 0.3.12 work so far), BHSpells `8da5b49` (thousand_swords, GeckoLib points).
+- bhfx: `impl/client/Waves` (new: delay = distance / speed, sounds via `SoundManager.playDelayed`, shakes queued per client tick, bounded `Schedule`), `FxContext.soundWave` (×3, defaults) / `shakeWave` (×2) / `waveDelay` / `SPEED_OF_SOUND`, `BHFxClient.soundWave` / `shakeWave` / `waveDelay`, `ClientFxManager.tick` (fires and clears waves); `api/client/FxGround` (new: `surface`, `Batch`), `impl/render/LevelGround` made public; test effect `impl/client/test/WaveTestFx` (`bhfx:test_wave`); JUnit `WavesTest` (4), `FxGroundTest` (3).
+- BHSpells `ThousandSwordsFx` round 3: ground through `FxGround` (base at once, strike points 0.5 ms per tick, the rest just before the first volley; its own block scan removed, so leaves now count as ground like everywhere in bhfx), launch / impact sounds and shakes as waves (near trident, mid explosion, far thunder).
+- result: bhfx `gradlew build` passed, published + copied; BHSpells `compileJava` passed. Not run in game.
+
+---
+
 ## 2026-11-16 — Game crash during `thousand_swords`: NVIDIA driver, hardening
 - User: the game crashed. `latest.log` just stops after a 9.5 s stall; no crash report. Windows event log: `java.exe` access violation in `nvoglv64.dll` at 19:08:20 plus LiveKernelEvents, 0.3 s after the model's re-upload (details and hypotheses in [`bugs.md`](bugs.md), Open).
 - bhfx: `GlStateGuard` (array / texture-buffer / renderbuffer bindings saved and restored), `FxModels.finish` (restores the previous VAO), `model/vertex.vsh` (broken instances draw nothing).
