@@ -6,6 +6,19 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Models as particles, `bhfx:test_debris` (2026-11-17, 0.3.24; build + glslang + JUnit (no new test: `modelParticles` needs a client); in game by Claude through dev control at noon)
+- Shots at 0.3 / 0.8 / 1.4 / 2.0 s: 48 textured swords leave the ground as a tight bunch, spread and rise each in its
+  own pose, turn between shots, come down again and are gone at 2 s (below the ground, size curve at 0); 24 glowing
+  swords fly out in an even ring that widens and slows, all turned the same way to their flight and fading out.
+  Pieces in front hide pieces behind.
+- Old paths still right: `bhfx:test_model` shot again (five swords: textured, glow, dissolve, posed, animated).
+- Load: `/bhfx stress 70 32 10 bhfx:test_debris` (70 effects, 140 batches, one model run): 346 fps, render CPU
+  0.50 ms, GPU 0.82 ms. No `broken` / exception in the log.
+- Seen: with `VELOCITY` the model's +z leads, so the test sword (blade along y) flies side-on; by design, a model
+  for this is built pointing along +z.
+- Not checked: orbit and pull on pieces, a pose on pieces, pieces under budget thinning, light away from the batch
+  origin, `VELOCITY` at zero speed, in BHSpells.
+
 ### ✅ Half-resolution layers, `bhfx:test_volume` / `test_volume_full` (2026-11-17, 0.3.23; build + glslang + JUnit `PassOptionsTest` (1); in game by Claude through dev control, at dusk, `fps unlimited`, MEDIUM, 1600x900, effect resolution 100 % in both runs)
 - Look: the mist ball drawn as a half-resolution layer and as an ordinary pass look the same (shots of both at 1 s
   and 2.5 s); no blocky edge where it meets the grass; the house behind it stays sharp.

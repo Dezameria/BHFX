@@ -25,7 +25,7 @@ void main() {
     s.instance = mInstance;
     s.index = mIndex;
     // the material runs before any discard: texture() needs implicit derivatives (see docs/shaders.md)
-    vec4 c = material(s);
+    vec4 c = material(s) * mTint;
     float a = clamp(c.a, 0.0, 1.0) * MMode.z;
     // instanced copies are drawn without culling: keep only each copy's outward faces (a mirrored copy flips them)
     bool back = MInstanced > 0.5 && (gl_FrontFacing != (mDet > 0.0));

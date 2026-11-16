@@ -366,10 +366,14 @@ public final class PostRenderer {
                         }
                         ScreenRect r = e.radius() > 0
                                 ? ScreenRect.ofSphere(viewProj, e.bx(), e.by(), e.bz(), e.radius(), rectScratch)
+                                : e.model().pieces() != null ? piecesRect(e.model(), mesh)
                                 : e.model().instances() != null ? ScreenRect.FULL : modelRect(e.model(), mesh);
                         if (r.empty()) {
                             skipped++;
                             continue;
+                        }
+                        if (e.model().pieces() != null) {
+                            particleSlots += instances(e.model().pieces()); // pieces are particle slots too
                         }
                         modelGroup.add(e);
                     }
@@ -431,7 +435,7 @@ public final class PostRenderer {
                 if (pass.particles() != null) {
                     // a run of particle batches shares one copy of the input
                     int end = index + 1;
-                    while (end < passes.size() && passes.get(end).particles() != null) {
+                    while (end < passes.size() && passes.get(end).particles() != null && passes.get(end).model() == null) {
                         end++;
                     }
                     particleGroup.clear();
@@ -882,6 +886,20 @@ public final class PostRenderer {
         return upTex[0];
     }
 
+    /** Screen rect of every piece of a particle-driven model: the batch's own sphere grown by the model's size. */
+    private ScreenRect piecesRect(ModelDraw md, FxModels.Mesh mesh) {
+        ParticleBatch b = md.pieces();
+        float[] lo = mesh.min();
+        float[] hi = mesh.max();
+        float reach = 0f;
+        for (int i = 0; i < 3; i++) {
+            reach = Math.max(reach, Math.max(Math.abs(lo[i]), Math.abs(hi[i])));
+        }
+        // sizes scale the model: the cull radius already holds each particle's size once, so this over-covers a little
+        double r = b.cullRadius() * (1.0 + reach * 1.75 * md.scale());
+        return ScreenRect.ofSphere(viewProj, b.ox - camera.x, b.oy - camera.y, b.oz - camera.z, r, rectScratch);
+    }
+
     /** Screen rect of a model's bounds as placed (no bounds were given). */
     private ScreenRect modelRect(ModelDraw md, FxModels.Mesh mesh) {
         float[] a = md.axes();
@@ -926,8 +944,25 @@ public final class PostRenderer {
         binder.f4("MParams", 0f, 0f, 0f, 0f);
         binder.f4("MMode", 0f, md.light(), e.presence(), 0f);
         binder.f3("MOrigin", md.ox(), md.oy(), md.oz());
-        boolean instanced = md.instances() != null;
-        binder.f1("MInstanced", instanced ? 1f : 0f);
+        ParticleBatch pieces = md.pieces();
+        boolean instanced = md.instances() != null || pieces != null;
+        binder.f1("MInstanced", pieces != null ? 2f : instanced ? 1f : 0f);
+        if (pieces != null) {
+            particles.bind(pieces, program);
+            particleMotion(program, pieces, e.time());
+            program.set4(ShaderProgram.U_PShape, pieces.facing.ordinal(), pieces.stretch, pieces.pivot, 0f);
+            program.set4(ShaderProgram.U_PCurves, pieces.ramp != null ? 0f : pieces.colorKeyCount, pieces.alphaKeyCount,
+                    pieces.sizeKeyCount, 0f);
+            if (pieces.colorKeyCount > 0) {
+                float[] k = pieces.colorKeys;
+                program.set3(ShaderProgram.U_PColorKey0, k[0], k[1], k[2]);
+                program.set3(ShaderProgram.U_PColorKey1, k[3], k[4], k[5]);
+                program.set3(ShaderProgram.U_PColorKey2, k[6], k[7], k[8]);
+                program.set3(ShaderProgram.U_PColorKey3, k[9], k[10], k[11]);
+            }
+            program.set4(ShaderProgram.U_PAlphaKeys, pieces.alphaKeys[0], pieces.alphaKeys[1], pieces.alphaKeys[2], pieces.alphaKeys[3]);
+            program.set4(ShaderProgram.U_PSizeKeys, pieces.sizeKeys[0], pieces.sizeKeys[1], pieces.sizeKeys[2], pieces.sizeKeys[3]);
+        }
         // posed bones: one 3x4 matrix each, applied in the vertex shader (no re-bake, no extra draw)
         int bones = 0;
         if (md.pose() != null) {
@@ -942,7 +977,7 @@ public final class PostRenderer {
             }
         }
         binder.f1("MBoneCount", bones);
-        if (instanced) {
+        if (md.instances() != null) {
             binder.data("MInstances", md.instances());
         }
         int axes = program.location("MAxes");
@@ -955,14 +990,23 @@ public final class PostRenderer {
             if (failedModelSetups.add(e.shader())) {
                 BHFxMod.LOGGER.error("bhfx uniform setup for model material {} threw", e.shader(), ex);
             }
+            if (pieces != null) {
+                particles.unbind();
+            }
             return;
         }
         if (instanced) {
             // copies may be mirrored or not: no culling here, the footer drops each copy's back faces itself
             GL11.glDisable(GL11.GL_CULL_FACE);
             GL30.glBindVertexArray(mesh.vao());
-            org.lwjgl.opengl.GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, mesh.vertexCount(), md.count());
+            int copies = pieces != null ? Math.min(instances(pieces), pieces.live) : md.count();
+            if (copies > 0) {
+                org.lwjgl.opengl.GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, mesh.vertexCount(), copies);
+            }
             GL11.glEnable(GL11.GL_CULL_FACE);
+            if (pieces != null) {
+                particles.unbind();
+            }
             return;
         }
         // a mirrored frame (e.g. a BodyPose's right/up/forward) turns every triangle over: cull the other side
@@ -1020,6 +1064,18 @@ public final class PostRenderer {
         modelH = 0;
     }
 
+    /** The uniforms both vertex shaders need to move a batch's particles: origin, clock, motion, orbit, ring, window. */
+    private void particleMotion(ShaderProgram program, ParticleBatch b, float batchTime) {
+        program.set3(ShaderProgram.U_POrigin, (float) (b.ox - camera.x), (float) (b.oy - camera.y), (float) (b.oz - camera.z));
+        program.set1(ShaderProgram.U_PTime, batchTime);
+        program.set4(ShaderProgram.U_PMotion, b.gx, b.gy, b.gz, b.drag);
+        program.set3(ShaderProgram.U_POrbit, b.orbitX(), b.orbitY(), b.orbitZ());
+        program.set3(ShaderProgram.U_POrbitAxis, b.oax, b.oay, b.oaz);
+        program.set4(ShaderProgram.U_PRing, b.capacityValue(), b.filled, strideOf(b), 0f);
+        ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
+        program.set4(ShaderProgram.U_PWindow, runs[0], runs[1], 0f, 0f);
+    }
+
     /** Draw one particle batch into the bound target (blend state already set). */
     private void drawBatch(PassListImpl.Entry e, int input, int depth, float time) {
         ParticleBatch b = e.particles();
@@ -1033,18 +1089,11 @@ public final class PostRenderer {
         particles.bind(b, program);
         long p2 = System.nanoTime();
         phases[PH_UPLOAD] += p2 - p1;
-        program.set3(ShaderProgram.U_POrigin, (float) (b.ox - camera.x), (float) (b.oy - camera.y), (float) (b.oz - camera.z));
-        program.set1(ShaderProgram.U_PTime, e.time());
-        program.set4(ShaderProgram.U_PMotion, b.gx, b.gy, b.gz, b.drag);
+        particleMotion(program, b, e.time());
         program.set4(ShaderProgram.U_PShape, b.facing.ordinal(), b.stretch, b.pivot, 0f);
         program.set4(ShaderProgram.U_PMode, b.blend.ordinal(), b.softness, b.distortion, e.presence());
-        program.set3(ShaderProgram.U_POrbit, b.orbitX(), b.orbitY(), b.orbitZ());
-        program.set3(ShaderProgram.U_POrbitAxis, b.oax, b.oay, b.oaz);
         program.set3(ShaderProgram.U_PRibbonNormal, b.rnx, b.rny, b.rnz);
         program.set4(ShaderProgram.U_PTurb, b.turbAmp, b.turbFreq, b.turbScale, 0f);
-        program.set4(ShaderProgram.U_PRing, b.capacityValue(), b.filled, strideOf(b), 0f);
-        ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
-        program.set4(ShaderProgram.U_PWindow, runs[0], runs[1], 0f, 0f);
         float colourMode = b.colorKeyCount;
         if (b.ramp != null) {
             // binding is what uploads a decoded texture (FxTextures.get); until then the 1x1 fallback is bound unused

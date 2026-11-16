@@ -800,6 +800,30 @@ fragColor = vec4(light, coverage);   // result = image * (1 - coverage) + light;
   the shader and the screen area it covers.
 - Counts as one pass for `maxPassesPerFrame`. Other shares than 0.5 are not offered yet (`layer` holds the share).
 
+### 5.12 Models as particles (`PassList.modelParticles`, 0.3.24, Experimental)
+```java
+// constructor: the batch is only the motion; its own material is not used
+shards = createParticles(FxParticles.DOT, 256).facing(FxParticles.Facing.TUMBLE).gravity(0, -14, 0)
+        .sizeOverLife(1f, 1f, 1f, 0f);
+// tick(): spawn as usual
+shards.spawn(x, y, z).velocity(vx, vy, vz).life(2.2f).size(0.5f).tumble(ax, ay, az, 6f);
+// passes()
+out.modelParticles(SHARD, shards, 1f, null, FxModel.TEXTURED, PassOptions.PARTICLES, u -> {});
+```
+- One instanced draw per batch: the model vertex shader (`model/vertex.vsh`, `MInstanced` 2) reads the batch's own
+  buffer and moves each copy like `particle/vertex.vsh` does (velocity, gravity, drag, orbit, pull; **no turbulence**).
+- Scale = `scale` × the particle's size (with `sizeOverLife`). Tint = the particle's colour and alpha with
+  `colorOverLife` keys and `alphaOverLife` (a ramp texture is not read), multiplied onto the material's result in the
+  footer (`mTint`), so every model material works unchanged. `data(...)` reaches the material as `s.instance`,
+  the slot number as `s.index`.
+- Turning, from the batch's facing: `TUMBLE` = a random start pose turning round `tumble(axis, rate)` (a random axis
+  when none is set; orbit is not applied, as for tumbling panes); `VELOCITY` = the model's **+z** along its flight,
+  rolled by `rotation(angle, spin)`; any other facing = upright, turned round y by the rotation and spin.
+- Pieces are particle slots: live window, particle budget and thinning apply (`/bhfx status` counts them); the light
+  is taken once at the batch origin; culled by the batch's sphere grown by the model's size; they share the models'
+  depth buffer, so pieces hide each other correctly. A pose (`FxPose`) is shared by all pieces.
+- Don't pass the same batch to `out.particles` unless its sprites should show too.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

@@ -501,6 +501,40 @@ public final class PassListImpl implements PassList {
                 presence, draw));
     }
 
+    @Override
+    public void modelParticles(FxModel model, FxParticles pieces, float scale, @Nullable FxPose pose,
+                               ResourceLocation material, PassOptions options, Consumer<Uniforms> setup) {
+        if (model == null || material == null || !(scale > 0f) || !(pieces instanceof ParticleBatch batch)
+                || batch.closed()) {
+            return;
+        }
+        float now = batch.now();
+        if (batch.idleAt(now)) {
+            return;
+        }
+        PassOptions.Bounds b = options.bounds();
+        double bx = 0;
+        double by = 0;
+        double bz = 0;
+        double radius = 0;
+        if (b != null) {
+            bx = b.center().x - camera.x;
+            by = b.center().y - camera.y;
+            bz = b.center().z - camera.z;
+            radius = b.radius();
+        }
+        float light = 1f;
+        var level = Minecraft.getInstance().level;
+        if (level != null) {
+            light = level.getMaxLocalRawBrightness(BlockPos.containing(batch.originX(), batch.originY(), batch.originZ())) / 15f;
+        }
+        ModelDraw draw = new ModelDraw(model, 0f, 0f, 0f, new float[]{scale, 0, 0, 0, scale, 0, 0, 0, scale}, scale, light,
+                null, 0, pose == null || pose.isEmpty() ? null : pose, batch);
+        // the batch rides along so the renderer advances its live window and counts it in the particle budget
+        entries.add(new Entry(material, options.order(), entries.size(), distance, setup, bx, by, bz, radius, batch, now,
+                presence, draw));
+    }
+
     /**
      * Draw list with at most {@code max} screen passes: drops the latest-ordered, then farthest passes first. Particle
      * batches don't count (they are not full-screen passes; their per-frame slot cap is in {@code PostRenderer}), so

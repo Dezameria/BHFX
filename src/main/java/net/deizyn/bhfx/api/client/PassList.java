@@ -22,6 +22,25 @@ public interface PassList {
     @ApiStatus.Experimental
     void light(Vec3 position, int rgb, float strength, float radius);
 
+    /**
+     * Draw {@code model} once for every living particle of {@code pieces}: debris, shards, blades, leaves that move on
+     * the GPU like particles (velocity, gravity, drag, orbit and pull; turbulence is not applied) but are real
+     * models. Each piece's scale is {@code scale} times the particle's {@link FxParticles.ParticleSpawn#size size}
+     * (and the size curve), and its colour and alpha (with the over-life colour keys and alpha curve; a ramp texture
+     * is not read) tint the material. How a piece is turned comes from the batch's
+     * {@link FxParticles#facing facing}: {@code TUMBLE} = a random pose turning round
+     * {@link FxParticles.ParticleSpawn#tumble} (a random axis when none is set); {@code VELOCITY} = the model's +z
+     * along its flight, rolled by {@link FxParticles.ParticleSpawn#rotation}; any other = upright, turned round y by
+     * the rotation and spin. The particle's {@code data} reaches the material as {@code s.instance}.
+     * <p>
+     * The batch is only a source of motion here: don't also pass it to {@link #particles} unless its sprites should
+     * show too, and the material it was created with is not used. Pieces count against the particle budget like any
+     * particle, so under load one in N shows.
+     */
+    @ApiStatus.Experimental
+    void modelParticles(FxModel model, FxParticles pieces, float scale, @Nullable FxPose pose, ResourceLocation material,
+                        PassOptions options, Consumer<Uniforms> setup);
+
     /** Most lights drawn in one frame. */
     int MAX_LIGHTS = 64;
 

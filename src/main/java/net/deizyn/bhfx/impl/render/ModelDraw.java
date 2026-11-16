@@ -11,7 +11,13 @@ import org.jetbrains.annotations.Nullable;
  * {@code pose}: bones moved on the GPU (every copy alike), or null for the model as baked.
  */
 public record ModelDraw(FxModel model, float ox, float oy, float oz, float[] axes, float scale, float light,
-                        @Nullable DataTable instances, int count, @Nullable FxPose pose) {
+                        @Nullable DataTable instances, int count, @Nullable FxPose pose,
+                        @Nullable ParticleBatch pieces) {
+    public ModelDraw(FxModel model, float ox, float oy, float oz, float[] axes, float scale, float light,
+                     @Nullable DataTable instances, int count, @Nullable FxPose pose) {
+        this(model, ox, oy, oz, axes, scale, light, instances, count, pose, null);
+    }
+
     public ModelDraw(FxModel model, float ox, float oy, float oz, float[] axes, float scale, float light,
                      @Nullable FxPose pose) {
         this(model, ox, oy, oz, axes, scale, light, null, 0, pose);

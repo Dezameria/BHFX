@@ -612,6 +612,19 @@ public final class ParticleBatch implements FxParticles {
         return closed;
     }
 
+    /** The batch origin (world): positions are stored from here. */
+    public double originX() {
+        return ox;
+    }
+
+    public double originY() {
+        return oy;
+    }
+
+    public double originZ() {
+        return oz;
+    }
+
     private final class Cursor implements ParticleSpawn {
         int base;
 

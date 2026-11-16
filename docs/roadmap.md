@@ -67,7 +67,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     ramp), all in one pass, built on `groundDecal`. No shader to write for the common case.
   - [x] 2026-11-17 C3 done as `FxBolt` and `FxParticles.BEAM` (0.3.22), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.10). Later if wanted: a beam that follows two moving points without redrawing, travel along the bolt (`delay` per point). Planned text: Bolts and beams: a Java builder for lightning / beam polylines (jitter, branches, travel) on the existing
     ribbons, plus the built-in textured-ribbon material from the backlog. No new renderer.
-  - [ ] C4. Mesh particles: a particle batch whose pieces are an `FxModel` (shards, debris, blades) moved by the GPU
+  - [x] 2026-11-17 C4 done as `PassList.modelParticles` (0.3.24), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.12). Later if wanted: turbulence, a choice of the leading axis for `VELOCITY`, light per piece. Planned text: Mesh particles: a particle batch whose pieces are an `FxModel` (shards, debris, blades) moved by the GPU
     particle motion. Uses the particle data buffer with the model draw.
   - [ ] C5. Model afterimages (ghost copies with their own pose and fade: needs per-copy poses) and a `DISTORT` model
     material (old M4).

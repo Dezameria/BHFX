@@ -4,7 +4,14 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.23 — unreleased (protocol 3)
+## 0.3.24 — unreleased (protocol 3)
+- **Added** (Experimental): `PassList.modelParticles(model, pieces, scale, pose, material, options, setup)`: a model
+  drawn once per living particle of a batch (debris, shards, blades), moved on the GPU by the particle motion
+  (velocity, gravity, drag, orbit, pull), turned by the batch's facing (`TUMBLE`, `VELOCITY`, else upright), scaled by
+  the particle's size and tinted by its colour and over-life curves. Model materials gained the varying `mTint`
+  (applied by the footer). Test effect `bhfx:test_debris`.
+
+## 0.3.23 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `PassOptions.halfRes()`: a pass drawn as a layer at half resolution and laid over the
   image with a depth-aware upsample (`layer_resolve.fsh`), for soft costly passes (mist, shafts, marched glows). The
   shader outputs premultiplied light and coverage instead of the finished image. `PassOptions` gained the component

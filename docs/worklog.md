@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C4: models as particles (0.3.24)
+- bhfx: `PassList.modelParticles` (api), `PassListImpl.modelParticles`, `ModelDraw.pieces`, `ParticleBatch.originX/Y/Z`, `PostRenderer` (`particleMotion` shared with `drawBatch`, `piecesRect`, pieces in `drawModel`, particle runs stop at model entries), `model/vertex.vsh` (`bhfxPiece`, `MInstanced` 2, `mTint`), `model/_header.glsl`, `model/_footer.glsl`, `DebrisTestFx` (`bhfx:test_debris`). 0.3.23 → 0.3.24.
+- result: build + glslang + JUnit passed; shot in game by Claude: works, the old model test unchanged. Stress with 70 effects: 0.82 ms GPU. BHSpells untouched (`libs/` restored).
+- next: C5 (model afterimages, DISTORT model material), left of E (opt-in particle count LOD, near-camera fade, overdraw view), F (light shafts), or a first BHSpells effect on the new forms (needs the user's go-ahead).
+
+---
+
 ## 2026-11-17 — Half-resolution layers (0.3.23); stage D measured and dropped
 - bhfx: `PassOptions` (`layer`, `halfRes()`), `PassListImpl.Entry.layer`, `PostRenderer` (`layerFbo`, `ensureLayer`, layer branch in the pass path, `LAYER_RESOLVE`), `layer_resolve.fsh`, `test_volume.fsh`, `VolumeTestFx` (`bhfx:test_volume`, `bhfx:test_volume_full`); JUnit `PassOptionsTest` (1). 0.3.22 → 0.3.23.
 - result: build + glslang + JUnit passed; in game by Claude: half and full look the same, 1.05 against 1.37 ms GPU for eight mist balls. Before that: measured starts of 70 effects in one tick, no hitch, so stage D was dropped. BHSpells untouched (`libs/` restored).

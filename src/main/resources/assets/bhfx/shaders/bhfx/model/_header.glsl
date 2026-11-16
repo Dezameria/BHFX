@@ -20,7 +20,7 @@ uniform sampler2D MTexture; // the model's texture (FxModel.texture); transparen
 uniform vec4 MColor;        // tint, from the effect (default 1, 1, 1, 1)
 uniform vec4 MParams;       // free values from the effect (default 0); the built-in materials say what they read
 uniform vec4 MMode;         // unused, world light at the model's origin 0..1, presence 0..1, unused
-uniform float MInstanced;   // 1 when drawn with PassList.models
+uniform float MInstanced;   // 1 when drawn with PassList.models, 2 with PassList.modelParticles
 
 in vec3 mPos;
 in vec3 mNormal;
@@ -31,6 +31,7 @@ in float mViewZ;
 flat in vec4 mInstance;
 flat in float mIndex;
 flat in float mDet;
+flat in vec4 mTint; // PassList.modelParticles: the particle's colour and alpha with its over-life curves; else 1
 out vec4 fragColor;
 
 struct Surface {
