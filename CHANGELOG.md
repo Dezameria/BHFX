@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.17 — unreleased (protocol 3)
+## 0.3.18 — unreleased (protocol 3)
+- **Changed** (internal, no look change): particle and model runs draw onto the current effect target instead of
+  copying it first (when no material in the run reads `DiffuseSampler`); a bounded pass copies only the rect the pass
+  before it shaded; a uniform whose value did not change is not sent again. `/bhfx status` shows the full copies of the
+  last frame. No measurable gain on the dev machine (see `docs/testing.md`).
+
+## 0.3.17 — 2026-11-17, built locally, not published (protocol 3)
 - **Added**: `/bhfx stats` shows frames per second while effects ran, the longest frame, and particle slots drawn
   (average, most, strongest thinning).
 - **Added** (dev client only): dev control lines `stats [seconds]` (the `/bhfx stats` lines averaged over the last

@@ -42,7 +42,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
   - [ ] A3. `/bhfx stats`: peak alive vs capacity per batch (old optimization item 4).
   - [ ] A4. Baseline with A1–A3: `/bhfx stress 70` and the four particle test effects, numbers and sheets into
     [`testing.md`](testing.md).
-- [ ] **B. Free wins, no look change (0.3.18).** Found in `PostRenderer`:
+- [x] 2026-11-17 **B. Free wins, no look change (0.3.18).** B1–B3 done and checked in game (same look); **no measurable gain on the dev machine** ([`testing.md`](testing.md)): copies are cheap there and the CPU cost per batch is not the uniform calls. B4 not done (the string lookups stay). Follow-up: split render CPU into collect / stride / draw in `/bhfx stats` before any more CPU work; for comparable runs, a stress with fixed spots (seeded) and a fixed effect resolution. Planned text, found in `PostRenderer`:
   - [ ] B1. Draw particle and model runs in place. Now every run first copies the whole input target
     (`blit(from, pingFbo[ping], ...)`), and runs split whenever passes and particles of different effects interleave.
     When the input is already a ping target and no material in the run reads `DiffuseSampler` (uniform not active),

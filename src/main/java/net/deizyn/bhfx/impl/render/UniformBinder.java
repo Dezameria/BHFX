@@ -102,37 +102,25 @@ final class UniformBinder implements Uniforms {
 
     @Override
     public Uniforms f1(String name, float x) {
-        int loc = program.location(name);
-        if (loc >= 0) {
-            GL20.glUniform1f(loc, x);
-        }
+        program.set1(name, x);
         return this;
     }
 
     @Override
     public Uniforms f2(String name, float x, float y) {
-        int loc = program.location(name);
-        if (loc >= 0) {
-            GL20.glUniform2f(loc, x, y);
-        }
+        program.set2(name, x, y);
         return this;
     }
 
     @Override
     public Uniforms f3(String name, float x, float y, float z) {
-        int loc = program.location(name);
-        if (loc >= 0) {
-            GL20.glUniform3f(loc, x, y, z);
-        }
+        program.set3(name, x, y, z);
         return this;
     }
 
     @Override
     public Uniforms f4(String name, float x, float y, float z, float w) {
-        int loc = program.location(name);
-        if (loc >= 0) {
-            GL20.glUniform4f(loc, x, y, z, w);
-        }
+        program.set4(name, x, y, z, w);
         return this;
     }
 

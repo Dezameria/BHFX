@@ -6,6 +6,28 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Stage B: in-place runs, rect copies, unchanged uniforms skipped (2026-11-17, 0.3.18; build + JUnit; in game by Claude through dev control, the same script on the new code and on 0.3.17 (stashed), `fps unlimited`, MEDIUM, 1600x900; no `broken` / exception in the log)
+| run | | fps | render CPU avg | GPU avg | effect resolution |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/bhfx stress 70 32 10` flow, vortex, particles (1 pass: one particle run) | old | 165 | 1.45 ms | 0.96 ms | 100 % |
+| | new | 219 | 1.27 ms | 0.78 ms | 100 % |
+| `/bhfx stress 40 24 10` model, sdf, particles, data (21–23 passes) | old | 146 | 1.14 ms | 3.48 ms | 63 % |
+| | new | 140 | 1.17 ms | 3.55 ms | 50 % |
+
+- **No measurable gain here.** The differences are inside the run-to-run spread (the stage A baseline of the first run
+  on the old code was 186 fps, 1.23 ms CPU, 1.53 ms GPU). In the mixed run the new code made 1 full copy for 22 passes
+  (`/bhfx status`), but copies are cheap on this GPU, the `test_sdf` passes dominate, and the resolution controller
+  holds GPU time near the budget whatever is saved. Stress also places effects at random, so two runs never draw the
+  same thing.
+- Render CPU did not move with the uniform cache: the cost per batch (about 3 µs: 420 batches, 1.2 ms) is not the
+  uniform calls. Not yet known where it goes; needs a split of the frame (collect / stride / draw) before more work.
+- Look: `/bhfx shoots` of `test_model`, `test_sdf`, `test_data`, `test_particles`, `test_vortex` on both; pixel compare
+  of the 8 shots each: `test_model` 97–297 pixels of 1.44 M differ by more than 16, `test_sdf` 23–252 (animation a
+  fraction of a frame apart); `test_data` about 10 k (its stars are placed by `random()`, a new seed each start).
+  Sheets look the same.
+- Not checked: a pass material that reads `DiffuseSampler` after a run (falls back to the copy by design), DISTORT
+  batches after an in-place run, a weak / integrated GPU where the copies would matter.
+
 ### ✅ Stage A baseline (2026-11-17, 0.3.17; JUnit `FrameStatsTest` (2); in game by Claude through dev control, `fps unlimited`, MEDIUM, 1600x900, post 1359x764, open field, no `broken` / exception in the log)
 Numbers to compare stage B against. `stats` averages; the game alone runs at about 460–530 fps here.
 

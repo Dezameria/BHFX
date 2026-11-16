@@ -132,6 +132,7 @@ public final class PostRenderer {
     private int lastPassCount;
     private int lastSkippedCount;
     private int lastParticleCount;
+    private int lastCopyCount;
     /** Every non-ribbon batch draws one slot in this many when the frame wants more slots than the cap (1 = all). */
     private int particleStride = 1;
     private int strideLowFrames;
@@ -214,6 +215,7 @@ public final class PostRenderer {
                 + ", ~" + (bytes >> 20) + " MB, " + shaders.compiledCount() + " shader(s)"
                 + (lastSkippedCount > 0 ? ", " + lastSkippedCount + " off-screen pass(es) skipped" : "")
                 + (lastParticleCount > 0 ? ", " + lastParticleCount + " particle slot(s)" : "")
+                + ", " + lastCopyCount + " full copy(ies)"
                 + (particleStride > 1 ? ", particles thinned to 1 in " + particleStride : "")
                 + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "")
                 + (tables.count() > 0 ? ", " + tables.count() + " data table(s)" : "")
@@ -310,6 +312,11 @@ public final class PostRenderer {
             int drawn = 0;
             int skipped = 0;
             boolean sceneLowReady = false;
+            // where the ping target that is not the input differs from the input: everywhere, or only inside the
+            // rect the last bounded pass shaded (then the next bounded pass copies just that rect)
+            boolean otherAll = true;
+            int ox0 = 0, oy0 = 0, ox1 = 0, oy1 = 0;
+            int copies = 0;
             GL11.glViewport(0, 0, fxW, fxH);
             boolean bounds = BHFxConfig.PASS_BOUNDS.get();
             int particleBudget = particleCap(quality);
@@ -345,17 +352,28 @@ public final class PostRenderer {
                     if (modelGroup.isEmpty()) {
                         continue;
                     }
-                    int from = inputFbo;
-                    if (inputFull && (fxW != w || fxH != h)) {
-                        if (!sceneLowReady) {
-                            blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
-                            sceneLowReady = true;
-                        }
-                        from = sceneLowFbo;
+                    // in place: the input is already an effect target and no material here reads it, so draw onto it
+                    // instead of copying it first
+                    boolean inPlace = !inputFull;
+                    for (int j = 0; inPlace && j < modelGroup.size(); j++) {
+                        inPlace = shaders.getModel(modelGroup.get(j).shader()).location("DiffuseSampler") < 0;
                     }
-                    blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                    int target = inPlace ? ping ^ 1 : ping;
+                    if (!inPlace) {
+                        int from = inputFbo;
+                        if (inputFull && (fxW != w || fxH != h)) {
+                            if (!sceneLowReady) {
+                                blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
+                                sceneLowReady = true;
+                            }
+                            from = sceneLowFbo;
+                        }
+                        blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                        copies++;
+                    }
+                    otherAll = true;
                     ensureModelTargets();
-                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, modelFbo[ping]);
+                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, modelFbo[target]);
                     int depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
                     GL11.glDepthMask(true);
                     GL30.glClearBufferfv(GL11.GL_DEPTH, 0, ONE1);
@@ -368,7 +386,7 @@ public final class PostRenderer {
                     GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ZERO, GL11.GL_ONE);
                     GL14.glBlendEquation(GL14.GL_FUNC_ADD);
                     for (PassListImpl.Entry e : modelGroup) {
-                        drawModel(e, input, depth, time, now);
+                        drawModel(e, inPlace ? snapshotTex : input, depth, time, now);
                     }
                     GL11.glDisable(GL11.GL_BLEND);
                     GL11.glDisable(GL11.GL_CULL_FACE);
@@ -376,10 +394,12 @@ public final class PostRenderer {
                     GL11.glDepthFunc(depthFunc);
                     GL11.glDepthMask(false);
                     GL30.glBindVertexArray(vao);
-                    input = pingTex[ping];
-                    inputFbo = pingFbo[ping];
-                    inputFull = false;
-                    ping ^= 1;
+                    if (!inPlace) {
+                        input = pingTex[ping];
+                        inputFbo = pingFbo[ping];
+                        inputFull = false;
+                        ping ^= 1;
+                    }
                     drawn++;
                     continue;
                 }
@@ -420,7 +440,16 @@ public final class PostRenderer {
                         continue;
                     }
                     ShaderProgram resolve = distort ? shaders.get(PARTICLE_RESOLVE) : null;
-                    if (resolve != null) {
+                    // in place, as for models: nothing here bends or reads the input
+                    boolean inPlace = !inputFull && resolve == null;
+                    for (int j = 0; inPlace && j < particleGroup.size(); j++) {
+                        inPlace = shaders.getParticle(particleGroup.get(j).shader()).location("DiffuseSampler") < 0;
+                    }
+                    int target = inPlace ? ping ^ 1 : ping;
+                    otherAll = true;
+                    if (inPlace) {
+                        // nothing to copy
+                    } else if (resolve != null) {
                         // bend the input by the distortion batches while copying it into the next target
                         ensureDistort();
                         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, distortFbo);
@@ -449,8 +478,9 @@ public final class PostRenderer {
                             from = sceneLowFbo;
                         }
                         blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                        copies++;
                     }
-                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
+                    GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[target]);
                     guard.touchBlend();
                     GL11.glEnable(GL11.GL_BLEND);
                     // premultiplied: ADD writes alpha 0 (pure add), ALPHA covers by its alpha; the target keeps its alpha
@@ -458,14 +488,16 @@ public final class PostRenderer {
                     GL14.glBlendEquation(GL14.GL_FUNC_ADD);
                     for (PassListImpl.Entry e : particleGroup) {
                         if (e.particles().blend != FxParticles.Blend.DISTORT) {
-                            drawBatch(e, input, depth, time);
+                            drawBatch(e, inPlace ? snapshotTex : input, depth, time);
                         }
                     }
                     GL11.glDisable(GL11.GL_BLEND);
-                    input = pingTex[ping];
-                    inputFbo = pingFbo[ping];
-                    inputFull = false;
-                    ping ^= 1;
+                    if (!inPlace) {
+                        input = pingTex[ping];
+                        inputFbo = pingFbo[ping];
+                        inputFull = false;
+                        ping ^= 1;
+                    }
                     drawn++;
                     continue;
                 }
@@ -486,15 +518,28 @@ public final class PostRenderer {
                     // the full-resolution snapshot, copy the composite's own low-res scene 1:1: a scaled blit straight
                     // into this float target samples rows slightly differently on some drivers, and the composite's
                     // detail restore (sharp / low-res ratio) turned that into bright horizontal lines on the ground
-                    int from = inputFbo;
-                    if (inputFull && (fxW != w || fxH != h)) {
-                        if (!sceneLowReady) {
-                            blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
-                            sceneLowReady = true;
+                    if (!otherAll && !inputFull) {
+                        // this target is the input from two passes back: it differs only where the last pass shaded
+                        if (ox1 > ox0 && oy1 > oy0) {
+                            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, inputFbo);
+                            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
+                            GL30.glBlitFramebuffer(ox0, oy0, ox1, oy1, ox0, oy0, ox1, oy1, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
                         }
-                        from = sceneLowFbo;
+                    } else {
+                        int from = inputFbo;
+                        if (inputFull && (fxW != w || fxH != h)) {
+                            if (!sceneLowReady) {
+                                blit(snapshotFbo, sceneLowFbo, w, h, fxW, fxH, GL11.GL_LINEAR);
+                                sceneLowReady = true;
+                            }
+                            from = sceneLowFbo;
+                        }
+                        blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                        copies++;
                     }
-                    blit(from, pingFbo[ping], fxW, fxH, fxW, fxH, GL11.GL_NEAREST);
+                    // equal to the input now; a pass that fails below leaves it so
+                    otherAll = false;
+                    ox0 = oy0 = ox1 = oy1 = 0;
                 }
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, pingFbo[ping]);
                 begin(program, input, depth, fxW, fxH, time);
@@ -514,6 +559,14 @@ public final class PostRenderer {
                     int y1 = Math.min(fxH, (int) Math.ceil(rect.maxV() * fxH) + RECT_PAD);
                     GL11.glEnable(GL11.GL_SCISSOR_TEST);
                     GL11.glScissor(x0, y0, x1 - x0, y1 - y0);
+                    // the old input becomes the other target: it lacks only this rect (when it was an effect target)
+                    otherAll = inputFull;
+                    ox0 = x0;
+                    oy0 = y0;
+                    ox1 = x1;
+                    oy1 = y1;
+                } else {
+                    otherAll = true;
                 }
                 GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
                 if (scissor) {
@@ -528,6 +581,7 @@ public final class PostRenderer {
             lastPassCount = drawn;
             lastSkippedCount = skipped;
             lastParticleCount = particleSlots;
+            lastCopyCount = copies;
             particles.sweep(now);
             textures.sweep(now);
             tables.sweep(now);
@@ -1039,9 +1093,10 @@ public final class PostRenderer {
         bindUnit(UNIT_INPUT, input, program, "DiffuseSampler");
         bindUnit(UNIT_SCENE, snapshotTex, program, "SceneSampler");
         bindUnit(UNIT_DEPTH, depth, program, "DepthSampler");
-        setMatrix(program.location("InvProj"), invProj);
-        setMatrix(program.location("InvView"), invView);
-        setMatrix(program.location("ViewProj"), viewProj);
+        // unchanged values are not sent again (ShaderProgram keeps what each program last got)
+        program.setMatrix("InvProj", invProj, matrixBuf);
+        program.setMatrix("InvView", invView, matrixBuf);
+        program.setMatrix("ViewProj", viewProj, matrixBuf);
         binder.f2("OutSize", outW, outH);
         binder.f2("ScreenSize", fullW, fullH);
         binder.f1("GameTime", time);
@@ -1079,23 +1134,12 @@ public final class PostRenderer {
     private void bindUnit(int unit, int texture, ShaderProgram program, String sampler) {
         guard.touchUnit(unit);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
-        int loc = program.location(sampler);
-        if (loc >= 0) {
-            GL20.glUniform1i(loc, unit);
-        }
+        program.setInt(sampler, unit);
     }
 
     /** rgb as 0..1 (display space) plus a fourth value. */
     private void rgb(ShaderProgram p, String name, int rgb, float w) {
         binder.f4(name, ((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, w);
-    }
-
-    private void setMatrix(int location, Matrix4f matrix) {
-        if (location >= 0) {
-            matrixBuf.clear();
-            matrix.get(matrixBuf);
-            GL20.glUniformMatrix4fv(location, false, matrixBuf);
-        }
     }
 
     private static void blit(int from, int to, int fw, int fh, int tw, int th, int filter) {
