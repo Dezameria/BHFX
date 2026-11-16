@@ -6,6 +6,18 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Particle live window (2026-11-16, 0.3.16; JUnit `ParticleWindowTest` (4) + `ParticleBatchTest` (19); in game by Claude through dev control: the same 30 s runs shot at 5 / 10 / 20 / 25 s on the old code (stashed) and the new)
+| effect | slots drawn at 25 s, old → new | look |
+| :--- | :--- | :--- |
+| `test_vortex` | 3840 → 576 | same (sheets compared) |
+| `test_flow` | 3072 → 836 | same |
+| `test_particles` | 3317 → 311 | same (sheets compared) |
+| `test_swirl` | 1536 → 316 | same |
+- No `broken` / exception in the log. Single-frame GPU ms in `shots.txt` are noise here (0.2–1.2 ms both runs); the
+  gain is fewer instances, which matters most when many effects share the particle budget (less thinning). Not yet
+  measured: `/bhfx stress` before / after (`/bhfx bench` restarts the effect, so its rings never wrap: same numbers).
+- Baseline bench (old code, 20 s, 1600x900): bhfx GPU `test_flow` 0.90 ms, `test_vortex` 1.00, `test_particles` 1.10.
+
 ### ✅ Dev control, `/bhfx shoots`, `sheet.png` (2026-11-16, 0.3.15; run by Claude alone: `runClient -PquickPlay="New World" -Pwindow=1600x900` with `bhfx_dev/inbox/001_check.txt`)
 - The client opened straight into the world; "bhfx dev control on" in the log; all 10 lines ran in order (time, weather, camera, `tp` with a view, wait, one shoot of 3, `shoots` of `test_flow` + `test_swirl`, quit); each line waited for the shoot before it; the game closed itself. `outbox/001_check.txt.log` and `status.txt` right (`status.txt` showed world, position, view, fps 119, shoot busy, inbox progress, latest folder).
 - Every folder had `sheet.png` (all shots, labelled) and `shots.txt` with per-shot `/bhfx status` (e.g. `test_flow` 1.16–1.50 ms GPU, 42 → 437 particle slots over 0.75 s); `last_batch.txt` listed both `shoots` folders.

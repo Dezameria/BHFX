@@ -4,7 +4,13 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.15 — unreleased (protocol 3)
+## 0.3.16 — unreleased (protocol 3)
+- **Changed** (performance): particle batches draw only their live window, from the oldest particle not yet dead to the
+  newest, instead of every slot ever written. Long-running effects draw 73–91 % fewer instances (bhfx test effects at
+  25 s: `test_vortex` 3840 → 576, `test_particles` 3317 → 311), so less vertex work and less thinning when many effects
+  play at once. No look change, no API change.
+
+## 0.3.15 — 2026-11-16, built locally, not published (protocol 3)
 - **Added**: `/bhfx shoots <fx> [<fx> ...]` shoots several effects in turn at the spot you look at
   (`screenshots/bhfx/last_batch.txt` lists the folders). Every shoot folder now has `sheet.png` (all shots on one page)
   and per-shot `/bhfx status` in `shots.txt`; a shoot stops earlier test effects first (`solo:false` keeps them).

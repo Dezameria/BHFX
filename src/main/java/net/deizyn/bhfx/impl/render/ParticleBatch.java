@@ -89,8 +89,14 @@ public final class ParticleBatch implements FxParticles {
     double oy;
     double oz;
     private int head;
-    /** Slots in use, 0..capacity (the GPU draws this many instances). */
+    /** Slots in use, 0..capacity. */
     int filled;
+    /**
+     * The live window: the newest {@code live} slots in write order, from the oldest one not yet dead
+     * ({@link #advanceWindow}) to the newest. Only these are drawn; slots before it are dead (their data stays in the
+     * buffer, so a ribbon point may still read its dead neighbour).
+     */
+    int live;
     /** Slots written since the last upload, capped at capacity; {@link #needsFull} forces all of them. */
     int pending;
     boolean needsFull = true;
@@ -369,6 +375,7 @@ public final class ParticleBatch implements FxParticles {
         int slot = head;
         head = (head + 1) % capacity;
         filled = Math.min(capacity, filled + 1);
+        live = Math.min(capacity, live + 1);
         pending = Math.min(capacity, pending + 1);
         statsDirty = true;
         int b = slot * FLOATS;
@@ -492,7 +499,7 @@ public final class ParticleBatch implements FxParticles {
 
     @Override
     public void clear() {
-        head = filled = pending = 0;
+        head = filled = pending = live = 0;
         reach = maxLife = maxSize = 0f;
         orbiting = false;
         lastDeath = Float.NEGATIVE_INFINITY;
@@ -506,6 +513,47 @@ public final class ParticleBatch implements FxParticles {
 
     int capacityValue() {
         return capacity;
+    }
+
+    /** Slack before a slot counts as dead, so the GPU clock running a little ahead never drops a living particle. */
+    static final float WINDOW_MARGIN = 0.25f;
+
+    /** First slot of the live window. */
+    int liveStart() {
+        return Math.floorMod(head - live, capacity);
+    }
+
+    /**
+     * Move the start of the live window past slots that died before {@code now} (batch clock). Stops at the first
+     * slot still alive or not yet born, so a long-lived or delayed particle keeps everything written after it in the
+     * window (drawn, then dropped in the shader as before): never shows less, usually draws far less once a batch has
+     * wrapped. Cheap: each slot is passed once.
+     */
+    void advanceWindow(float now) {
+        while (live > 0) {
+            int b = liveStart() * FLOATS;
+            if (data[b + 3] + data[b + 7] + WINDOW_MARGIN >= now) {
+                return;
+            }
+            live--;
+        }
+    }
+
+    /**
+     * Instances to draw the live window when one slot in {@code stride} is drawn (the same slots every frame: the
+     * multiples of the stride, as before the window): {@code out[0]} first slot of the run up to the end of the ring,
+     * {@code out[1]} instances in that run, {@code out[2]} instances after it wraps (slots 0, stride, ...).
+     */
+    static void windowRuns(int start, int live, int capacity, int stride, int[] out) {
+        int s = Math.max(1, stride);
+        int first = (start + s - 1) / s * s;
+        int end1 = Math.min(start + live, capacity);
+        int n1 = first < end1 ? (end1 - first + s - 1) / s : 0;
+        int wrapEnd = start + live - capacity;
+        int n2 = wrapEnd > 0 ? (wrapEnd + s - 1) / s : 0;
+        out[0] = first;
+        out[1] = n1;
+        out[2] = n2;
     }
 
     /** Bring the cull sphere and last death up to date with the slots spawned since the last call. */

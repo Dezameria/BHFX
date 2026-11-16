@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Particle live window (0.3.16)
+- bhfx: `ParticleBatch` (`live`, `liveStart`, `advanceWindow`, `windowRuns`, `WINDOW_MARGIN` 0.25 s), `PostRenderer` (window advanced in `updateParticleStride`; budget, stride and instances count the window; `PWindow` uniform), `ParticleRenderer.draw`, particle `vertex.vsh` (instance → slot through the two runs of the window, multiples of the stride as before); JUnit `ParticleWindowTest` (4). 0.3.15 → 0.3.16.
+- result: build + JUnit passed; Claude measured in game alone via dev control (old code stashed for the baseline): instances drawn at 25 s down 73–91 %, sheets look the same. BHSpells untouched (`libs/` restored).
+- next: optimization plan items 4 (`/bhfx stats` peak vs capacity), 2 and 3 (opt-in LOD, near-camera fade) when wanted.
+
+---
+
 ## 2026-11-16 — Shoot polish and dev remote control (0.3.15)
 - bhfx: `FxShots` (`sheet.png` contact sheet, per-shot `/bhfx status`, queue for `/bhfx shoots`, `last_batch.txt`), `ClientFxCommands` (`shoots`, `solo` stop of earlier test effects, `shootAt`), `FxCommandArgs` (`solo`), `DevControl` (new: `bhfx_dev/inbox` → commands, `outbox` log, `status.txt`, no pause on focus loss), `ClientEvents` (tick hook, `shoots`), `build.gradle` (`-PquickPlay`, `-Pwindow`), `docs/dev-control.md` (new), README / CHANGELOG / decisions; 0.3.14 → 0.3.15. BHSpells untouched (its `libs/` jar put back after the build copied 0.3.15 in).
 - result: build passed; then Claude ran the whole loop alone (quick-play launch, 10-line inbox file, 19 shots, quit). Details in [`testing.md`](testing.md).

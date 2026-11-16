@@ -30,7 +30,9 @@ uniform vec3 POrbit;    // orbit axis passes through here (from the batch origin
 uniform vec3 POrbitAxis; // unit orbit axis
 uniform vec3 PRibbonNormal; // RIBBON: unit strip normal for the batch, 0 = turn to the camera
 uniform vec4 PTurb;     // turbulence amplitude (blocks), frequency (Hz), pattern scale (waves per block), unused
-uniform vec4 PRing;     // capacity, slots filled, stride (instance i draws slot i * stride; 0 or 1 = every slot), unused
+uniform vec4 PRing;     // capacity, slots filled, stride (one slot in stride is drawn; 0 or 1 = every slot), unused
+uniform vec4 PWindow;   // live window: first slot of the run up to the ring end, instances in that run, unused, unused;
+                        // instances after it wrap round to slots 0, stride, 2 * stride ...
 uniform vec4 PCurves;   // colour keys (0 off, 1..4; -1 = ramp texture), alpha keys, size keys, unused
 uniform vec3 PColorKey0;
 uniform vec3 PColorKey1;
@@ -317,8 +319,11 @@ void bhfxRibbon(int slot, vec2 corner) {
 }
 
 void main() {
-    // thinned frames draw one slot in PRing.z, the same slots every frame; ribbons always get 1 (they link to every point)
-    int slot = gl_InstanceID * max(1, int(PRing.z + 0.5));
+    // only the live window is drawn (ParticleBatch.windowRuns); thinned frames draw one slot in PRing.z, the same slots
+    // (the multiples of the stride) every frame; ribbons always get 1 (they link to every point)
+    int stride = max(1, int(PRing.z + 0.5));
+    int run1 = int(PWindow.y + 0.5);
+    int slot = gl_InstanceID < run1 ? int(PWindow.x + 0.5) + gl_InstanceID * stride : (gl_InstanceID - run1) * stride;
     vec2 corner = vec2((gl_VertexID & 1) != 0 ? 1.0 : -1.0, (gl_VertexID & 2) != 0 ? 1.0 : -1.0);
     if (PShape.x > 3.5 && PShape.x < 4.5) {
         bhfxRibbon(slot, corner);

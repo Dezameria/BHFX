@@ -73,9 +73,12 @@ final class ParticleRenderer {
         GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, 0);
     }
 
-    /** Draw {@code instances} instances (all filled slots, or fewer when the frame's particles are thinned). */
+    /** Draw {@code instances} instances (the live window, thinned by the frame stride; see {@code PWindow}). */
     void draw(ParticleBatch b, int instances) {
-        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, Math.min(instances, b.filled));
+        int n = Math.min(instances, b.live);
+        if (n > 0) {
+            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, n);
+        }
     }
 
     private void upload(ParticleBatch b) {

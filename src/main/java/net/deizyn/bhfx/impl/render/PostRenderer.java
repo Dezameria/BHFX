@@ -396,7 +396,7 @@ public final class PostRenderer {
                         ParticleBatch b = e.particles();
                         boolean ribbon = b.facing == FxParticles.Facing.RIBBON;
                         if (b.closed() || shaders.getParticle(e.shader()) == null
-                                || (ribbon && ribbonDrawn + b.filled > particleBudget)) {
+                                || (ribbon && ribbonDrawn + b.live > particleBudget)) {
                             skipped++;
                             continue;
                         }
@@ -410,7 +410,7 @@ public final class PostRenderer {
                         }
                         particleSlots += instances(b);
                         if (ribbon) {
-                            ribbonDrawn += b.filled;
+                            ribbonDrawn += b.live;
                         }
                         particleGroup.add(e);
                         distort |= b.blend == FxParticles.Blend.DISTORT;
@@ -907,6 +907,8 @@ public final class PostRenderer {
         binder.f3("PRibbonNormal", b.rnx, b.rny, b.rnz);
         binder.f4("PTurb", b.turbAmp, b.turbFreq, b.turbScale, 0f);
         binder.f4("PRing", b.capacityValue(), b.filled, strideOf(b), 0f);
+        ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
+        binder.f4("PWindow", runs[0], runs[1], 0f, 0f);
         float colourMode = b.colorKeyCount;
         if (b.ramp != null) {
             // binding is what uploads a decoded texture (FxTextures.get); until then the 1x1 fallback is bound unused
@@ -952,6 +954,8 @@ public final class PostRenderer {
             if (b == null || b.closed()) {
                 continue;
             }
+            b.updateStats();
+            b.advanceWindow(e.time()); // dead slots at the old end are no longer drawn or counted
             ScreenRect r = e.radius() > 0
                     ? ScreenRect.ofSphere(viewProj, e.bx(), e.by(), e.bz(), e.radius(), rectScratch)
                     : ScreenRect.ofSphere(viewProj, b.ox - camera.x, b.oy - camera.y, b.oz - camera.z, b.cullRadius(), rectScratch);
@@ -959,9 +963,9 @@ public final class PostRenderer {
                 continue;
             }
             if (b.facing == FxParticles.Facing.RIBBON) {
-                ribbons += b.filled;
+                ribbons += b.live;
             } else {
-                wanted += b.filled;
+                wanted += b.live;
             }
         }
         long room = Math.max(1, budget - Math.min(ribbons, budget));
@@ -979,10 +983,13 @@ public final class PostRenderer {
         return b.facing == FxParticles.Facing.RIBBON ? 1 : particleStride;
     }
 
-    /** Instances drawn for a batch: every slot for ribbons, one in {@link #particleStride} for the rest. */
+    /** Live-window runs of the batch being drawn (see {@link ParticleBatch#windowRuns}). */
+    private final int[] runs = new int[3];
+
+    /** Instances drawn for a batch: its live window, every slot for ribbons, one in {@link #particleStride} for the rest. */
     private int instances(ParticleBatch b) {
-        int stride = strideOf(b);
-        return (b.filled + stride - 1) / stride;
+        ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
+        return runs[1] + runs[2];
     }
 
     /** Current particle stride, for /bhfx status. */
