@@ -14,7 +14,7 @@ Daily work log, newest at the top. Format:
 ## 2026-11-16 — `/bhfx shoot`, version 0.3.14; model LOD not needed
 - Bench by the user: `bhspells:thousand_swords` bhfx GPU 1.12–1.16 ms avg, +0.00–0.02 ms per frame at 137 fps (two runs, 20 s). Under the 1.5 ms bar, so no model LOD.
 - bhfx: `impl/client/FxShots` (new), `ClientFxCommands.shoot`, `ClientEvents` (`shoot` registered, `RenderTickEvent` END hook), `FxCommandArgs` (`shots`, `gui` reserved keys); JUnit `FxCommandArgsShotsTest` (3). README / API_PLAN command tables, `release.md`. 0.3.13 → 0.3.14 (BHSpells `build.gradle` too; `mods.toml` unchanged).
-- result: build passed. Not run in game.
+- result: build passed; then in game (bhfx's own runClient): 8 of 8 shots of `bhfx:test_model`, times within 8 ms, Claude read the PNGs and found all five swords right.
 
 ---
 
