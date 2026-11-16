@@ -5,6 +5,9 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 server must use the same one.
 
 ## 0.3.12 — unreleased (protocol 3)
+- **Added** (experimental): posed models. `FxPose` turns, moves, scales or hides a model's bones by name, in
+  Blockbench's animation numbers, and `PassList.model(..., pose, ...)` / `models(..., pose, ...)` draw it posed. Moved on
+  the GPU: no re-bake, no extra draw call, nothing uploaded when nothing moved. Up to 64 bones.
 - **Added**: body parts. `BodyPart` (`HEAD`, `BODY`, `LEFT_/RIGHT_SHOULDER`, `LEFT_/RIGHT_ARM`, `LEFT_/RIGHT_HAND`, `LEFT_/RIGHT_LEG`,
   `LEFT_/RIGHT_FOOT`, `FEET`). `FxSpawn.follow(e, mode).part(BodyPart.RIGHT_HAND)` makes the effect ride on that point
   (`position()` follows the posed model); `FrameContext.part(...)` / `FxContext.part(...)` and

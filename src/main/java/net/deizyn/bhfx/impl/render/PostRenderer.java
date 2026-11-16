@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.deizyn.bhfx.BHFxMod;
 import net.deizyn.bhfx.api.client.FxParticles;
+import net.deizyn.bhfx.api.client.FxPose;
 import net.deizyn.bhfx.api.client.FxTexture;
 import net.deizyn.bhfx.api.client.ImpactStyle;
 import net.deizyn.bhfx.impl.BHFxConfig;
@@ -761,11 +762,20 @@ public final class PostRenderer {
         double dx = mesh.max()[0] - mesh.min()[0];
         double dy = mesh.max()[1] - mesh.min()[1];
         double dz = mesh.max()[2] - mesh.min()[2];
-        double radius = Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5 * md.scale() + 0.05;
+        float local = (float) Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5f;
+        if (md.pose() != null) {
+            // posed bones may reach past the rest bounds: grow the sphere by how far they carry it
+            mesh.rig().solve(md.pose());
+            local = mesh.rig().reach(lx, ly, lz, local);
+        }
+        double radius = local * md.scale() + 0.05;
         return ScreenRect.ofSphere(viewProj, cx, cy, cz, radius, rectScratch);
     }
 
     /** Draw one model into the bound target (depth, cull and blend state already set). */
+    /** Bone matrices on their way to {@code MBones} (3 vec4 a bone). */
+    private final java.nio.FloatBuffer boneBuffer = org.lwjgl.BufferUtils.createFloatBuffer(FxPose.MAX_BONES * 12);
+
     private void drawModel(PassListImpl.Entry e, int input, int depth, float time, long now) {
         ModelDraw md = e.model();
         FxModels.Mesh mesh = models.get(md.model().file(), now);
@@ -786,6 +796,20 @@ public final class PostRenderer {
         binder.f3("MOrigin", md.ox(), md.oy(), md.oz());
         boolean instanced = md.instances() != null;
         binder.f1("MInstanced", instanced ? 1f : 0f);
+        // posed bones: one 3x4 matrix each, applied in the vertex shader (no re-bake, no extra draw)
+        int bones = 0;
+        if (md.pose() != null) {
+            BoneRig rig = mesh.rig();
+            float[] skin = rig.solve(md.pose());
+            int loc = program.location("MBones");
+            if (rig.moved() > 0 && loc >= 0) {
+                bones = rig.count();
+                boneBuffer.clear();
+                boneBuffer.put(skin, 0, bones * 12).flip();
+                GL20.glUniform4fv(loc, boneBuffer);
+            }
+        }
+        binder.f1("MBoneCount", bones);
         if (instanced) {
             binder.data("MInstances", md.instances());
         }

@@ -12,6 +12,17 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
   small but only helps block-looking debris. Half-res stages only save GPU time. Bending the world itself needs
   chunk-renderer mixins that would clash with Sodium-type mods and shader packs, so it is not planned.
 
+## 2026-11-16 — Model bones posed on the GPU by uniform matrices (M2), Blockbench numbers
+- **Decision**: `FxPose` (by bone name, Blockbench animation units) → `BoneRig` makes one 3x4 matrix per bone on the
+  CPU (posed × rest⁻¹) → a `vec4 MBones[192]` uniform → the vertex shader moves each vertex by its bone. Not an
+  `FxData` table, not re-baking, not one draw per bone. Instanced copies share one pose. Max 64 bones.
+- **Reason (performance)**: the baked vertex buffer never changes (no re-upload); a bone costs a few matrix products
+  on the CPU and 3 vec4 to upload once per draw; one draw call as before; untouched poses upload nothing; hiding is
+  scale 0 (collapsed triangles cost almost nothing to raster). A uniform array is faster to read than a buffer texture
+  and 64 bones fit GL 3.2's minimum of 1024 vertex uniform components. Blockbench / GeckoLib units so M3 (playing
+  `.animation.json`) only has to feed keyframes into the same `FxPose`. Per-copy poses for instances would cost
+  `copies × bones` matrices a frame; vary copies in the material (`s.instance`) instead until an effect needs more.
+
 ## 2026-11-16 — bhfx draws models itself (M1: static), baked like GeckoLib, without depending on it
 - **Decision**: `FxModel` + `PassList.model`: bhfx bakes `.geo.json` itself (`GeoModelLoader`, a copy of GeckoLib 4.8.3's
   rules) and draws it as its own geometry group in the pass chain with a depth buffer of its own, material shaders

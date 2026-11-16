@@ -11,6 +11,14 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Posed models (M2): `FxPose`, bones moved on the GPU
+- bhfx: `api/client/FxPose` (new), `PassList.model(..., pose, ...)` / `models(..., pose, ...)` (old overloads now defaults with no pose), `impl/render/BoneRig` (new), `GeoModelLoader.Data` + `boneParents` / `bonePivots` / `boneRotations`, `FxModels.Mesh.rig`, `ModelDraw.pose`, `PostRenderer` (`MBones` / `MBoneCount` upload, cull sphere grown by `BoneRig.reach`), `model/vertex.vsh` (per-bone 3x4), `_header.glsl` (`s.local` note), `ModelTestFx` (fourth, posed sword); JUnit `BoneRigTest` (7). Performance choices in [`decisions.md`](decisions.md).
+- BHSpells: `libs/bhfx-0.3.12.jar` refreshed; `compileJava` passed (no source change).
+- result: bhfx `gradlew build publishToMavenLocal` passed (JUnit, glslang). Not run in game.
+- next: in-game check ([`testing.md`](testing.md)); M3 `.animation.json`.
+
+---
+
 ## 2026-11-16 — Travelling waves and `FxGround` (orbital-laser review items 2 and 3)
 - Checkpoint commits first: bhfx `b6d64ba` (all 0.3.12 work so far), BHSpells `8da5b49` (thousand_swords, GeckoLib points).
 - bhfx: `impl/client/Waves` (new: delay = distance / speed, sounds via `SoundManager.playDelayed`, shakes queued per client tick, bounded `Schedule`), `FxContext.soundWave` (×3, defaults) / `shakeWave` (×2) / `waveDelay` / `SPEED_OF_SOUND`, `BHFxClient.soundWave` / `shakeWave` / `waveDelay`, `ClientFxManager.tick` (fires and clears waves); `api/client/FxGround` (new: `surface`, `Batch`), `impl/render/LevelGround` made public; test effect `impl/client/test/WaveTestFx` (`bhfx:test_wave`); JUnit `WavesTest` (4), `FxGroundTest` (3).

@@ -32,8 +32,8 @@ final class FxModels {
     private static final long UNUSED_NANOS = 60_000_000_000L;
     private static final long SWEEP_NANOS = 5_000_000_000L;
 
-    /** A model ready to draw. Bounds in model space (blocks). */
-    record Mesh(int vao, int vbo, int vertexCount, float[] min, float[] max, long bytes) {
+    /** A model ready to draw. Bounds in model space (blocks); {@code rig} poses its bones. */
+    record Mesh(int vao, int vbo, int vertexCount, float[] min, float[] max, long bytes, BoneRig rig) {
     }
 
     private static final class Entry {
@@ -177,7 +177,7 @@ final class FxModels {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         // leave the caller's vertex array bound: the frame goes on drawing full-screen passes with it
         GL30.glBindVertexArray(previousVao);
-        e.mesh = new Mesh(vao, vbo, d.vertexCount(), d.min(), d.max(), (long) d.vertices().length * 4);
+        e.mesh = new Mesh(vao, vbo, d.vertexCount(), d.min(), d.max(), (long) d.vertices().length * 4, BoneRig.of(d));
         BHFxMod.LOGGER.debug("bhfx model {}: {} triangles", e.file, d.vertexCount() / 3);
     }
 }

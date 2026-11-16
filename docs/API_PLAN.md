@@ -656,7 +656,21 @@ A Blockbench / GeckoLib `.geo.json` drawn by bhfx itself with a material shader:
   without culling: the footer drops each copy's back faces with `gl_FrontFacing` against the sign of its axes'
   determinant, so copies may be mirrored. Give `within` bounds (otherwise never culled). Light: one value at the
   bounds' centre. First user: BHSpells `bhspells:thousand_swords` (1000 copies of a 708-triangle sword).
-- **Limits**: bones stay in their rest pose (no animation yet); no world shadows, one light value per model; off with
+- **Posed bones (M2)** (`FxPose`; `PassList.model(model, frame, scale, pose, material[, options], setup)`,
+  `models(model, instances, count, pose, material, options, setup)`): `rotation(bone, x, y, z)` degrees added to the
+  modelled rotation, `position(bone, x, y, z)` pixels, `scale(bone, ...)` round the pivot, `hide(bone)` = scale 0,
+  `reset` / `clear`; Blockbench animation numbers (GeckoLib's sign rules: rotation x and y negated, position x
+  negated, checked in its `BakedAnimationsAdapter` / `RenderUtils.prepMatrixForBone`). `impl/render/BoneRig` (built per
+  mesh from the loader's `boneParents` / `bonePivots` / `boneRotations`) makes one 3x4 matrix per bone = posed × rest⁻¹,
+  parents first, untouched bones exact identities, no allocation per call, kept while the pose's `version()` is
+  unchanged; `PostRenderer` uploads `MBones` (`vec4[192]`) + `MBoneCount` only when a bone moved; `vertex.vsh` moves
+  each vertex by its `MBone`'s matrix. Instanced copies share one pose. Up to `FxPose.MAX_BONES` = 64 bones (192 vec4
+  keep the vertex shader under GL 3.2's 1024-component minimum). `s.local` stays the modelled position (patterns stick
+  to the moving part). Without `within`, the cull sphere grows by `BoneRig.reach` (how far moved bones carry it). The
+  pose is read at draw time (same frame): two poses in one frame need two `FxPose`s. Negative scales turn faces inside
+  out. JUnit `BoneRigTest` (7: posing equals re-baking with that rotation, pixel positions, hide, cache, reach holds
+  every vertex, parent loops / NaN harmless).
+- **Limits**: no `.animation.json` playback yet (M3); no world shadows, one light value per model; off with
   the rest of bhfx's drawing (quality OFF, shader pack, GL error), so anything players must see stays an entity.
 - Test effect: `bhfx:test_model` (`impl/client/test/ModelTestFx`, `geo/test_model.geo.json`,
   `textures/fx/test_model.png`): a sword three times, textured / glowing / dissolving; attached, a glowing sword in

@@ -2,6 +2,7 @@ package net.deizyn.bhfx.api.client;
 
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
 
@@ -44,8 +45,26 @@ public interface PassList {
 
     /** Like {@link #model(FxModel, FxFrame, float, ResourceLocation, Consumer)}, with an order and bounds. */
     @ApiStatus.Experimental
-    void model(FxModel model, FxFrame frame, float scale, ResourceLocation material, PassOptions options,
-               Consumer<Uniforms> setup);
+    default void model(FxModel model, FxFrame frame, float scale, ResourceLocation material, PassOptions options,
+                       Consumer<Uniforms> setup) {
+        model(model, frame, scale, null, material, options, setup);
+    }
+
+    /**
+     * Like {@link #model(FxModel, FxFrame, float, ResourceLocation, Consumer)}, with its bones posed by {@code pose}
+     * (null: as modelled). The pose is read when the model is drawn, later this frame: to draw two different poses in
+     * one frame, use two {@link FxPose} objects.
+     */
+    @ApiStatus.Experimental
+    default void model(FxModel model, FxFrame frame, float scale, @Nullable FxPose pose, ResourceLocation material,
+                       Consumer<Uniforms> setup) {
+        model(model, frame, scale, pose, material, PassOptions.PARTICLES, setup);
+    }
+
+    /** Posed, with an order and bounds. When posed bones reach past the model's own bounds, give {@code within}. */
+    @ApiStatus.Experimental
+    void model(FxModel model, FxFrame frame, float scale, @Nullable FxPose pose, ResourceLocation material,
+               PassOptions options, Consumer<Uniforms> setup);
 
     /**
      * Draw {@code count} copies of a model in one go (a thousand swords): copy {@code i} stands where entries
@@ -54,6 +73,16 @@ public interface PassList {
      * of them, or they are never culled. Each copy may be mirrored or not; back faces are dropped per copy.
      */
     @ApiStatus.Experimental
-    void models(FxModel model, FxData instances, int count, ResourceLocation material, PassOptions options,
-                Consumer<Uniforms> setup);
+    default void models(FxModel model, FxData instances, int count, ResourceLocation material, PassOptions options,
+                        Consumer<Uniforms> setup) {
+        models(model, instances, count, null, material, options, setup);
+    }
+
+    /**
+     * Like {@link #models(FxModel, FxData, int, ResourceLocation, PassOptions, Consumer)}, every copy posed alike by
+     * {@code pose} (null: as modelled). For copies that differ, vary them in the material by {@code s.instance}.
+     */
+    @ApiStatus.Experimental
+    void models(FxModel model, FxData instances, int count, @Nullable FxPose pose, ResourceLocation material,
+                PassOptions options, Consumer<Uniforms> setup);
 }

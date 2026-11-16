@@ -3,7 +3,8 @@
 // GeckoLib does: blocks, x mirrored, rest pose applied). MOrigin + MAxes put model space into the world (camera-relative,
 // like everything bhfx draws); MAxes' columns are the frame's x, y, z axes times the scale. Instanced (MInstanced 1),
 // copy gl_InstanceID stands where MInstances entries 4i .. 4i + 2 say ((axis, origin component) each), entry 4i + 3
-// goes to the material as s.instance.
+// goes to the material as s.instance. Posed (MBoneCount > 0, FxPose), a vertex of bone b first goes through
+// MBones[3b .. 3b + 2] (rows of a 3x4: rest pose to posed, model space); bones from MBoneCount on stay as baked.
 
 in vec3 MPos;
 in vec3 MNormal;
@@ -15,6 +16,8 @@ uniform vec3 MOrigin;
 uniform mat3 MAxes;
 uniform float MInstanced;
 uniform samplerBuffer MInstances;
+uniform float MBoneCount;
+uniform vec4 MBones[192]; // FxPose.MAX_BONES * 3
 
 out vec3 mPos;
 out vec3 mNormal;
@@ -57,12 +60,23 @@ void main() {
         }
     }
     mDet = determinant(axes);
-    vec3 world = origin + axes * MPos;
+    vec3 pos = MPos;
+    vec3 normal = MNormal;
+    int bone = int(MBone + 0.5);
+    if (bone < int(MBoneCount + 0.5)) {
+        vec4 r0 = MBones[bone * 3];
+        vec4 r1 = MBones[bone * 3 + 1];
+        vec4 r2 = MBones[bone * 3 + 2];
+        vec4 p = vec4(MPos, 1.0);
+        pos = vec3(dot(r0, p), dot(r1, p), dot(r2, p));
+        normal = vec3(dot(r0.xyz, MNormal), dot(r1.xyz, MNormal), dot(r2.xyz, MNormal));
+    }
+    vec3 world = origin + axes * pos;
     mPos = world;
-    mLocal = MPos;
+    mLocal = MPos; // where it was modelled: patterns stay on the part as it moves
     mUv = MUv;
     mBone = MBone;
-    vec3 n = axes * MNormal;
+    vec3 n = axes * normal;
     mNormal = dot(n, n) > 1e-12 ? normalize(n) : vec3(0.0, 1.0, 0.0);
     gl_Position = ViewProj * vec4(world, 1.0);
     mViewZ = gl_Position.w;

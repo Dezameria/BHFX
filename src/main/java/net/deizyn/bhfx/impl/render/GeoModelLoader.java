@@ -30,8 +30,13 @@ public final class GeoModelLoader {
     private GeoModelLoader() {
     }
 
-    /** The baked model. {@code min} / {@code max}: its bounds in model space (blocks). */
-    public record Data(float[] vertices, int vertexCount, String[] boneNames, float[] min, float[] max) {
+    /**
+     * The baked model. {@code min} / {@code max}: its bounds in model space (blocks). Per bone, in {@code boneNames}
+     * order (the vertices' bone index): {@code boneParents} (-1 for none), {@code bonePivots} (3 each, model space in
+     * blocks, x mirrored), {@code boneRotations} (3 each, the rest rotation in degrees as the file has it).
+     */
+    public record Data(float[] vertices, int vertexCount, String[] boneNames, float[] min, float[] max,
+                       int[] boneParents, float[] bonePivots, float[] boneRotations) {
     }
 
     private enum Face {
@@ -91,7 +96,19 @@ public final class GeoModelLoader {
                 cube(el.getAsJsonObject(), bone, m, bi, texW, texH, mesh);
             }
         }
-        return new Data(mesh.toArray(), mesh.count, names.toArray(new String[0]), mesh.min, mesh.max);
+        int[] parents = new int[names.size()];
+        float[] pivots = new float[names.size() * 3];
+        float[] rotations = new float[names.size() * 3];
+        for (int bi = 0; bi < names.size(); bi++) {
+            BoneDef bone = bones.get(names.get(bi));
+            parents[bi] = bone.parent() != null && !bone.parent().equals(bone.name()) ? names.indexOf(bone.parent()) : -1;
+            pivots[bi * 3] = -bone.pivot()[0] / 16f;
+            pivots[bi * 3 + 1] = bone.pivot()[1] / 16f;
+            pivots[bi * 3 + 2] = bone.pivot()[2] / 16f;
+            System.arraycopy(bone.rotation(), 0, rotations, bi * 3, 3);
+        }
+        return new Data(mesh.toArray(), mesh.count, names.toArray(new String[0]), mesh.min, mesh.max, parents, pivots,
+                rotations);
     }
 
     private static boolean hidden(BoneDef bone, Map<String, BoneDef> bones) {

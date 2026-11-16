@@ -37,7 +37,8 @@ struct Surface {
     vec2 uv;        // texture coordinates (the model's own UV mapping)
     vec3 pos;       // camera-relative world position of this pixel
     vec3 normal;    // world-space unit normal (outward)
-    vec3 local;     // position in model space (blocks; the model's own frame)
+    vec3 local;     // position in model space (blocks; the model's own frame) as modelled: with an FxPose, where
+                    // the point was before posing, so patterns stay on the part as it moves
     float bone;     // index of the bone this face belongs to (order of the .geo.json)
     vec3 view;      // unit direction from the eye to this pixel
     float light;    // world light at the model's origin, 0 dark .. 1 full

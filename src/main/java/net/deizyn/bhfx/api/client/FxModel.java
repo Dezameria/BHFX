@@ -9,7 +9,8 @@ import java.util.Objects;
 /**
  * A Blockbench / GeckoLib model ({@code .geo.json}) that an effect draws itself with {@link PassList#model}, with a
  * material shader of its own: no entity, nothing sent over the network, drawn inside bhfx's frame like particles
- * (hidden by the world in front of it, bloom on bright colours). Static for now: the bones stay in their rest pose.
+ * (hidden by the world in front of it, bloom on bright colours). Bones stay as modelled unless an {@link FxPose}
+ * turns, moves, scales or hides them.
  * <ul>
  *   <li>{@link #geo}: {@code "ns:name"} loads {@code assets/ns/geo/name.geo.json} (where GeckoLib keeps them), so a
  *       model made for GeckoLib works as is. Baked like GeckoLib bakes it, so its texture lines up.</li>

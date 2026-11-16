@@ -8,6 +8,7 @@ import net.deizyn.bhfx.api.client.PassOptions;
 import net.deizyn.bhfx.api.client.Uniforms;
 import net.deizyn.bhfx.api.client.FxFrame;
 import net.deizyn.bhfx.api.client.FxModel;
+import net.deizyn.bhfx.api.client.FxPose;
 import net.deizyn.bhfx.api.client.FxData;
 import net.deizyn.bhfx.impl.render.DataTable;
 import net.deizyn.bhfx.impl.render.ModelDraw;
@@ -110,8 +111,8 @@ public final class PassListImpl implements PassList {
     }
 
     @Override
-    public void model(FxModel model, FxFrame frame, float scale, ResourceLocation material, PassOptions options,
-                      Consumer<Uniforms> setup) {
+    public void model(FxModel model, FxFrame frame, float scale, @Nullable FxPose pose, ResourceLocation material,
+                      PassOptions options, Consumer<Uniforms> setup) {
         if (model == null || frame == null || material == null || !(scale > 0f)) {
             return;
         }
@@ -126,7 +127,7 @@ public final class PassListImpl implements PassList {
             light = level.getMaxLocalRawBrightness(BlockPos.containing(o)) / 15f;
         }
         ModelDraw draw = new ModelDraw(model, (float) (o.x - camera.x), (float) (o.y - camera.y), (float) (o.z - camera.z),
-                axes, scale, light);
+                axes, scale, light, pose == null || pose.isEmpty() ? null : pose);
         PassOptions.Bounds b = options.bounds();
         double bx = 0;
         double by = 0;
@@ -143,8 +144,8 @@ public final class PassListImpl implements PassList {
     }
 
     @Override
-    public void models(FxModel model, FxData instances, int count, ResourceLocation material, PassOptions options,
-                       Consumer<Uniforms> setup) {
+    public void models(FxModel model, FxData instances, int count, @Nullable FxPose pose, ResourceLocation material,
+                       PassOptions options, Consumer<Uniforms> setup) {
         if (model == null || material == null || !(instances instanceof DataTable table) || count <= 0) {
             return;
         }
@@ -169,7 +170,8 @@ public final class PassListImpl implements PassList {
             bz = b.center().z - camera.z;
             radius = b.radius();
         }
-        ModelDraw draw = new ModelDraw(model, 0f, 0f, 0f, new float[]{1, 0, 0, 0, 1, 0, 0, 0, 1}, 1f, light, table, n);
+        ModelDraw draw = new ModelDraw(model, 0f, 0f, 0f, new float[]{1, 0, 0, 0, 1, 0, 0, 0, 1}, 1f, light, table, n,
+                pose == null || pose.isEmpty() ? null : pose);
         entries.add(new Entry(material, options.order(), entries.size(), distance, setup, bx, by, bz, radius, null, 0f,
                 presence, draw));
     }
