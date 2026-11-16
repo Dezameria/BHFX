@@ -12,6 +12,13 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
   small but only helps block-looking debris. Half-res stages only save GPU time. Bending the world itself needs
   chunk-renderer mixins that would clash with Sodium-type mods and shader packs, so it is not planned.
 
+## 2026-11-16 — No shadows (sun direction, blob, SDF or model shadows) for now
+- **Decision**: not planned. The user judged shadows more than effects need. `sdf_march.glsl` keeps `sdfShadow` for an
+  effect that wants it in its own pass.
+- **Reason**: glowing, mostly brief spell effects read fine without them; the options weighed were blob shadows (near
+  free), SDF soft shadows (about 0.2 ms bounded, up to 1–3 ms full screen) and model shadow maps (about twice the model
+  cost). Reopen only when a specific effect looks wrong without one.
+
 ## 2026-11-16 — Animations (M3) sampled on the CPU into `FxPose`, Blockbench's interpolation rules
 - **Decision**: `FxAnimation` parses `.animation.json` itself (no GeckoLib) into arrays and writes the sampled values into
   the same `FxPose` M2 uses; the GPU side is unchanged. Interpolation follows Blockbench (what the artist saw:
