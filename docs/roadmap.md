@@ -63,7 +63,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
   particle path, so they stay cheap with many players. All new API, `@ApiStatus.Experimental`, each with a test effect.
   - [x] 2026-11-17 C1 done as `PassList.light` (0.3.20), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.8). Later if wanted: a config switch, lights from particles (one call per batch), spot / line lights. Planned text: `FxLights`: point lights (position, colour, radius, falloff) from any effect, gathered into one data table
     and drawn by one pass that lights the world from depth. Spells light the ground and walls round them.
-  - [ ] C2. `FxDecals`: textured marks on the ground and walls (magic circles, scorch, cracks; rotation, fade, flipbook,
+  - [x] 2026-11-17 C2 done as `PassList.decal` / `FxDecal` (0.3.21), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.9). Later if wanted: a soft edge option, a ramp over the mask, more than 8 textures (an atlas). Planned text: `FxDecals`: textured marks on the ground and walls (magic circles, scorch, cracks; rotation, fade, flipbook,
     ramp), all in one pass, built on `groundDecal`. No shader to write for the common case.
   - [ ] C3. Bolts and beams: a Java builder for lightning / beam polylines (jitter, branches, travel) on the existing
     ribbons, plus the built-in textured-ribbon material from the backlog. No new renderer.

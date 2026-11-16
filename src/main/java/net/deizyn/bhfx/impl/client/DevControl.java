@@ -60,6 +60,7 @@ final class DevControl {
     private static String file;
     private static final Deque<String> LINES = new ArrayDeque<>();
     private static int lineNo;
+    private static boolean waitingForWindow;
     /** Frame cap and vsync before the first {@code fps} line; -1 when untouched. */
     private static int savedFps = -1;
     private static boolean savedVsync;
@@ -99,6 +100,15 @@ final class DevControl {
         if (mc.screen instanceof PauseScreen) {
             mc.setScreen(null);
         }
+        if (mc.getWindow().getWidth() < 64 || mc.getWindow().getHeight() < 64) {
+            // minimised: nothing is drawn, so shots and readings would be worthless; wait for the window to come back
+            if (!waitingForWindow) {
+                waitingForWindow = true;
+                log(dir, "waiting: the window is minimised");
+            }
+            return;
+        }
+        waitingForWindow = false;
         String line = LINES.poll();
         lineNo++;
         run(dir, mc, player, line.trim());

@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C2: marks on surfaces (0.3.21)
+- bhfx: `FxDecal` + `PassList.decal`, `MAX_DECALS`, `MAX_DECAL_TEXTURES` (api), `PassListImpl` (`DecalCursor`, `decalRaw` → `decals`, `decalsEntry`), `decals.fsh`, `DecalsTestFx` (`bhfx:test_decals`), `textures/fx/magic_circle.png` (drawn by a script), `DevControl` (waits while minimised); JUnit `PassListDecalsTest` (2). 0.3.20 → 0.3.21.
+- result: build + glslang + JUnit passed; shot in game by Claude (noon, night, ground and wall): works. Stress with 71 effects: 0.47 ms GPU. The first in-game run was void (window minimised). BHSpells untouched (`libs/` restored).
+- next: C3 bolts / beams on ribbons with a built-in textured-ribbon material.
+
+---
+
 ## 2026-11-17 — Stage C1: point lights (0.3.20)
 - bhfx: `PassList.light` + `MAX_LIGHTS` (api), `PassListImpl` (`lights`, `light`, `lightsEntry`, `isEmpty`, `drawList`), `lights.fsh`, `LightsTestFx` (`bhfx:test_lights`), `ClientBootstrap`; JUnit `PassListLightsTest` (2). 0.3.19 → 0.3.20.
 - result: build + glslang + JUnit passed; shot in game by Claude (night, noon, wall): works; daylight gain lowered once. Stress with 71 lit effects: 0.46 ms GPU. BHSpells untouched (`libs/` restored).

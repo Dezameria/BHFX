@@ -4,7 +4,16 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.20 — unreleased (protocol 3)
+## 0.3.21 — unreleased (protocol 3)
+- **Added** (Experimental): `PassList.decal(texture, center, size)` returning an `FxDecal` (`rotation`, `color`,
+  `glow`, `mask`, `facing`, `depth`, `frame`): textured marks on the ground and on walls. The marks of every effect
+  are drawn in one built-in pass (`bhfx:decals`, after the lights, before all other passes), outside
+  `maxPassesPerFrame`; at most 32 marks and 8 different textures per frame. Test effect `bhfx:test_decals`, texture
+  `bhfx:textures/fx/magic_circle.png`.
+- **Changed** (dev client only): dev control waits while the game window is minimised (shots and readings taken then
+  were empty).
+
+## 0.3.20 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `PassList.light(position, rgb, strength, radius)`: point lights that brighten the ground
   and walls near an effect. The lights of every effect are drawn in one built-in pass (`bhfx:lights`) before all other
   passes and do not count against `maxPassesPerFrame`; at most 64 per frame (`PassList.MAX_LIGHTS`, the farthest are

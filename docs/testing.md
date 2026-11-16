@@ -6,6 +6,19 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Marks on surfaces, `bhfx:test_decals` (2026-11-17, 0.3.21; build + glslang + JUnit `PassListDecalsTest` (2); in game by Claude through dev control: `/bhfx shoot` at noon and at night, looking north at a stone wall filled in 4 blocks behind the target and removed after)
+- Ground: the big circle grows and turns, the small one turns the other way inside it, lines stay sharp at a low
+  angle; the flipbook mark steps through its cells; the paint mark darkens the grass. Wall: the circle sits on the
+  stone face, upright, turning. Night: the marks glow, the wall and ground round them stay dark; the light over the
+  circle shows on the grass.
+- Load: `/bhfx stress 70 32 10 bhfx:test_decals` (71 effects, 355 marks and 71 lights asked; 32 and 64 drawn, two
+  passes): 341 fps, render CPU 0.25 ms, GPU 0.47 ms. No `broken` / exception in the log.
+- Seen, not a bug: the paint mark is a hard dark square (its test texture, `noise_cells`, has no soft edge).
+- First run was void: the game window was minimised (1x1), so the shots were blank; dev control now waits for the
+  window.
+- Not checked: ceilings, steps and slopes inside `depth`, an entity standing on a mark, more than 8 textures or 32
+  marks in view (JUnit only), a non-mask RGBA texture, with a shader pack, in BHSpells.
+
 ### ✅ Point lights, `bhfx:test_lights` (2026-11-17, 0.3.20; build + glslang + JUnit `PassListLightsTest` (2); in game by Claude through dev control: `/bhfx shoot` at night and at noon, open field, with a stone wall filled in behind the lights and removed after)
 - Night: red, green and blue pools on the grass following the three orbs, mixing where they meet; the wall takes the
   colour of the light passing it with a soft edge; nothing lit past the radius; the pulsing white light shows on the

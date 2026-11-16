@@ -735,6 +735,33 @@ protected void passes(FrameContext frame, PassList out) {
   buffer, particles / models / sky are not lit, translucent blocks take the light of what is behind them. No config
   switch yet.
 
+### 5.9 Marks on surfaces (`PassList.decal`, `FxDecal`, 0.3.21, Experimental)
+```java
+private static final FxTexture CIRCLE = FxTexture.of(new ResourceLocation("mymod", "textures/fx/circle.png")).clamp();
+
+@Override
+protected void passes(FrameContext frame, PassList out) {
+    out.decal(CIRCLE, frame.position(), 3f).mask().color(0x40C8FF, 1f).glow(1.6f).rotation(seconds(frame) * 25f);
+}
+```
+- `decal(texture, center, size)`: a square of half size `size` blocks centred on a world point on or near the surface.
+  Call it every frame; set what differs from the defaults on the returned `FxDecal` right away (it is reused by the
+  next call). Defaults: on the ground, not turned, white, opaque, colour and coverage from the texture's rgb and alpha.
+- `mask()`: coverage from the red channel, colour from `color` alone; needed for grayscale textures (they read as
+  `(v, v, v, 1)`, an opaque square otherwise). `glow(brightness)`: add light instead of covering (above 1 blooms).
+  `facing(normal)`: a wall or ceiling; rest axes are u = level (east on the ground), v = north on the ground / up on a
+  wall; `rotation` turns round the normal. `depth(blocks)`: how far off its plane it still lands (default 1).
+  `frame(columns, rows, index)`: one cell of a flipbook grid, from the top-left.
+- One built-in pass for every effect's marks, `bhfx:decals` (`decals.fsh`), after `bhfx:lights` and before all other
+  passes, bounded, outside `maxPassesPerFrame`. Caps: `PassList.MAX_DECALS` (32; the farthest from the camera are
+  replaced) and `MAX_DECAL_TEXTURES` (8 different textures per frame; a mark whose texture does not fit is dropped).
+- Look: lands on surfaces inside the square, within `depth` of the plane and facing within about 60 degrees of it, so
+  a ground mark does not smear down a cliff; mipmapped with explicit gradients; faded by terrain fog. Marks drawn
+  later cover earlier ones (call order). Not lit by `light` when glowing; paint marks are drawn after the lights, so
+  they are not lit either.
+- Limits: the square's edge is hard unless the texture fades out itself; entities standing on a mark take it too
+  (it is the depth buffer); no shader of your own in this path (use `groundDecal` in a pass for that).
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

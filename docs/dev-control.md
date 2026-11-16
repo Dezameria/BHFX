@@ -38,6 +38,9 @@ Lines:
 - A command, with or without `/`, whose first word is one of `bhfx tp teleport time weather gamemode gamerule summon
   kill effect difficulty fill setblock clear give` (`DevControl.ALLOWED`); sent as if typed. Anything else is refused.
 
+Lines wait while the game window is minimised (`waiting: the window is minimised` in the log): nothing is drawn
+then, so shots would be blank and readings meaningless.
+
 A line waits while `/bhfx shoot` / `shoots` is busy, so shoots in one file run one after another. Nothing runs before
 the player is in a world.
 

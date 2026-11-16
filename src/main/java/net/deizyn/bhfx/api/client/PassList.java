@@ -25,6 +25,24 @@ public interface PassList {
     /** Most lights drawn in one frame. */
     int MAX_LIGHTS = 64;
 
+    /**
+     * A textured mark on the world for this frame: a square of half size {@code size} blocks centred on
+     * {@code center} (a world point on or near the surface), flat on the ground unless {@link FxDecal#facing} says
+     * otherwise, showing {@code texture}. Returns the mark to set its rotation, colour, glow and so on; call it every
+     * frame the mark should show. The marks of every effect are drawn together in one built-in pass (after the lights,
+     * before all other passes), so a mark costs far less than a pass of its own. At most {@link #MAX_DECALS} marks
+     * and {@link #MAX_DECAL_TEXTURES} different textures show in one frame (the marks farthest from the camera are
+     * dropped; a mark whose texture does not fit is not drawn). Use a clamped texture ({@link FxTexture#clamp}).
+     */
+    @ApiStatus.Experimental
+    FxDecal decal(FxTexture texture, Vec3 center, float size);
+
+    /** Most marks drawn in one frame. */
+    int MAX_DECALS = 32;
+
+    /** Most different textures the marks of one frame may use. */
+    int MAX_DECAL_TEXTURES = 8;
+
     void add(ResourceLocation shader, Consumer<Uniforms> setup);
 
     void add(ResourceLocation shader, PassOptions options, Consumer<Uniforms> setup);
