@@ -11,6 +11,11 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-16 — Pushed bhfx
+- bhfx: `feature/scale-phase0` pushed to `origin` (Dezameria/BHFX), `b684ab4..48a8ea7` (17 commits: 0.3.12–0.3.14). BHSpells left alone at the user's request (8 local commits, not pushed).
+
+---
+
 ## 2026-11-16 — Remaining tests by `/bhfx shoot`
 - In game (bhfx's own client), Claude read the shots: `test_sdf` ✅, `test_data` ✅ (behind-terrain hiding not shown), `test_model attach @s` sword in the hand (first person, and third person at 3 s), `test_points` not judgeable there (needs BHSpells + a GeckoLib entity, third person). Dark dots in `test_data` glow measured as star rims, not a bug.
 - bhfx: `FxShots` hides chat during `gui:true` runs (chat covered half the shots). Build passed; not re-checked in game.
