@@ -173,7 +173,7 @@ Requirement (user, 2026-11-06): everyone in range sees the same effects. Under l
 ## Waiting on the user
 
 - Where to distribute bhfx: only your own modpack, or Modrinth/CurseForge.
-- License: keep All Rights Reserved if other mods are going to import it?
+- ~~License: keep All Rights Reserved if other mods are going to import it?~~ Decided 2026-11-17: All Rights Reserved, `LICENSE` added ([`decisions.md`](decisions.md)). Follows from it: another author's mod or modpack needs written permission to ship bhfx; revisit if bhfx is published for others.
 
 ## Backlog (not scheduled)
 

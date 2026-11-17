@@ -152,3 +152,7 @@ It has `shake`, `flash`, `vignette`, `aberration`, `zoomBlur` and `desaturate`, 
 
 Development knowledge is kept as markdown, split by category, in [`docs/`](docs/README.md):
 open work and the 1.0 plan ([`roadmap.md`](docs/roadmap.md)), test status ([`testing.md`](docs/testing.md)), bugs ([`bugs.md`](docs/bugs.md)), decisions ([`decisions.md`](docs/decisions.md)), shader checking ([`shaders.md`](docs/shaders.md)), releasing ([`release.md`](docs/release.md)), use in BHSpells ([`integrations/bhspells.md`](docs/integrations/bhspells.md)) and the daily work log ([`worklog.md`](docs/worklog.md)).
+
+## License
+
+All Rights Reserved, copyright (c) 2026 Dezameria. See [`LICENSE`](LICENSE): no copying, changing or redistributing without written permission.

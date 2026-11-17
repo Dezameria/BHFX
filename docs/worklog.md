@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — License file
+- bhfx: new `LICENSE` (All Rights Reserved, copyright 2026 Dezameria), a License section in `README.md`, [`decisions.md`](decisions.md), [`roadmap.md`](roadmap.md) "Waiting on the user".
+- result: docs only, no build, no version bump.
+- next: where to distribute bhfx is still the user's open question.
+
+---
+
 ## 2026-11-17 — Mirror panel: seamless texture (0.3.31)
 - bhfx: new `textures/block/mirror_panel.png` (16x16, flat `a0a8b6` with streaks where `(x - y) mod 16` is 3, 4 or 11, so it wraps both ways); `models/block/mirror_panel.json` uses it. `mirror_front.png` and the mirror block untouched. 0.3.30 → 0.3.31, `CHANGELOG.md`.
 - result: build passed; shot in game by Claude through dev control: the 5x3 wall and 3x3 floor read as one sheet, reflections unchanged. BHSpells untouched (`libs/` restored).

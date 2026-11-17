@@ -1,5 +1,11 @@
 # Design decisions
 
+## 2026-11-17 — License: All Rights Reserved, held by Dezameria
+The user chose to keep All Rights Reserved (over MIT, LGPL-3.0 and ARR with a modpack exception) and Dezameria as
+the copyright holder. `LICENSE` at the repo root states it; `mod_license` in `gradle.properties` already said so.
+Effect: nobody else may copy, change or redistribute bhfx (including in a modpack) without written permission. The
+`LICENSE` file is not packed into the jar.
+
 ## 2026-11-17 — Keyed random is a stateless helper beside `Fx.random()`, not a replacement
 `FxRandom` (in `api`, common) mixes `(seed, stream, index)` into a seed; `Fx.random(stream, index)` wraps it.
 `Fx.random()` stays one sequence. Reason: existing effects keep their looks; a keyed value needs no state, so the
