@@ -910,6 +910,23 @@ smoke = createParticles(FxParticles.DOT, 1024).blend(FxParticles.Blend.ALPHA)
   fade reaches every material through the footer's `soft` (flat varying `pFade`).
 - Ribbons ignore both; the size limit does not shorten `AXIS` / `TUMBLE` lengths; not applied to `modelParticles`.
 
+### 5.18 Keyed random (`FxRandom`, 0.3.30, Experimental)
+```java
+// net.deizyn.bhfx.api.FxRandom: common code, so the server can compute the same values as the effect
+static final long STRIKES = FxRandom.stream("strikes");
+double angle = FxRandom.unit(seed, STRIKES, i) * Math.PI * 2;   // one value in 0..1 for strike i
+RandomSource r = FxRandom.source(seed, STRIKES, i);             // or a source, for several values
+// in an Fx: the same as FxRandom.source(init().seed(), stream, index)
+RandomSource tickRandom = random(EMBERS, age);
+```
+- `Fx.random()` is one sequence, so an effect built late draws different numbers ([`decisions.md`](decisions.md)
+  2026-11-07). A keyed value depends only on `(seed, stream, index)`: the same for the server (which chose the seed
+  with `FxSpawn.seed`), a client that started on time and one that joined late.
+- `stream` names one use (`FxRandom.stream(name)`, FNV-1a of the name); `index` numbers the draw (tick, item).
+  `seed(seed, stream, index)` gives the mixed `long`; `range(...)` a value between two bounds.
+- bhfx's own emitters (`FxParticles.emit`, `stream`, `FxBolt.draw(batch, random)`) still take whatever
+  `RandomSource` they are given; pass a keyed one to make a spawn repeat.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

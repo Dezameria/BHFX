@@ -38,6 +38,13 @@ void main() {
     if (soft <= 0.0) {
         discard;
     }
+    if (PMode.x > 2.5) {
+        // dev overdraw view (/bhfx overdraw): every pixel a quad fills counts the same, whatever the material
+        // returned; n layers leave 0.93^n of the image and 1 - 0.93^n of the heat colour (a faint tint for one layer,
+        // orange near 10, yellow from about 30). Kept near 1 so bloom does not wash it out.
+        fragColor = vec4(vec3(1.6, 0.8, 0.2) * 0.07, 0.07);
+        return;
+    }
     if (PMode.x > 1.5) {
         vec2 offset = (c.x * pScreen.xy + c.y * pScreen.zw) * clamp(c.a, 0.0, 1.0) * soft * PMode.z;
         fragColor = vec4(offset, 0.0, 0.0);

@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stages E and F finished: overdraw view, `FxRandom` (0.3.30)
+- bhfx: `particle/_footer.glsl` (`PMode.x` 3), `PostRenderer` (`overdrawView`, distortion batches counted on the image, `describe`), `ClientEvents` (`/bhfx overdraw [on|off]`, dev only); `api/FxRandom`, `Fx.random(stream, index)`, JUnit `FxRandomTest` (3). 0.3.29 → 0.3.30. `CHANGELOG.md`, `README.md`, [`API_PLAN.md`](API_PLAN.md) 5.18, [`decisions.md`](decisions.md).
+- result: build + JUnit + glslang passed; overdraw view shot in game by Claude (two rounds, the heat ramp was toned down after the first). `FxRandom` is JUnit only. BHSpells untouched (`libs/` restored).
+- next: the 2026-11-16 performance / new forms plan is complete. Open: in-game rounds still ⏳ in [`testing.md`](testing.md) (body parts, `TUMBLE`, scoped stop, pass bounds, mirror panel, named points, scale phase 0 / 1 = U1), the merge into `main`, and a first BHSpells effect on the 0.3.20–0.3.30 features (needs the user's go-ahead).
+
+---
+
 ## 2026-11-17 — Roadmap brought in line with the worklog and testing notes
 - bhfx: `docs/roadmap.md` only — ticked what was already done or tested: stage C header, A1–A4, B1–B3, particle optimization items 4 / 2 / 3, `FxData`, SDF shapes, models M1–M4, travelling waves, the live window under scale phase 2, the textured-ribbon material (`FxParticles.BEAM`); fixed the contradicting "Left" text of stages E and F; noted phase 2 as dropped and phase 3 as partly done.
 - result: docs only, no code change, no build, no version bump.

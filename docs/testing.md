@@ -6,6 +6,21 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Overdraw view, `/bhfx overdraw` (2026-11-17, 0.3.30; build + glslang; in game by Claude through dev control at noon, two rounds)
+- On: `test_particles` shows as stacked rectangles, yellow where the fire's quads pile up, a faint tint for the
+  single big quads; `test_flow`'s ground ring orange with a yellow middle; `test_near_off` with the camera inside the
+  cloud is yellow over the whole screen (the house still shows through). `/bhfx status` says `OVERDRAW VIEW`.
+  Off again: `test_particles` looks as before. No `broken` / exception in the log.
+- Seen with it: the burst ring of `test_particles` is drawn by quads that cover the whole lower half of the screen
+  from 7 blocks away, for a thin ring.
+- First round's ramp (heat 3×, 10 % a layer) went white after a few layers through bloom; now 1.6× and 7 %.
+- Not checked: DISTORT batches on their own (they are counted on the image, no bending), ribbons, a BHSpells
+  effect, that a production jar has no such command (the registration is behind `FMLEnvironment.production`).
+
+### ⏳ Keyed random, `FxRandom` (2026-11-17, 0.3.30; build + JUnit `FxRandomTest` (3): same key gives the same numbers whatever was drawn before, seed / stream / index each change the result, 4096 neighbouring indexes spread evenly with no repeats)
+- Not tested in game: no effect uses it yet. To check when one does: two clients, one walking into range late,
+  compare the keyed parts (strike points) on both.
+
 ### ✅ Near-camera fade, `bhfx:test_near` / `bhfx:test_near_off` (2026-11-17, 0.3.29; build passed, no new JUnit; in game by Claude through dev control at noon, camera inside the cloud)
 - Off: the whole view is washed grey and near motes are blobs up to 80 px. On: ground and house near the camera
   are clear, the haze starts a few blocks out, no large blobs.

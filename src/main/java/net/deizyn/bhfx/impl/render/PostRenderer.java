@@ -159,6 +159,11 @@ public final class PostRenderer {
     private double lastGpuSample = -1;
     private boolean disabled;
     private String disabledReason = "";
+    /**
+     * Dev only ({@code /bhfx overdraw}): particle quads are drawn as flat heat instead of their material, so the
+     * pixels filled many times over show (fill rate is what particles cost). Models and passes draw as usual.
+     */
+    public static volatile boolean overdrawView;
 
     public boolean disabled() {
         return disabled;
@@ -236,6 +241,7 @@ public final class PostRenderer {
                 + ", " + lastCopyCount + " full copy(ies)"
                 + (lastIdleBatches > 0 ? ", " + lastIdleBatches + " empty batch(es) not drawn" : "")
                 + (particleStride > 1 ? ", particles thinned to 1 in " + particleStride : "")
+                + (overdrawView ? ", OVERDRAW VIEW" : "")
                 + (textures.count() > 0 ? ", " + textures.count() + " texture(s)" : "")
                 + (tables.count() > 0 ? ", " + tables.count() + " data table(s)" : "")
                 + (models.count() > 0 ? ", " + models.count() + " model(s)" : "");
@@ -474,7 +480,8 @@ public final class PostRenderer {
                             ribbonDrawn += b.live;
                         }
                         particleGroup.add(e);
-                        distort |= b.blend == FxParticles.Blend.DISTORT;
+                        // the overdraw view counts distortion quads on the image like the rest
+                        distort |= !overdrawView && b.blend == FxParticles.Blend.DISTORT;
                     }
                     index = end - 1;
                     if (particleGroup.isEmpty()) {
@@ -528,7 +535,7 @@ public final class PostRenderer {
                     GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ZERO, GL11.GL_ONE);
                     GL14.glBlendEquation(GL14.GL_FUNC_ADD);
                     for (PassListImpl.Entry e : particleGroup) {
-                        if (e.particles().blend != FxParticles.Blend.DISTORT) {
+                        if (overdrawView || e.particles().blend != FxParticles.Blend.DISTORT) {
                             drawBatch(e, inPlace ? snapshotTex : input, depth, time);
                         }
                     }
@@ -1108,7 +1115,8 @@ public final class PostRenderer {
         phases[PH_UPLOAD] += p2 - p1;
         particleMotion(program, b, e.time());
         program.set4(ShaderProgram.U_PShape, b.facing.ordinal(), b.stretch, b.pivot, 0f);
-        program.set4(ShaderProgram.U_PMode, b.blend.ordinal(), b.softness, b.distortion, e.presence());
+        // 3 = the dev overdraw view (see particle/_footer.glsl): past the blend modes, so the material is ignored
+        program.set4(ShaderProgram.U_PMode, overdrawView ? 3f : b.blend.ordinal(), b.softness, b.distortion, e.presence());
         program.set3(ShaderProgram.U_PRibbonNormal, b.rnx, b.rny, b.rnz);
         program.set4(ShaderProgram.U_PNear, b.nearGone, b.nearFull, b.maxScreen, 0f);
         program.set4(ShaderProgram.U_PTurb, b.turbAmp, b.turbFreq, b.turbScale, 0f);

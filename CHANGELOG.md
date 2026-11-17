@@ -4,7 +4,14 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.29 — unreleased (protocol 3)
+## 0.3.30 — 2026-11-17, built locally, not published (protocol 3)
+- **Added** (Experimental): `FxRandom` (`api`, both sides) and `Fx.random(stream, index)`: random numbers keyed by
+  the effect's seed, a stream and an index, so the server and every client get the same values whenever they are
+  computed (also on a client that built the effect late). `Fx.random()` is unchanged.
+- **Added**, dev clients only: `/bhfx overdraw [on|off]` draws particle quads as heat instead of their material, to
+  show where they pile up.
+
+## 0.3.29 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental), both opt-in and off by default: `FxParticles.nearFade(gone, whole)` (particles fade out
   near the camera and are not drawn once gone) and `FxParticles.maxScreenSize(share)` (a largest size on screen).
   Test effects `bhfx:test_near`, `bhfx:test_near_off`.

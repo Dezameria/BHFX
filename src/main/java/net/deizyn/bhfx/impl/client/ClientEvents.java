@@ -125,6 +125,13 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
+        if (!net.minecraftforge.fml.loading.FMLEnvironment.production) {
+            // dev clients only: particle quads as heat, to see where they pile up (fill rate)
+            event.getDispatcher().register(Commands.literal("bhfx").then(Commands.literal("overdraw")
+                    .executes(ctx -> overdraw(ctx, !net.deizyn.bhfx.impl.render.PostRenderer.overdrawView))
+                    .then(Commands.literal("on").executes(ctx -> overdraw(ctx, true)))
+                    .then(Commands.literal("off").executes(ctx -> overdraw(ctx, false)))));
+        }
         event.getDispatcher().register(Commands.literal("bhfx")
                 .then(Commands.literal("status").executes(ctx -> {
                     ctx.getSource().sendSuccess(() -> Component.literal(ClientFxManager.status()), false);
@@ -164,6 +171,14 @@ public final class ClientEvents {
                     ctx.getSource().sendSuccess(() -> Component.literal("bhfx: on"), false);
                     return Command.SINGLE_SUCCESS;
                 })));
+    }
+
+    private static int overdraw(CommandContext<CommandSourceStack> ctx, boolean on) {
+        net.deizyn.bhfx.impl.render.PostRenderer.overdrawView = on;
+        ctx.getSource().sendSuccess(() -> Component.literal(on
+                ? "bhfx overdraw view on: particle quads as heat (faint tint = 1 layer, orange about 10, yellow 30 and up)"
+                : "bhfx overdraw view off"), false);
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int bench(CommandContext<CommandSourceStack> ctx, ResourceLocation fx, int seconds) {

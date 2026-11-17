@@ -1,5 +1,18 @@
 # Design decisions
 
+## 2026-11-17 — Keyed random is a stateless helper beside `Fx.random()`, not a replacement
+`FxRandom` (in `api`, common) mixes `(seed, stream, index)` into a seed; `Fx.random(stream, index)` wraps it.
+`Fx.random()` stays one sequence. Reason: existing effects keep their looks; a keyed value needs no state, so the
+server can compute the same strike points from the seed it chose, and a client that builds the effect late gets the
+same numbers. Cost: the effect's author must pick streams and indexes; each `source(...)` call allocates a small
+`RandomSource` (use `unit` / `range` for single values).
+
+## 2026-11-17 — The overdraw view reuses the particle draw, no counting target
+`/bhfx overdraw` sets `PMode.x` to 3 (past the blend modes); the particle footer then writes a flat colour with a
+small alpha, blended like an ALPHA particle, so n layers leave `0.93^n` of the image. Reason: no new target, pass or
+uniform, and it covers every material of every mod through the shared footer. Cost: it is a saturating tint, not an
+exact count, and only particles show (models and passes draw as usual). Dev clients only.
+
 ## 2026-11-17 — Particle LOD thins what is drawn, not what is spawned
 `FxParticles.lod` raises the batch's draw stride by distance instead of scaling `emit` / `stream` counts. Reason:
 it reuses the frame's thinning (same slots every frame), cannot change an effect's logic or leave holes when the

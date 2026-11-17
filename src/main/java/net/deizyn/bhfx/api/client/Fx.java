@@ -58,6 +58,17 @@ public abstract class Fx {
         return random;
     }
 
+    /**
+     * A new random source that depends only on this effect's seed, {@code stream} and {@code index}, not on what was
+     * drawn from {@link #random()} before: the same on a client that built the effect late. {@code stream} names the
+     * use ({@link net.deizyn.bhfx.api.FxRandom#stream(String)}), {@code index} numbers the draw (the tick, an item).
+     * See {@link net.deizyn.bhfx.api.FxRandom}.
+     */
+    @ApiStatus.Experimental
+    protected final RandomSource random(long stream, long index) {
+        return net.deizyn.bhfx.api.FxRandom.source(init.seed(), stream, index);
+    }
+
     /** The seed as 0..1, handy as a shader uniform. */
     protected final float seedF() {
         return seedF;
