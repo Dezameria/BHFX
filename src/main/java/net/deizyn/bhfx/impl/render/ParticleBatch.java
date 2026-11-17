@@ -47,6 +47,10 @@ public final class ParticleBatch implements FxParticles {
     float drag;
     float softness = 0.4f;
     float distortion = 0.08f;
+    /** {@link FxParticles#lod}: distance step in blocks, 0 = off. */
+    float lodDistance;
+    /** The LOD stride in use (1 = every slot), kept between frames so it does not flicker at a step's edge. */
+    int lodStride = 1;
     /** RIBBON strip normal for the whole batch (unit), or 0 = turn to the camera. */
     float rnx;
     float rny;
@@ -184,6 +188,35 @@ public final class ParticleBatch implements FxParticles {
     public FxParticles softness(float blocks) {
         this.softness = Math.max(0f, blocks);
         return this;
+    }
+
+    @Override
+    public FxParticles lod(float blocks) {
+        this.lodDistance = Math.max(0f, blocks);
+        if (lodDistance == 0f) {
+            lodStride = 1;
+        }
+        return this;
+    }
+
+    /** Most slots skipped per slot drawn by {@link FxParticles#lod}, plus one. */
+    static final int LOD_MAX_STRIDE = 4;
+
+    /**
+     * The LOD stride for a batch whose origin is {@code distance} blocks from the camera: 1 within
+     * {@code step}, 2 beyond it, 3 beyond twice it, up to {@link #LOD_MAX_STRIDE}. It rises at once and falls only
+     * when the camera is 10% inside the step's edge, so standing on an edge does not make the count flicker.
+     */
+    static int lodStride(float step, double distance, int current) {
+        if (!(step > 0f)) {
+            return 1;
+        }
+        int now = (int) Math.max(1, Math.min(LOD_MAX_STRIDE, 1 + Math.floor(Math.max(0.0, distance) / step)));
+        if (now >= current) {
+            return now;
+        }
+        int held = (int) Math.max(1, Math.min(LOD_MAX_STRIDE, 1 + Math.floor(Math.max(0.0, distance) * 1.1 / step)));
+        return Math.max(now, Math.min(current, held));
     }
 
     @Override

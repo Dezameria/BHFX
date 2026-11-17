@@ -14,6 +14,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ParticleBatchTest {
+    @org.junit.jupiter.api.Test
+    void lodStrideStepsWithDistanceAndHoldsAtAnEdge() {
+        // off
+        org.junit.jupiter.api.Assertions.assertEquals(1, ParticleBatch.lodStride(0f, 100.0, 1));
+        // steps: within 8 every slot, then one in 2, 3, 4 (the most)
+        org.junit.jupiter.api.Assertions.assertEquals(1, ParticleBatch.lodStride(8f, 7.9, 1));
+        org.junit.jupiter.api.Assertions.assertEquals(1, ParticleBatch.lodStride(8f, -3.0, 1));
+        org.junit.jupiter.api.Assertions.assertEquals(2, ParticleBatch.lodStride(8f, 8.1, 1));
+        org.junit.jupiter.api.Assertions.assertEquals(3, ParticleBatch.lodStride(8f, 17.0, 1));
+        org.junit.jupiter.api.Assertions.assertEquals(4, ParticleBatch.lodStride(8f, 500.0, 1));
+        // coming back: just inside the edge the higher stride stays, 10% inside it drops
+        org.junit.jupiter.api.Assertions.assertEquals(2, ParticleBatch.lodStride(8f, 7.6, 2));
+        org.junit.jupiter.api.Assertions.assertEquals(1, ParticleBatch.lodStride(8f, 7.0, 2));
+        // a jump down several steps lands on the right one
+        org.junit.jupiter.api.Assertions.assertEquals(1, ParticleBatch.lodStride(8f, 2.0, 4));
+    }
+
     private static final ResourceLocation ID = new ResourceLocation("bhfx", "test");
 
     private static Fx fx() {

@@ -4,7 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.26 — unreleased (protocol 3)
+## 0.3.27 — unreleased (protocol 3)
+- **Added** (Experimental): `FxParticles.lod(blocks)`, opt-in: a batch further than `blocks` from the camera draws
+  one particle in 2, then 3, then 4 (the most), the drawn ones √n larger. Off by default, so existing effects look
+  the same. Test effects `bhfx:test_lod`, `bhfx:test_lod_off`.
+
+## 0.3.26 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): model material `FxModel.DISTORT` (`bhfx:distort`): the model as clear glass or hot air,
   showing the image behind it bent by its surface (bend, ripple, tint, rim light). Model materials can call
   `bhfxBehind(offset)` to read the image behind a pixel. Test effect `bhfx:test_distort`.

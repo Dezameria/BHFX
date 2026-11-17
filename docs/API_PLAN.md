@@ -863,6 +863,21 @@ out.model(SWORD, held, 1.25f, pose, FxModel.DISTORT, GLASS,          // a shell 
   ripple look better); glass does not bend other glass in its run or particles drawn after it; a glass model behind
   a model of an earlier run draws over it (the earlier run's depth is gone).
 
+### 5.15 Distance LOD for a batch (`FxParticles.lod`, 0.3.27, Experimental)
+```java
+embers = createParticles(FxParticles.DOT, 4096).lod(8f);   // full within 8 blocks, 1 in 2 / 3 / 4 beyond 8 / 16 / 24
+```
+- Draw-time only: spawning is unchanged, so nothing pops in or out of existence and the full count is back when
+  the camera comes near. The stride is the frame's thinning mechanism (`PRing.z`, the same slots every frame), per
+  batch: `max(frame stride, LOD stride)`; the drawn slots are √n larger (`PRing.w`), so coverage and additive light
+  stay about the same.
+- Distance is camera to the batch's origin (not its nearest edge: `cullRadius` is a loose bound and made the LOD
+  never start). It rises at once and falls 10% inside a step's edge (`ParticleBatch.lodStride`).
+- The frame's budget counts a batch as `live / LOD stride`, so far batches with a LOD leave the budget to near ones.
+- Ribbons ignore it. Not for sparse, evenly counted shapes. Applies to `modelParticles` pieces too (without the
+  size gain).
+- Not done: scaling the spawn counts of `emit` / `stream` (roadmap's old item 2), a quality (LOW) factor.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

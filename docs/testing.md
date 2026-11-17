@@ -6,6 +6,18 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Distance LOD, `bhfx:test_lod` / `bhfx:test_lod_off` (2026-11-17, 0.3.27; build + JUnit `ParticleBatchTest.lodStrideStepsWithDistanceAndHoldsAtAnEdge`; in game by Claude through dev control at dusk)
+- First try measured distance to the batch's nearest edge and never thinned (slots 15456 with vs 14150 without);
+  fixed to the origin, then: four effects at 10 / 20 / 30 / 40 blocks draw 5368 slots with `lod(8)` against 16100
+  without (strides 2, 3, 4, 4).
+- Look at 24 blocks (1 in 4): the fountain keeps its shape and brightness, the sparks are visibly fewer and larger.
+  Smoke is hard to judge at dusk.
+- Speed: no gain measured at this size (GPU 0.73 ms with, 0.75 without; CPU 0.20 both): small far particles cost
+  almost nothing to fill. The use is the slot budget. Under `/bhfx stress 70 32 10` both variants hit the frame
+  budget (1 in 16 / 17), so that run says nothing about the LOD.
+- Not checked: the camera moving across a step's edge (pop), big ALPHA smoke by day, `modelParticles`, that near
+  effects are thinned less when far ones have a LOD, in BHSpells.
+
 ### ✅ Glass / heat haze, `bhfx:test_distort` (2026-11-17, 0.3.26; build passed, no new JUnit; in game by Claude through dev control at noon)
 - Shots from 9 and 5 blocks: left, the sword's blade waves inside its haze shell; middle, the sword inside the
   faceted orb is seen broken into shifted pieces by the orb's faces (so the glass run does see the sword's run) and

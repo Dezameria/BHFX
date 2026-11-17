@@ -30,7 +30,8 @@ uniform vec3 POrbit;    // orbit axis passes through here (from the batch origin
 uniform vec3 POrbitAxis; // unit orbit axis
 uniform vec3 PRibbonNormal; // RIBBON: unit strip normal for the batch, 0 = turn to the camera
 uniform vec4 PTurb;     // turbulence amplitude (blocks), frequency (Hz), pattern scale (waves per block), unused
-uniform vec4 PRing;     // capacity, slots filled, stride (one slot in stride is drawn; 0 or 1 = every slot), unused
+uniform vec4 PRing;     // capacity, slots filled, stride (one slot in stride is drawn; 0 or 1 = every slot),
+                        // size gain of the drawn slots (FxParticles.lod; 0 or 1 = none)
 uniform vec4 PWindow;   // live window: first slot of the run up to the ring end, instances in that run, unused, unused;
                         // instances after it wrap round to slots 0, stride, 2 * stride ...
 uniform vec4 PCurves;   // colour keys (0 off, 1..4; -1 = ramp texture), alpha keys, size keys, unused
@@ -229,7 +230,8 @@ Pt bhfxPoint(int slot) {
     o.pos = POrigin + q;
     o.vel = vel;
     o.age = t / life;
-    o.size = mix(a2.x, a2.y, o.age) * (PCurves.z > 0.5 ? bhfxCurve(PSizeKeys, PCurves.z, o.age) : 1.0);
+    o.size = mix(a2.x, a2.y, o.age) * (PCurves.z > 0.5 ? bhfxCurve(PSizeKeys, PCurves.z, o.age) : 1.0)
+            * max(PRing.w, 1.0);
     return o;
 }
 

@@ -1085,7 +1085,10 @@ public final class PostRenderer {
         program.set4(ShaderProgram.U_PMotion, b.gx, b.gy, b.gz, b.drag);
         program.set3(ShaderProgram.U_POrbit, b.orbitX(), b.orbitY(), b.orbitZ());
         program.set3(ShaderProgram.U_POrbitAxis, b.oax, b.oay, b.oaz);
-        program.set4(ShaderProgram.U_PRing, b.capacityValue(), b.filled, strideOf(b), 0f);
+        // w: size gain of the slots a batch's own LOD leaves (so the cloud keeps its weight); the frame's budget
+        // thinning does not grow them
+        program.set4(ShaderProgram.U_PRing, b.capacityValue(), b.filled, strideOf(b),
+                b.lodStride > 1 && b.facing != FxParticles.Facing.RIBBON ? (float) Math.sqrt(b.lodStride) : 1f);
         ParticleBatch.windowRuns(b.liveStart(), b.live, b.capacityValue(), strideOf(b), runs);
         program.set4(ShaderProgram.U_PWindow, runs[0], runs[1], 0f, 0f);
     }
@@ -1167,7 +1170,12 @@ public final class PostRenderer {
             if (b.facing == FxParticles.Facing.RIBBON) {
                 ribbons += b.live;
             } else {
-                wanted += b.live;
+                if (b.lodDistance > 0f) {
+                    double dx = b.ox - camera.x, dy = b.oy - camera.y, dz = b.oz - camera.z;
+                    b.lodStride = ParticleBatch.lodStride(b.lodDistance,
+                            Math.sqrt(dx * dx + dy * dy + dz * dz), b.lodStride);
+                }
+                wanted += b.live / b.lodStride;
             }
         }
         long room = Math.max(1, budget - Math.min(ribbons, budget));
@@ -1182,7 +1190,7 @@ public final class PostRenderer {
     }
 
     private int strideOf(ParticleBatch b) {
-        return b.facing == FxParticles.Facing.RIBBON ? 1 : particleStride;
+        return b.facing == FxParticles.Facing.RIBBON ? 1 : Math.max(particleStride, b.lodStride);
     }
 
     /** Live-window runs of the batch being drawn (see {@link ParticleBatch#windowRuns}). */

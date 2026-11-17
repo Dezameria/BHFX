@@ -1,5 +1,11 @@
 # Design decisions
 
+## 2026-11-17 — Particle LOD thins what is drawn, not what is spawned
+`FxParticles.lod` raises the batch's draw stride by distance instead of scaling `emit` / `stream` counts. Reason:
+it reuses the frame's thinning (same slots every frame), cannot change an effect's logic or leave holes when the
+camera comes back, and needs no opt-out per emit. Cost: upload and memory are not reduced, and measured GPU time
+did not drop for small far particles; what it gives is slot budget for near effects.
+
 ## 2026-11-17 — Model distortion reads the image in the material, no distortion target
 `bhfx:distort` samples the model run's copy of the image at a shifted uv (`bhfxBehind`), instead of writing offsets
 into the particles' distortion target and resolving. Reason: models already get a copy when a material declares

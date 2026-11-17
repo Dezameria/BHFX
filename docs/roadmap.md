@@ -73,7 +73,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     material (old M4).
 - [x] 2026-11-17 **D dropped for now**: measured, no hitch to fix (70 starts in one tick: 2.2 ms, longest frame 15 ms; [`testing.md`](testing.md)). Only worth doing for memory. Planned text: **D. Memory and hitches (scale phase 2).** Pool `ParticleBatch` storage and GL buffers by power-of-two size, a
   ceiling on slots allocated. Measured with `/bhfx stress` staggered starts (frame over 50 ms count).
-- [ ] **E. Opt-in quality knobs, default off.** Done 2026-11-17 (0.3.23): the half-resolution stage, as `PassOptions.halfRes()` layers ([`API_PLAN.md`](API_PLAN.md) 5.11), with a mist volume as its test (`bhfx:test_volume`, part of F). Left: Count LOD for `emit` / `stream` (old item 2); near-camera fade and max
+- [ ] **E. Opt-in quality knobs, default off.** Done 2026-11-17 (0.3.23): the half-resolution stage, as `PassOptions.halfRes()` layers ([`API_PLAN.md`](API_PLAN.md) 5.11), with a mist volume as its test (`bhfx:test_volume`, part of F). Done 2026-11-17 (0.3.27): draw-time distance LOD per batch, `FxParticles.lod` ([`API_PLAN.md`](API_PLAN.md) 5.15), in place of the count LOD for `emit` / `stream` (old item 2; spawn counts are not scaled). Left: near-camera fade and max
   on-screen size (old item 3); `PassOptions` half-resolution stage with a depth-aware upsample for heavy passes
   (`sdf_march`, volumes); dev-only overdraw view.
 - [ ] **F. Needs E's half-res stage.** Light shafts from a world point; fog / smoke volumes; later per-stream seeded

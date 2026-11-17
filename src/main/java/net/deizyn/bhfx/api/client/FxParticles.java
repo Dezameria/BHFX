@@ -131,6 +131,17 @@ public interface FxParticles {
     /** Fade-out distance, in blocks, where a particle meets terrain; 0 = hard edge. Default 0.4. */
     FxParticles softness(float blocks);
 
+    /**
+     * Opt in to fewer particles far away: while the batch's origin (where the effect is) is further than {@code blocks} from the
+     * camera, one particle in 2 is drawn; further than 2 × {@code blocks}, one in 3; further than 3 ×, one in 4 (the
+     * most). The ones drawn grow by √n, so the cloud keeps its weight and an additive one its light. Nothing changes
+     * in what is spawned, only in what is drawn, so the full count is back as soon as the camera comes near. Good for
+     * dense clouds of small particles; leave it off for sparse, evenly counted shapes (a ring of 12 would lose
+     * points). Ribbons ignore it. 0 = off (default).
+     */
+    @ApiStatus.Experimental
+    FxParticles lod(float blocks);
+
     /** {@link Blend#DISTORT}: offset scale as a share of the particle's size on screen. Default 0.08. */
     FxParticles distortion(float strength);
 

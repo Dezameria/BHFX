@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage E: opt-in distance LOD for particle batches (0.3.27)
+- bhfx: `FxParticles.lod`, `ParticleBatch` (`lodDistance`, `lodStride`), `PostRenderer` (`strideOf`, `updateParticleStride`, `PRing.w`), `particle/vertex.vsh` (size gain), `LodTestFx` (`bhfx:test_lod`, `bhfx:test_lod_off`), JUnit in `ParticleBatchTest`. 0.3.26 → 0.3.27.
+- result: build + JUnit passed; in game by Claude: slots drawn fall to a third as designed, look holds at 1 in 4 but coarser, no GPU time gained at this size (see [`testing.md`](testing.md)). BHSpells untouched (`libs/` restored).
+- next: left in E: near-camera fade / max on-screen size (this one should save real fill time), overdraw view. F: light shafts.
+
+---
+
 ## 2026-11-17 — Stage C5 (second half): `DISTORT` model material (0.3.26)
 - bhfx: `model/distort.fsh`, `bhfxBehind` in `model/_header.glsl`, `FxModel.DISTORT`, `PostRenderer` (`readsImage`, model run split), `DistortTestFx` (`bhfx:test_distort`), `geo/test_orb.geo.json`, `ClientBootstrap`. 0.3.25 → 0.3.26.
 - result: build passed (no new JUnit: the change is in the GL path); shot in game by Claude: works. Stress with 70 effects: 1.06 ms GPU, 0.62 ms CPU, 2 runs. BHSpells untouched (`libs/` restored).
