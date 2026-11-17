@@ -36,7 +36,7 @@ final class ShaderProgram {
     }
 
     /** Uniforms set on every draw, by index: no name lookup ({@link #FAST} holds the names). */
-    static final String[] FAST = {"InvProj", "InvView", "ViewProj", "OutSize", "ScreenSize", "GameTime", "Eye", "FogColor", "FogRange", "DiffuseSampler", "SceneSampler", "DepthSampler", "POrigin", "PTime", "PMotion", "PShape", "PMode", "POrbit", "POrbitAxis", "PRibbonNormal", "PTurb", "PRing", "PWindow", "PRampRange", "PCurves", "PColorKey0", "PColorKey1", "PColorKey2", "PColorKey3", "PAlphaKeys", "PSizeKeys"};
+    static final String[] FAST = {"InvProj", "InvView", "ViewProj", "OutSize", "ScreenSize", "GameTime", "Eye", "FogColor", "FogRange", "DiffuseSampler", "SceneSampler", "DepthSampler", "POrigin", "PTime", "PMotion", "PShape", "PMode", "POrbit", "POrbitAxis", "PRibbonNormal", "PTurb", "PRing", "PWindow", "PRampRange", "PCurves", "PColorKey0", "PColorKey1", "PColorKey2", "PColorKey3", "PAlphaKeys", "PSizeKeys", "PNear"};
     static final int U_InvProj = 0;
     static final int U_InvView = 1;
     static final int U_ViewProj = 2;
@@ -68,6 +68,7 @@ final class ShaderProgram {
     static final int U_PColorKey3 = 28;
     static final int U_PAlphaKeys = 29;
     static final int U_PSizeKeys = 30;
+    static final int U_PNear = 31;
     private final Slot[] fast = new Slot[FAST.length];
 
     private Slot fast(int index) {

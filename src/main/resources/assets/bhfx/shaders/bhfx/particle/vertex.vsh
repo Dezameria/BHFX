@@ -32,6 +32,8 @@ uniform vec3 PRibbonNormal; // RIBBON: unit strip normal for the batch, 0 = turn
 uniform vec4 PTurb;     // turbulence amplitude (blocks), frequency (Hz), pattern scale (waves per block), unused
 uniform vec4 PRing;     // capacity, slots filled, stride (one slot in stride is drawn; 0 or 1 = every slot),
                         // size gain of the drawn slots (FxParticles.lod; 0 or 1 = none)
+uniform vec4 PNear;     // near the camera (FxParticles.nearFade / maxScreenSize): distance where a particle is gone,
+                        // distance where it is whole (0 = off), largest size as a share of the screen height (0 = off)
 uniform vec4 PWindow;   // live window: first slot of the run up to the ring end, instances in that run, unused, unused;
                         // instances after it wrap round to slots 0, stride, 2 * stride ...
 uniform vec4 PCurves;   // colour keys (0 off, 1..4; -1 = ramp texture), alpha keys, size keys, unused
@@ -54,6 +56,7 @@ out float pFacing;
 flat out vec4 pData;
 flat out vec3 pLife;
 flat out vec4 pScreen;
+flat out float pFade;   // near-camera fade, 1 = whole
 
 struct Pt {
     bool alive;
@@ -252,6 +255,7 @@ void bhfxCollapse() {
     pData = vec4(0.0);
     pLife = vec3(0.0);
     pScreen = vec4(0.0);
+    pFade = 0.0;
 }
 
 void bhfxRibbon(int slot, vec2 corner) {
@@ -327,6 +331,7 @@ void main() {
     int run1 = int(PWindow.y + 0.5);
     int slot = gl_InstanceID < run1 ? int(PWindow.x + 0.5) + gl_InstanceID * stride : (gl_InstanceID - run1) * stride;
     vec2 corner = vec2((gl_VertexID & 1) != 0 ? 1.0 : -1.0, (gl_VertexID & 2) != 0 ? 1.0 : -1.0);
+    pFade = 1.0;
     if (PShape.x > 3.5 && PShape.x < 4.5) {
         bhfxRibbon(slot, corner);
         return;
@@ -342,6 +347,20 @@ void main() {
     vec3 vel = p.vel;
     float size = p.size;
     float t = p.t;
+
+    // near the camera: fade out (and draw nothing once gone), and keep the quad from filling the screen
+    if (PNear.y > 0.0) {
+        pFade = smoothstep(PNear.x, PNear.y, length(pos - Eye));
+        if (pFade <= 0.0) {
+            bhfxCollapse();
+            return;
+        }
+    }
+    if (PNear.z > 0.0) {
+        // a quad of half-size s at view depth w covers s / (w * InvProj[1][1]) of the screen's height
+        float w = max(dot(pos - Eye, -InvView[2].xyz), 0.05);
+        size = min(size, PNear.z * w * InvProj[1][1]);
+    }
 
     // half extents of the quad (ex along its x / uv.x, ey along y) and its centre
     vec3 ex;

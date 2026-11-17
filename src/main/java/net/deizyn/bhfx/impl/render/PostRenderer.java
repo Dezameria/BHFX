@@ -1110,6 +1110,7 @@ public final class PostRenderer {
         program.set4(ShaderProgram.U_PShape, b.facing.ordinal(), b.stretch, b.pivot, 0f);
         program.set4(ShaderProgram.U_PMode, b.blend.ordinal(), b.softness, b.distortion, e.presence());
         program.set3(ShaderProgram.U_PRibbonNormal, b.rnx, b.rny, b.rnz);
+        program.set4(ShaderProgram.U_PNear, b.nearGone, b.nearFull, b.maxScreen, 0f);
         program.set4(ShaderProgram.U_PTurb, b.turbAmp, b.turbFreq, b.turbScale, 0f);
         float colourMode = b.colorKeyCount;
         if (b.ramp != null) {

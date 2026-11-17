@@ -4,7 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.28 — unreleased (protocol 3)
+## 0.3.29 — unreleased (protocol 3)
+- **Added** (Experimental), both opt-in and off by default: `FxParticles.nearFade(gone, whole)` (particles fade out
+  near the camera and are not drawn once gone) and `FxParticles.maxScreenSize(share)` (a largest size on screen).
+  Test effects `bhfx:test_near`, `bhfx:test_near_off`.
+
+## 0.3.28 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `FxShafts`: shafts of light through mist from a world point, in a cone
   (`FxShafts.cone`) or in every direction (`FxShafts.around`); one half-resolution pass (`bhfx:shafts`). Test effect
   `bhfx:test_shafts`.

@@ -898,6 +898,18 @@ out.light(ground, 0xFFD890, 0.8f * fade, 5f);          // shafts light the air o
   `FxShafts` is one full pass and counts toward `maxPassesPerFrame` (8), so many effects with shafts lose the far
   ones.
 
+### 5.17 Near-camera fade and largest screen size (`FxParticles`, 0.3.29, Experimental)
+```java
+smoke = createParticles(FxParticles.DOT, 1024).blend(FxParticles.Blend.ALPHA)
+        .nearFade(0.8f, 2.5f)      // gone within 0.8 blocks of the camera, whole beyond 2.5
+        .maxScreenSize(0.6f);      // never larger than 60% of the screen's height
+```
+- For big soft particles the camera can stand in (smoke, mist, auras round the player): fill rate is their cost.
+- In `particle/vertex.vsh` (`PNear`): the fade is per particle from its centre's distance, a gone particle's quad
+  is collapsed (no pixels shaded), and the size limit shrinks the half-size to `share × depth × InvProj[1][1]`. The
+  fade reaches every material through the footer's `soft` (flat varying `pFade`).
+- Ribbons ignore both; the size limit does not shorten `AXIS` / `TUMBLE` lengths; not applied to `modelParticles`.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

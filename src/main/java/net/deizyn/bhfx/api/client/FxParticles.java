@@ -132,6 +132,23 @@ public interface FxParticles {
     FxParticles softness(float blocks);
 
     /**
+     * Opt in to particles fading out near the camera: whole further than {@code whole} blocks from it, gone (and not
+     * drawn at all) nearer than {@code gone}. For big soft particles (smoke, mist, auras round the player) that would
+     * otherwise fill the screen many times over when the camera is inside them: that is where their cost is, and they
+     * hide the view. {@code whole} 0 = off (default). Ribbons ignore it.
+     */
+    @ApiStatus.Experimental
+    FxParticles nearFade(float gone, float whole);
+
+    /**
+     * Opt in to a largest size on screen: a particle is drawn no larger than {@code share} of the screen's height
+     * (0.5 = half of it), however near it is. It limits the particle's size, not the length of an {@code AXIS} or
+     * {@code TUMBLE} quad. 0 = off (default). Ribbons ignore it.
+     */
+    @ApiStatus.Experimental
+    FxParticles maxScreenSize(float share);
+
+    /**
      * Opt in to fewer particles far away: while the batch's origin (where the effect is) is further than {@code blocks} from the
      * camera, one particle in 2 is drawn; further than 2 × {@code blocks}, one in 3; further than 3 ×, one in 4 (the
      * most). The ones drawn grow by √n, so the cloud keeps its weight and an additive one its light. Nothing changes

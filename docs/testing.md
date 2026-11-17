@@ -6,6 +6,13 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Near-camera fade, `bhfx:test_near` / `bhfx:test_near_off` (2026-11-17, 0.3.29; build passed, no new JUnit; in game by Claude through dev control at noon, camera inside the cloud)
+- Off: the whole view is washed grey and near motes are blobs up to 80 px. On: ground and house near the camera
+  are clear, the haze starts a few blocks out, no large blobs.
+- Cost, one effect, 750 slots drawn in both: GPU 0.86 ms → 0.56 ms, 360 → 449 fps, render CPU 0.17 → 0.15 ms.
+- Not checked: walking through the cloud (how the fade moves), `maxScreenSize` on its own, AXIS / TUMBLE /
+  VELOCITY facings, DISTORT batches, first person with an aura attached to the player, in BHSpells.
+
 ### ✅ Light shafts, `bhfx:test_shafts` (2026-11-17, 0.3.28; build + JUnit `FxShaftsTest` (2); in game by Claude through dev control at dusk and at noon)
 - Dusk: the gold cone comes down from its point to the ground in separate rays with a lit patch where it lands; the
   blue burst shows thin rays in every direction; both are cut by the ground. First try (24 steps, white-noise

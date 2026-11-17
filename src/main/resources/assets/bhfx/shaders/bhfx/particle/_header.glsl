@@ -26,6 +26,7 @@ in float pFacing;
 flat in vec4 pData;
 flat in vec3 pLife;
 flat in vec4 pScreen;
+flat in float pFade;
 out vec4 fragColor;
 
 struct Particle {

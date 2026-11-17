@@ -19,7 +19,8 @@ void main() {
     vec2 screenUv = gl_FragCoord.xy / OutSize;
     float gap = bhfxSceneViewZ(screenUv) - pViewZ;
     float soft = PMode.y > 0.0 ? clamp(gap / PMode.y, 0.0, 1.0) : step(0.0, gap);
-    soft *= PMode.w; // the effect's presence: it fades in when built late and out when hidden
+    soft *= PMode.w * pFade; // the effect's presence (it fades in when built late and out when hidden), and the
+                             // batch's fade near the camera
     // the material runs before any discard: its texture() calls need implicit derivatives, which are undefined
     // in per-pixel control flow (see docs/shaders.md)
     Particle p;

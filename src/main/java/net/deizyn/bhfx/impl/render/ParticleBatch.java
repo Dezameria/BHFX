@@ -47,6 +47,10 @@ public final class ParticleBatch implements FxParticles {
     float drag;
     float softness = 0.4f;
     float distortion = 0.08f;
+    /** {@link FxParticles#nearFade}: gone within, whole beyond (0 = off); {@link FxParticles#maxScreenSize} (0 = off). */
+    float nearGone;
+    float nearFull;
+    float maxScreen;
     /** {@link FxParticles#lod}: distance step in blocks, 0 = off. */
     float lodDistance;
     /** The LOD stride in use (1 = every slot), kept between frames so it does not flicker at a step's edge. */
@@ -187,6 +191,24 @@ public final class ParticleBatch implements FxParticles {
     @Override
     public FxParticles softness(float blocks) {
         this.softness = Math.max(0f, blocks);
+        return this;
+    }
+
+    @Override
+    public FxParticles nearFade(float gone, float whole) {
+        if (!(whole > 0f)) {
+            nearGone = 0f;
+            nearFull = 0f;
+        } else {
+            nearGone = Math.max(0f, Math.min(gone, whole - 0.01f));
+            nearFull = whole;
+        }
+        return this;
+    }
+
+    @Override
+    public FxParticles maxScreenSize(float share) {
+        this.maxScreen = Math.max(0f, share);
         return this;
     }
 

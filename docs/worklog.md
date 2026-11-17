@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage E: near-camera fade and max screen size (0.3.29)
+- bhfx: `FxParticles.nearFade` / `maxScreenSize`, `ParticleBatch`, `ShaderProgram` (`U_PNear`), `PostRenderer.drawBatch`, `particle/vertex.vsh` + `_header.glsl` + `_footer.glsl` (`PNear`, `pFade`), `NearTestFx` (`bhfx:test_near`, `bhfx:test_near_off`). 0.3.28 → 0.3.29.
+- result: build passed (no new JUnit: shader path); in game by Claude: works, GPU 0.86 → 0.56 ms with the camera inside a smoke cloud. BHSpells untouched (`libs/` restored).
+- next: left in the plan: the dev overdraw view (E). Everything from 0.3.20 on is still unused by a real spell (needs the user's go-ahead for BHSpells).
+
+---
+
 ## 2026-11-17 — Stage F: light shafts (0.3.28)
 - bhfx: `FxShafts` (api), `shafts.fsh`, `ShaftsTestFx` (`bhfx:test_shafts`), `ClientBootstrap`; JUnit `FxShaftsTest` (2). 0.3.27 → 0.3.28. No renderer change: one `halfRes()` pass.
 - result: build + JUnit passed; shot in game by Claude at dusk and noon: works, after one fix for grain. One effect 0.87 ms GPU. BHSpells untouched (`libs/` restored).
