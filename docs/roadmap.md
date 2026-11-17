@@ -36,29 +36,29 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
 
 - [x] 2026-11-17 **A. Measure properly first (0.3.17).** Done: `/bhfx stats` already had render / tick CPU and peak alive vs capacity (A1, A3); added fps, longest frame, slots and thinning, a time window, dev-control `stats` and `fps`; baseline in [`testing.md`](testing.md). Finding: render CPU is as large as GPU time with many effects, so B3 / B4 are not optional. Planned text: The 2026-11-16 stress run could not show frame cost (fps at the 119 cap,
   single-frame GPU readings, no CPU number).
-  - [ ] A1. CPU ms of bhfx per frame (tick part and render part) in `/bhfx status` and the dev-control `status` line.
-  - [ ] A2. Dev-control line to lift the fps cap (`fps unlimited|<n>`), and GPU / CPU ms averaged over the time between
+  - [x] 2026-11-17 A1. CPU ms of bhfx per frame (tick part and render part) in `/bhfx status` and the dev-control `status` line.
+  - [x] 2026-11-17 A2. Dev-control line to lift the fps cap (`fps unlimited|<n>`), and GPU / CPU ms averaged over the time between
     two `status` lines instead of one frame.
-  - [ ] A3. `/bhfx stats`: peak alive vs capacity per batch (old optimization item 4).
-  - [ ] A4. Baseline with A1–A3: `/bhfx stress 70` and the four particle test effects, numbers and sheets into
+  - [x] 2026-11-17 A3. `/bhfx stats`: peak alive vs capacity per batch (old optimization item 4).
+  - [x] 2026-11-17 A4. Baseline with A1–A3: `/bhfx stress 70` and the four particle test effects, numbers and sheets into
     [`testing.md`](testing.md).
 - [x] 2026-11-17 **B. Free wins, no look change (0.3.18).** B1–B3 done and checked in game (same look); **no measurable gain on the dev machine** ([`testing.md`](testing.md)): copies are cheap there and the CPU cost per batch is not the uniform calls. B4 not done (the string lookups stay). Follow-up: split render CPU into collect / stride / draw in `/bhfx stats` before any more CPU work; for comparable runs, a stress with fixed spots (seeded) and a fixed effect resolution. Planned text, found in `PostRenderer`:
-  - [ ] B1. Draw particle and model runs in place. Now every run first copies the whole input target
+  - [x] 2026-11-17 B1. Draw particle and model runs in place. Now every run first copies the whole input target
     (`blit(from, pingFbo[ping], ...)`), and runs split whenever passes and particles of different effects interleave.
     When the input is already a ping target and no material in the run reads `DiffuseSampler` (uniform not active),
     draw onto the input and skip the copy and the ping swap. Models keep their per-target depth buffer.
-  - [ ] B2. Bounded passes copy only what differs. A scissored pass now copies the full target before shading its rect.
+  - [x] 2026-11-17 B2. Bounded passes copy only what differs. A scissored pass now copies the full target before shading its rect.
     The other ping target differs from the input only inside the previous pass's rect, so copy that rect (padded); a
     full copy only on the first use in a frame or after a full-screen pass / particle run.
-  - [ ] B3. Frame-constant uniforms once per program per frame. `begin()` sets three matrices, `Eye`, fog, `ScreenSize`,
+  - [x] 2026-11-17 B3. Frame-constant uniforms once per program per frame. `begin()` sets three matrices, `Eye`, fog, `ScreenSize`,
     `GameTime` and three sampler units on every draw; many batches share `DOT` / `STREAK` / `SPRITE`. Keep a frame
     stamp per `ShaderProgram`; set sampler units once after link. `OutSize` stays per draw.
   - [ ] B4. Built-in particle / model uniforms through locations resolved once per program, not about 20 `String` map
-    lookups per batch (`ShaderProgram.location`). Only if A1 shows the CPU part matters.
+    lookups per batch (`ShaderProgram.location`). Only if A1 shows the CPU part matters. Not planned: tried 2026-11-17 in B+ (uniforms by index), no measurable gain ([`testing.md`](testing.md)).
 - [x] 2026-11-17 **B+. Where render CPU goes (0.3.19).** `/bhfx stats` phase split, seeded `/bhfx stress`; result in
   [`testing.md`](testing.md): the cost is the driver's work per draw call (2–3 µs per batch), not bhfx's own code.
   Not planned unless a real scene needs it: merging batches of one material across effects into one draw.
-- [ ] **C. New forms that are shared by design (0.3.19–0.3.2x).** A custom pass costs one screen pass per effect and
+- [x] 2026-11-17 **C. New forms that are shared by design (0.3.20–0.3.26; C1–C5 all done).** A custom pass costs one screen pass per effect and
   only 8 fit a frame (`maxPassesPerFrame`); these collect every effect's items into one built-in pass or reuse the
   particle path, so they stay cheap with many players. All new API, `@ApiStatus.Experimental`, each with a test effect.
   - [x] 2026-11-17 C1 done as `PassList.light` (0.3.20), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.8). Later if wanted: a config switch, lights from particles (one call per batch), spot / line lights. Planned text: `FxLights`: point lights (position, colour, radius, falloff) from any effect, gathered into one data table
@@ -73,10 +73,10 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     material (old M4).
 - [x] 2026-11-17 **D dropped for now**: measured, no hitch to fix (70 starts in one tick: 2.2 ms, longest frame 15 ms; [`testing.md`](testing.md)). Only worth doing for memory. Planned text: **D. Memory and hitches (scale phase 2).** Pool `ParticleBatch` storage and GL buffers by power-of-two size, a
   ceiling on slots allocated. Measured with `/bhfx stress` staggered starts (frame over 50 ms count).
-- [ ] **E. Opt-in quality knobs, default off.** Done 2026-11-17 (0.3.23): the half-resolution stage, as `PassOptions.halfRes()` layers ([`API_PLAN.md`](API_PLAN.md) 5.11), with a mist volume as its test (`bhfx:test_volume`, part of F). Done 2026-11-17 (0.3.29): near-camera fade and max on-screen size, `FxParticles.nearFade` / `maxScreenSize` ([`API_PLAN.md`](API_PLAN.md) 5.17). Done 2026-11-17 (0.3.27): draw-time distance LOD per batch, `FxParticles.lod` ([`API_PLAN.md`](API_PLAN.md) 5.15), in place of the count LOD for `emit` / `stream` (old item 2; spawn counts are not scaled). Left: near-camera fade and max
+- [ ] **E. Opt-in quality knobs, default off.** Done 2026-11-17 (0.3.23): the half-resolution stage, as `PassOptions.halfRes()` layers ([`API_PLAN.md`](API_PLAN.md) 5.11), with a mist volume as its test (`bhfx:test_volume`, part of F). Done 2026-11-17 (0.3.29): near-camera fade and max on-screen size, `FxParticles.nearFade` / `maxScreenSize` ([`API_PLAN.md`](API_PLAN.md) 5.17). Done 2026-11-17 (0.3.27): draw-time distance LOD per batch, `FxParticles.lod` ([`API_PLAN.md`](API_PLAN.md) 5.15), in place of the count LOD for `emit` / `stream` (old item 2; spawn counts are not scaled). **Left: only the dev-only overdraw view.** Planned text: near-camera fade and max
   on-screen size (old item 3); `PassOptions` half-resolution stage with a depth-aware upsample for heavy passes
   (`sdf_march`, volumes); dev-only overdraw view.
-- [ ] **F. Needs E's half-res stage.** Done 2026-11-17 (0.3.28): light shafts as `FxShafts` ([`API_PLAN.md`](API_PLAN.md) 5.16; no shadowing by terrain). Planned text: Light shafts from a world point; fog / smoke volumes; later per-stream seeded
+- [ ] **F. Needs E's half-res stage.** Done 2026-11-17 (0.3.28): light shafts as `FxShafts` ([`API_PLAN.md`](API_PLAN.md) 5.16; no shadowing by terrain). **Left: per-stream seeded random (`FxRandom`)**; fog / smoke volumes exist only as the test effect `bhfx:test_volume` (0.3.23), with no built-in API. Planned text: Light shafts from a world point; fog / smoke volumes; later per-stream seeded
   random (`FxRandom`).
 - Checked and left alone: bloom (5 levels from half of effect resolution), the full-resolution snapshot copy (it is
   `SceneSampler` and the composite's sharp source), particle upload (only new slots, `glBufferSubData`), the GPU timer
@@ -86,20 +86,20 @@ Suggested order: A → B → C1 → C2 → C3 → D → E → C4 / C5 → F.
 
 ## Next feature: `FxData` (chosen 2026-11-16, code done the same day)
 
-- [ ] `FxData`: tables of `vec4` that an `Fx` fills in Java and a pass reads as a `samplerBuffer`. Code done 2026-11-16
+- [x] 2026-11-16 `FxData`: checked in game by `/bhfx shoot bhfx:test_data` ([`testing.md`](testing.md); not shown: an orb hidden behind terrain). Still open: one BHSpells effect using it. Planned text: tables of `vec4` that an `Fx` fills in Java and a pass reads as a `samplerBuffer`. Code done 2026-11-16
   in the unreleased 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md), then
   one BHSpells effect using it. Plan and what changed from it: [`plan-fx-data.md`](plan-fx-data.md).
-- [ ] 3D shapes from signed distances (`sdf3d.glsl`, `sdf_march.glsl`, `FxFrame`, `FxData.setFrame`, `bhfx:test_sdf`):
+- [x] 2026-11-16 Checked in game by `/bhfx shoot bhfx:test_sdf` ([`testing.md`](testing.md)). Still open: a BHSpells spell using it. Planned text: 3D shapes from signed distances (`sdf3d.glsl`, `sdf_march.glsl`, `FxFrame`, `FxData.setFrame`, `bhfx:test_sdf`):
   code done 2026-11-16 in 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md),
   then a BHSpells spell using it (a weapon or limb of light on the caster's arm). Later, only when an effect needs a
   sculpted shape: meshes baked into 3D distance textures ([`decisions.md`](decisions.md) 2026-11-16).
-- [ ] Models drawn by bhfx (`FxModel`, `PassList.model`, `bhfx:test_model`): M1 (static, three materials) code done
+- [x] 2026-11-16 M1–M3 passed in game (the user, [`testing.md`](testing.md)); M4 done 2026-11-17 as the `DISTORT` model material (0.3.26). Planned text: Models drawn by bhfx (`FxModel`, `PassList.model`, `bhfx:test_model`): M1 (static, three materials) code done
   2026-11-16 in 0.3.12 (build + JUnit + glslang); left: the in-game checklist in [`testing.md`](testing.md). Next steps
   ([`decisions.md`](decisions.md) 2026-11-16): M2 bones from Java (skinning), M3 `.animation.json` playback, M4
   distortion. Instancing (`PassList.models`) done 2026-11-16 for BHSpells `thousand_swords`. M2 (`FxPose`, bones
   posed on the GPU) and M3 (`FxAnimation`: `.animation.json` → `FxPose`) code done 2026-11-16 (build + JUnit +
   glslang); left: in-game check. Next, when wanted: model LOD, per-copy poses for instances, M4 distortion.
-- [ ] Travelling waves (`soundWave`, `shakeWave`, `waveDelay`) and `FxGround` (surface + paced batch), from the
+- [x] 2026-11-16 Passed in game (the user, [`testing.md`](testing.md)); half-res stages done 2026-11-17 (0.3.23), so from that review only `FxRandom` and model smear are left. Planned text: Travelling waves (`soundWave`, `shakeWave`, `waveDelay`) and `FxGround` (surface + paced batch), from the
   orbital-laser review (items 2 and 3): code done 2026-11-16 (build + JUnit); left: [`testing.md`](testing.md). Next from
   that review, when wanted (shadows dropped 2026-11-16, see [`decisions.md`](decisions.md); `/bhfx shoot` done 2026-11-16, 0.3.14; model LOD not needed: `thousand_swords` 1.1 ms GPU): per-stream seeded
   random (`FxRandom`) for server/visual sync, half-res stages, model smear (motion blur).
@@ -157,11 +157,11 @@ Requirement (user, 2026-11-06): everyone in range sees the same effects. Under l
     - Rank before constructing. `ClientFxManager.add` runs `factory.create` before the cap check, so a refused effect still allocates its batches. BHSpells `BhfxClientBridge.comboFor` plays again on every cue when bhfx refused, so a refused far combo would construct on every cue.
     - An evicted or refused effect never comes back today: the server marks it as sent (`Tracking.Reach`). The record above fixes this on the client, with no resend.
     - A queued start that waits longer than the effect's duration is dropped. A stop for a queued start removes it from the queue. Catch-up only sets the age; it does not run the missed ticks (that would bring the CPU spike back), so spawns from those ticks are lost.
-- [ ] **Phase 2, memory without spikes (after the hold above).**
+- [ ] **Phase 2, memory without spikes (after the hold above).** Dropped for now 2026-11-17 (stage D above: no hitch measured; only worth doing for memory); the live window item is done.
   - [ ] Pool particle batch storage (`ParticleBatch.data` and its GL buffer in `ParticleRenderer.bind`) by power-of-two capacity, reuse across effects, cap the pool, free after idle. Now every batch allocates a new `float[]` and a new buffer on its first draw. A reused slot must start empty (`filled` 0, full upload), or the last effect's particles flash for a frame. The ring keeps the capacity the effect asked for, not the rounded size, so trail lengths don't change. Held memory then drops to idle a little later than now.
   - [ ] A ceiling on particle slots allocated across all effects; past it, new batches are refused or get a smaller capacity, and `/bhfx status` says so.
-  - [ ] Old item 1 below: draw only the live window, not every `filled` slot.
-- [ ] **Phase 3, opt-in LOD for new effects (new API, existing effects untouched).** `ctx.lod()` / `frame.lod()` tier from distance, owner and quality (`FULL` / `REDUCED` / `MINIMAL`), and an opt-in count scale for `emit` / `stream` (old item 2 below). The default is off, so effects that never ask look the same.
+  - [x] 2026-11-16 (0.3.16) Old item 1 below: draw only the live window, not every `filled` slot.
+- [ ] **Phase 3, opt-in LOD for new effects (new API, existing effects untouched).** Partly done 2026-11-17: per-batch draw-time `FxParticles.lod` (0.3.27); left: the `ctx.lod()` / `frame.lod()` tier. Planned text: `ctx.lod()` / `frame.lod()` tier from distance, owner and quality (`FULL` / `REDUCED` / `MINIMAL`), and an opt-in count scale for `emit` / `stream` (old item 2 below). The default is off, so effects that never ask look the same.
 - [ ] **Phase 4, server fairness.**
   - [ ] Replace the single `maxStartsPerTick` per dimension with a per-caster rate (token bucket), so one caster can't use up everyone's starts. Keep a global safety cap.
   - [ ] Per-player send budget in `ServerFx.flush`: what doesn't fit waits for the next tick, nearest first, so joins, respawns and teleports into many persistent effects don't send everything at once.
@@ -186,18 +186,18 @@ Requirement (user, 2026-11-06): everyone in range sees the same effects. Under l
   - [ ] In-game test of all of the above ([`testing.md`](testing.md)), then `/bhfx bench bhfx:test_particles` numbers.
   - [x] 2026-11-04 Turbulence, over-life curves (colour keys / ramp, alpha, size), ribbons (`Facing.RIBBON`, `FxParticles.ribbon()`, streams), `Shape.onGround`, built-in materials `DOT` / `STREAK` / `SPRITE` / `RIBBON`. 0.3.9, not tested in game.
   - [x] 2026-11-07 Ribbons drawn along curves with one texture: smooth `p.along`, strips in a plane (`ribbonNormal`, per-point `normal`), `p.facing`; test effect `bhfx:test_swirl`. Not tested in game.
-  - [ ] Optional: a built-in textured-ribbon material (`Sprite` stretched by `p.along`, scale / scroll in uniforms), once a BHSpells effect needs the same thing twice.
+  - [x] 2026-11-17 Done as `FxParticles.BEAM` (0.3.22, stage C3). Planned text: a built-in textured-ribbon material (`Sprite` stretched by `p.along`, scale / scroll in uniforms), once a BHSpells effect needs the same thing twice.
   - [ ] Presets for repeated pieces (opening sequence, ground rings), from the 2026-11-04 "what else" list.
   - [ ] BHSpells: move `ConquerorHakiFx` spawn loops onto `emit` where it reads simpler (optional).
   - [ ] First BHSpells spell on particles (e.g. Fiery Dance embers + heat haze).
 - Particle optimization plan (agreed 2026-11-04, **on hold until the `test_flow` / `test_vortex` checklists in [`testing.md`](testing.md) pass**: they did on 2026-11-16 by `/bhfx shoot`, so the hold is lifted; so bugs from the new features and from the optimization don't mix). Release as a new version after 0.3.10 (a new version also avoids the stale same-version jar, [`bugs.md`](bugs.md) 2026-11-04). Before and after: `/bhfx bench` on `bhfx:test_flow`, `bhfx:test_vortex`, `bhfx:test_particles` and `bhspells:conqueror_haki`, numbers into `testing.md`.
   - [x] 2026-11-16 1. Draw only the live window (0.3.16): `ParticleBatch.live` / `advanceWindow` / `windowRuns`, `PWindow` in the particle vertex shader; JUnit `ParticleWindowTest` (4); in game (dev control, 30 s runs) the slots drawn at 25 s fell 73–91 % with the same look. Original plan text: Now every batch draws `filled` instances (`ParticleRenderer`, = capacity once the ring wraps) and dead slots still run the vertex shader. Track write times, draw only the newest K slots that can still be alive (max life + max delay), pass the start slot as a uniform (no base instance in GL 3.3). The particle budget in `PostRenderer` counts that K, not `filled`. Internal only, no API change, no visual change. Risks: `delay()` births out of write order (window must include max delay); ribbon links stay inside the window. JUnit for the window with delays and wrap.
-  - [ ] 4. `/bhfx stats`: peak alive vs capacity per batch, to size capacities in bhfx and BHSpells. Display only.
-  - [ ] 2. Quality / distance LOD for `emit` and `Stream` counts (e.g. LOW ×0.5, fewer far away). Changes looks: evenly counted shapes change spacing, streamed ribbons get coarser. Needs a per-batch / per-emit opt-out; default **off** so existing BHSpells effects don't change.
-  - [ ] 3. Max on-screen size and near-camera fade per batch, for fill rate (big ALPHA smoke). Changes looks of effects round the player (aura, `attach @s`, first person); default **off**.
+  - [x] 2026-11-17 4. (0.3.17, stage A) `/bhfx stats`: peak alive vs capacity per batch, to size capacities in bhfx and BHSpells. Display only.
+  - [x] 2026-11-17 2. Done as the draw-time `FxParticles.lod` (0.3.27, opt-in; spawn counts are not scaled). Planned text: Quality / distance LOD for `emit` and `Stream` counts (e.g. LOW ×0.5, fewer far away). Changes looks: evenly counted shapes change spacing, streamed ribbons get coarser. Needs a per-batch / per-emit opt-out; default **off** so existing BHSpells effects don't change.
+  - [x] 2026-11-17 3. Done as `FxParticles.nearFade` / `maxScreenSize` (0.3.29, opt-in). Planned text: Max on-screen size and near-camera fade per batch, for fill rate (big ALPHA smoke). Changes looks of effects round the player (aura, `attach @s`, first person); default **off**.
   - Not planned now: evaluate-once pre-pass (positions computed 4× per particle, 8× for ribbons; worth it at tens of thousands), half-float packing (112 → ~64 bytes; position/time precision risk), a half-res buffer (particles already draw at effect resolution), ALPHA sorting, compute shaders (GL 4.3, not on macOS), persistent mapped buffers.
   - [x] 2026-11-12 `TUMBLE` facing (tumbling panes in real world planes) covers flat shards; see [`decisions.md`](decisions.md). Version 0.3.11 (bumped 2026-11-12); BHSpells `build.gradle` and `mods.toml` `[0.3.11,0.4)` raised with it.
-  - [ ] Later, only when an effect needs it: mesh particles (thick pieces with side faces); GPU simulation by texture ping-pong (no compute: GL 3.2 / macOS 4.1); particle sorting for ALPHA; a dev-only overdraw view.
+  - [ ] Later, only when an effect needs it (mesh particles done 2026-11-17 as `PassList.modelParticles`, 0.3.24): GPU simulation by texture ping-pong (no compute: GL 3.2 / macOS 4.1); particle sorting for ALPHA; a dev-only overdraw view.
 
 - Shader pack mode: while a pack is on, keep screen-only effects (flash, vignette, ripple, impact, bloom, pulses) and skip only depth-based world passes, instead of the all-or-nothing `offWithShaderpack`. Only needed if world-space parts look wrong with a pack (2026-10-17: the user reports effects visible with Complementary forced on).
 

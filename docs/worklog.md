@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Roadmap brought in line with the worklog and testing notes
+- bhfx: `docs/roadmap.md` only — ticked what was already done or tested: stage C header, A1–A4, B1–B3, particle optimization items 4 / 2 / 3, `FxData`, SDF shapes, models M1–M4, travelling waves, the live window under scale phase 2, the textured-ribbon material (`FxParticles.BEAM`); fixed the contradicting "Left" text of stages E and F; noted phase 2 as dropped and phase 3 as partly done.
+- result: docs only, no code change, no build, no version bump.
+- next: still open: the dev overdraw view (E), `FxRandom` (F), named points, body parts, `TUMBLE`, scoped stop, pass bounds, mirror panel, the scale phase 0 / 1 in-game rounds (U1) and the merge into `main`.
+
+---
+
 ## 2026-11-17 — Stage E: near-camera fade and max screen size (0.3.29)
 - bhfx: `FxParticles.nearFade` / `maxScreenSize`, `ParticleBatch`, `ShaderProgram` (`U_PNear`), `PostRenderer.drawBatch`, `particle/vertex.vsh` + `_header.glsl` + `_footer.glsl` (`PNear`, `pFade`), `NearTestFx` (`bhfx:test_near`, `bhfx:test_near_off`). 0.3.28 → 0.3.29.
 - result: build passed (no new JUnit: shader path); in game by Claude: works, GPU 0.86 → 0.56 ms with the camera inside a smoke cloud. BHSpells untouched (`libs/` restored).
