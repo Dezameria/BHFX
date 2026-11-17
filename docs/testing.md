@@ -298,6 +298,13 @@ Same version (0.3.12), so the build already cleared the deobf cache; check `runC
 7. Optional, other GPUs (AMD/Intel): buffer textures differ more between drivers than 2D textures.
 
 ### ⏳ Body parts (2026-11-13, build + JUnit only)
+- Partly seen 2026-11-17 (0.3.30, bhfx's own client through dev control, vanilla player standing still, third
+  person): `bhfx:test_points` (its grey orb is drawn at `position()`) sits on the right wrist with `right_hand`
+  (back and front view) and on the left shoulder with `left_shoulder`; `bhfx:test_particles` sparks start round the
+  head with `head` and at foot height with `left_foot`. Not judged: `body`, `feet`, `left_arm`, `right_foot` (the orb
+  is hidden inside the model, and the particle shots ran into each other), first person (the fire shows upper right,
+  not clear from one still). Everything else below is still open: walking / swinging, crouch, swim, sleep, mirror,
+  inventory, Epic Fight, multiplayer. A small test effect that draws over the model would make this checkable by shots.
 Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourself in F5 and on another player or a zombie:
 1. `/bhfx test bhfx:test_particles attach @s {part:right_hand, hold:true}`: sits on the right hand, swings with the arm when walking and hitting; `/bhfx stop`.
 2. Repeat with `head`, `body`, `left_shoulder`, `left_arm`, `left_leg`, `left_foot`, `right_foot`, `feet`: each on its own point (left/right are the entity's own), feet on the ground between the soles; crouch, swim and sleep move them with the model.
@@ -315,7 +322,13 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
 
 ### Scoped stop (2026-11-10, build + JUnit only)
 - ✅ 2026-11-10 `gradlew build`: `FxCommandsStopTest` 6 and `FxCommandArgsTest` 7 pass. Not run in game.
-- ⏳ In the BHSpells dev client:
+- ✅ 2026-11-17 items 1–5 (0.3.30, bhfx's own client through dev control; chat lines read from `latest.log`, counts
+  from `/bhfx status`): `stop fx bhfx:test` → "stopped 2 test effect(s) of bhfx:test", 1 left; `stop near 10` →
+  1 stopped, the one 38 blocks away left; attached, moved 30 blocks, `stop near 5` → stopped; `stop name a` →
+  "stopped 2 test effect(s) named a" (`test_flow` stays counted for its 4 s ending); `{name:"two words"}` refused
+  with the name rule; `stop fx bhfx:test finish` → "(full ending)"; plain `/bhfx stop` stops all. Not checked: tab
+  suggestions, how the endings look, item 6 (`/bhfx_play stop ...`: dev control only sends `/bhfx`).
+- ⏳ Item 6 only. The list, in the BHSpells dev client:
   1. `/bhfx test bhfx:test {hold:true}` twice at different spots, plus `/bhfx test bhfx:test_flow {hold:true}`: `/bhfx stop fx bhfx:test` (tab suggests the playing ids) fades only the two `bhfx:test`, chat says "stopped 2 test effect(s) of bhfx:test".
   2. Two effects 30 blocks apart: stand by one, `/bhfx stop near 10` stops only that one.
   3. `/bhfx test bhfx:test attach @s {hold:true}`, walk 30 blocks, `/bhfx stop near 5` still stops it (measured from where you are now, not where it started).
@@ -326,7 +339,18 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
 ### Scale plan phase 1: known vs built effects, even thinning (2026-11-07, build + JUnit only)
 - ✅ 2026-11-07 `gradlew build`: 98 JUnit tests pass (9 new in `FxSelectionTest`; `ClientConfigMigrationTest` checks the new defaults), glslang OK. Not run in game.
 - Before testing: the stale 0.3.9 deobf cache was deleted 2026-11-07 after the game closed; the phase 1 jar (sha1 `29b3625f…`) is in `BHSpells/libs/` and `~/.m2`. Just run BHSpells `runClient`. The log shows `maxActiveFx` 32 moved to 96 once (config migration 4) unless it was changed by hand.
-- ⏳ In the BHSpells dev client (single player, MEDIUM):
+- 2026-11-17 items 1–4 by the numbers (0.3.30, bhfx's own client through dev control, `fps unlimited`, MEDIUM,
+  1600x900; nobody watched the screen, so "no flicker" and the fades are **not** confirmed by eye):
+  - ✅ 1 (numbers): `/bhfx stress 70 32 10 ...`: 70 built of 70 known; thinning read every second 1 in 4, 4, 3, 3,
+    then 2, 2 as effects ended: it only steps down, never back up. Turning the camera 180° and back changed nothing
+    but what had ended by itself. 225–240 fps, GPU 0.73 ms, render CPU 1.0 ms, longest frame 8.3 ms.
+  - ✅ 2: `stats`: "54 fx known, 54 built (peak 70, maxActiveFx 96, radius 48), 0 hidden, 0 built late".
+  - ✅ 3 (numbers): `/bhfx stress 120 100 0 ...`: 96 built of 120 known, at the centre, after moving 50 blocks,
+    after turning round and after coming back; `stats` 2 s in: "8 hidden, 8 built late", peak 104. Which ones are
+    built and how the swap looks was not seen.
+  - ✅ 4: busiest tick 49 starts, 2.08 ms constructing (was 7.55 ms for 70 before phase 1).
+  - ⏳ 5 (BHSpells spells) and 6 (two clients): not run, they need the BHSpells client.
+- The list (single player, MEDIUM):
   1. `/bhfx stress 70 32 10 bhfx:test_flow bhfx:test_vortex bhfx:test_particles` (the run that flickered 2026-11-07): no flicker while standing still or turning the camera. `/bhfx status` during it shows "particles thinned to 1 in N" (N well above 1: 70 of these want roughly 300,000 slots against 16,384); effects look thinner, evenly, and N does not jump back and forth.
   2. `/bhfx stats` during it: "70 fx known, 70 built ..., 0 hidden"; the busiest tick's constructor ms.
   3. `/bhfx stress 120 100 0 bhfx:test_flow bhfx:test_vortex bhfx:test_particles`, stand at the centre: 120 known, 96 built, ~24 hidden (the farthest). Walk 50 blocks to one side: effects ahead fade in (0.5 s), effects behind fade out; nothing near you blinks. Turn the camera around: nothing changes.
@@ -409,7 +433,12 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
   6. Particles don't vanish at the screen edge when looking slightly away (cull sphere includes the turn).
   7. `/bhfx stop` mid-effect: what is in the air finishes, nothing new spawns.
 
-- ⏳ 2026-11-02 pass bounds (`PassOptions.within`, build + `ScreenRectTest` only): give a test Fx a bounded pass (e.g. `bhfx:test` with `.within(position, radius)`). Check: (1) the effect looks the same as without bounds when the radius covers it, with no seam at the rect edge, also at reduced FX resolution; (2) a too-small radius cuts it off along a rectangle (expected); (3) turning away makes `/bhfx status` show "off-screen pass(es) skipped"; (4) standing inside the sphere still draws it; (5) two bounded passes plus one unbounded chain correctly; (6) GPU ms in `/bhfx stats` drops for a small distant effect compared with no bounds.
+- 2026-11-17 pass bounds, partly (0.3.30, dev control, `bhfx:test_volume`, a bounded half-res layer): ✅ (3) facing
+  away `/bhfx status` says "1 off-screen pass(es) skipped" and 1 pass drawn instead of 2; ✅ (4) with the camera
+  inside the sphere both passes draw and the shot shows the mist all round. (1) and (5) were seen in the 2026-11-17
+  stage C / E checks (`test_volume`, `test_sdf`, `test_lights` have bounded passes: no seam, chains with others).
+  Still open: (2) a too-small radius, (1) at reduced resolution, (6) GPU ms against the same pass without bounds.
+- ⏳ 2026-11-02 pass bounds, the list (`PassOptions.within`, build + `ScreenRectTest` only): give a test Fx a bounded pass (e.g. `bhfx:test` with `.within(position, radius)`). Check: (1) the effect looks the same as without bounds when the radius covers it, with no seam at the rect edge, also at reduced FX resolution; (2) a too-small radius cuts it off along a rectangle (expected); (3) turning away makes `/bhfx status` show "off-screen pass(es) skipped"; (4) standing inside the sphere still draws it; (5) two bounded passes plus one unbounded chain correctly; (6) GPU ms in `/bhfx stats` drops for a small distant effect compared with no bounds.
 - ✅ 0.1: tested in game (flat world). Effects render, no shader/GL errors in the log.
 - ✅ 0.2: `gradlew build` passed. `composite`, `test`, `bloom_down` and `bloom_up` (includes inlined) compile in WebGL2 / GLSL ES 3.00.
 - ✅ 0.3 (finished parts): `gradlew build` passed. All shaders, including `ground.glsl` and `sdf2d.glsl`, compile in WebGL2.
@@ -467,9 +496,19 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
 
 ### Config migration (2026-10-22)
 - ✅ 2026-10-22 bhfx `runClient`: an old-default `bhfx-client.toml` moved to Medium once (`settingsVersion = 1`, log line printed).
+- ✅ 2026-11-17 bhfx `run`: launches with `settingsVersion = 4` log no migration line and keep `MEDIUM`. The rest
+  of the next line is still open.
 - ⏳ Second launch keeps the values (no second migration); a file with hand-made values (e.g. HIGH + 8 ms) is left alone in game; `BHSpells/run` and `run-client2` move on their next launch.
 
-- ⏳ 2026-11-12 Mirror panel (`bhfx:mirror_panel`), build + unit tests only:
+- 2026-11-17 mirror panel, partly (0.3.30, dev control: a 5x3 wall of `mirror_panel[facing=south]` on stone and a
+  3x3 floor of `[facing=up]`, placed by `fill`, removed after; three shots): the wall shows the player's reflection,
+  the right way round and at the right distance, in first person and from the side in third person; the floor
+  panels show the reflected arm from below; plates lie flat on the faces. **Seen: the wall does not read as one
+  sheet**: every panel shows its own block texture (diagonal streaks, a shade step at each edge), so a grid of 15
+  squares is visible where nothing is reflected. The reflection itself was not cut at a panel edge in these shots
+  (the player covered one panel). Not checked: ceiling, hitbox, drops, recipe, walking along the wall, standing
+  close, the back and edges, a panel on a mirror block, a shader pack.
+- ⏳ 2026-11-12 Mirror panel (`bhfx:mirror_panel`), the list (build + unit tests only):
   - [ ] Place on a wall, floor and ceiling: the plate lies flat on the clicked face, 1 pixel thick; hitbox matches; breaking drops the panel; recipe (3 glass panes over 3 iron nuggets → 6) works.
   - [ ] A 5x3 wall of panels looks like one sheet (no seams or dark lines between panels) and shows one continuous reflection; walking along it, the image never breaks at panel edges.
   - [ ] Your reflection sits on the plate (not behind the wall): stand close and touch it; F5 too; a player whose arm only just reaches the edge still shows.

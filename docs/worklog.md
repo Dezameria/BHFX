@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Pending in-game checks run through dev control (bhfx only)
+- bhfx: no code change. Ran `036_pending.txt` and `037_parts.txt` in bhfx's own client; results in [`testing.md`](testing.md): scoped stop items 1–5 pass; scale phase 1 (U1) items 1–4 pass by the numbers; pass bounds: off-screen skip and camera inside pass; mirror panel: wall and floor reflect, but a wall shows a grid of panel textures; body parts: four points seen in the right place on a standing vanilla player, the rest not judged; config: no second migration.
+- result: tested in game by Claude from `/bhfx status`, `stats`, chat lines in `latest.log` and shots; nothing was watched live, so flicker, fades and motion are not confirmed. No `broken` / exception in the logs. The test wall was removed.
+- next: what is left cannot be done in bhfx alone: see the "Left" list in [`roadmap.md`](roadmap.md) Now / Usable first (BHSpells client: U1 item 5, `TUMBLE`, named points, Epic Fight body parts; two clients; a person watching for flicker and fades). Open question for the user: the mirror panel's texture grid.
+
+---
+
 ## 2026-11-17 — Stages E and F finished: overdraw view, `FxRandom` (0.3.30)
 - bhfx: `particle/_footer.glsl` (`PMode.x` 3), `PostRenderer` (`overdrawView`, distortion batches counted on the image, `describe`), `ClientEvents` (`/bhfx overdraw [on|off]`, dev only); `api/FxRandom`, `Fx.random(stream, index)`, JUnit `FxRandomTest` (3). 0.3.29 → 0.3.30. `CHANGELOG.md`, `README.md`, [`API_PLAN.md`](API_PLAN.md) 5.18, [`decisions.md`](decisions.md).
 - result: build + JUnit + glslang passed; overdraw view shot in game by Claude (two rounds, the heat ramp was toned down after the first). `FxRandom` is JUnit only. BHSpells untouched (`libs/` restored).

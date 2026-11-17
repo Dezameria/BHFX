@@ -5,7 +5,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 ## Now (0.3.x)
 
 - [ ] Body parts (added 2026-11-13, 0.3.12): test in game, vanilla and Epic Fight ([`testing.md`](testing.md)); tune the Epic Fight joint offsets in BHSpells `EpicFightBhfxBodyParts`. Later: baby models (head scale), GeckoLib models, slim arms.
-- [ ] Test pass bounds (`PassOptions.within`, 0.3.7) in game ([`testing.md`](testing.md)).
+- [ ] Test pass bounds (`PassOptions.within`, 0.3.7) in game ([`testing.md`](testing.md)). 2026-11-17: off-screen skip, camera inside, no seam and chaining seen; left: a too-small radius, reduced resolution, GPU ms against no bounds.
 - [ ] Optional: `followSeen` in-game check (JUnit already covers it; steps in [`testing.md`](testing.md)).
 
 - [x] 2026-11-02 Test Annihilation Arrow in multiplayer with a friend (checklist in [`testing.md`](testing.md)).
@@ -25,7 +25,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
 - [x] 2026-11-02 Mirror block (added 2026-10-23): tested in game (user report) ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
-- [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels.
+- [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels. 2026-11-17: wall and floor panels reflect (dev control shots), but a wall of panels shows a grid of block textures where nothing is reflected: decide whether the panel texture should be flat / joined.
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## Performance and new effect forms (plan proposed 2026-11-16 after a code review; not started)
@@ -137,6 +137,7 @@ Done when (measured with the phase 0 tool): 70 different effects starting within
 
 - [ ] **Phase 0, measure first.** Code done 2026-11-07 (build + JUnit, not run in game): `/bhfx stress`, `/bhfx_play stress`, `/bhfx_play net`, new `/bhfx stats` lines (see [`testing.md`](testing.md)). Left: run it in game and record the before numbers. Planned text: Dev command `/bhfx stress <count> [ids…]`: starts N effects round the player from fake caster ids, at random spots, staggered or all in one tick. `/bhfx status` gains peak alive vs capacity per batch (old item 4 below), effects refused or evicted, particle slots allocated. A server-side counter of bhfx bytes and starts sent per player per second. Record before numbers in [`testing.md`](testing.md).
 **Usable first (agreed 2026-11-07).** Phases 0 and 1 are on branch `feature/scale-phase0` (`15eb30f`, `1ec0427`). The user goes back to making effects next, so only these steps come before that; everything else in this plan waits until a real need shows up.
+- 2026-11-17: U1 items 1–4 pass by the numbers through dev control (0.3.30, [`testing.md`](testing.md)); nobody watched for flicker or the fades, and item 5 (the four BHSpells spells) needs the BHSpells client, so U1 stays open.
 - [ ] U1. In-game round of the phase 1 checklist in [`testing.md`](testing.md). Must pass: item 1 (no flicker under the stress that flickered), item 3 (walk away and back: fade out / in, nothing near blinks, turning the camera changes nothing), item 5 (Heavenly Combo, Annihilation Arrow, Conqueror Haki and Dawn Rend still work). Items 2, 4 and 6 are nice to have.
 - [ ] U2. Fix what U1 finds, rebuild, re-check only the failed items.
 - [ ] U3. Release 0.3.10. ~~`gradle.properties` `mod_version`, BHSpells `build.gradle` `fg.deobf("net.deizyn:bhfx:0.3.10")` (lines 254–255), the jar in `BHSpells/libs/`, `CHANGELOG.md`~~ done 2026-11-10 (version bumped before U1, at the user's request); BHSpells `mods.toml` raised to `[0.3.10,0.4)` because its effects already use the 0.3.10 ribbon calls. Left: merge the branch into `main` (after U1/U2).
