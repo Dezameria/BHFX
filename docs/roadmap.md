@@ -4,7 +4,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 
 ## Now (0.3.x)
 
-- [ ] Body parts (added 2026-11-13, 0.3.12): test in game, vanilla and Epic Fight ([`testing.md`](testing.md)); tune the Epic Fight joint offsets in BHSpells `EpicFightBhfxBodyParts`. Later: baby models (head scale), GeckoLib models, slim arms.
+- [ ] Body parts (added 2026-11-13, 0.3.12): test in game, vanilla and Epic Fight ([`testing.md`](testing.md)); tune the Epic Fight joint offsets in BHSpells `EpicFightBhfxBodyParts`. Later: baby models (head scale), GeckoLib models, slim arms. 2026-11-17 (0.3.32): playerAnimator bends (Emotecraft, Iron's Spells) followed, checked with `/bhfx pose`; left: a real Emotecraft emote and an Iron's Spells cast ([`testing.md`](testing.md)).
 - [ ] Test pass bounds (`PassOptions.within`, 0.3.7) in game ([`testing.md`](testing.md)). 2026-11-17: off-screen skip, camera inside, no seam and chaining seen; left: a too-small radius, reduced resolution, GPU ms against no bounds.
 - [ ] Optional: `followSeen` in-game check (JUnit already covers it; steps in [`testing.md`](testing.md)).
 

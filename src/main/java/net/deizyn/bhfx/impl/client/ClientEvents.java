@@ -131,6 +131,11 @@ public final class ClientEvents {
                     .executes(ctx -> overdraw(ctx, !net.deizyn.bhfx.impl.render.PostRenderer.overdrawView))
                     .then(Commands.literal("on").executes(ctx -> overdraw(ctx, true)))
                     .then(Commands.literal("off").executes(ctx -> overdraw(ctx, false)))));
+            // dev clients only: hold a playerAnimator pose with elbow / knee / torso bends, to check body parts
+            event.getDispatcher().register(Commands.literal("bhfx").then(Commands.literal("pose")
+                    .then(Commands.literal("bend").executes(ctx -> pose(ctx, true, false)))
+                    .then(Commands.literal("side").executes(ctx -> pose(ctx, true, true)))
+                    .then(Commands.literal("off").executes(ctx -> pose(ctx, false, false)))));
         }
         event.getDispatcher().register(Commands.literal("bhfx")
                 .then(Commands.literal("status").executes(ctx -> {
@@ -178,6 +183,12 @@ public final class ClientEvents {
         ctx.getSource().sendSuccess(() -> Component.literal(on
                 ? "bhfx overdraw view on: particle quads as heat (faint tint = 1 layer, orange about 10, yellow 30 and up)"
                 : "bhfx overdraw view off"), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int pose(CommandContext<CommandSourceStack> ctx, boolean on, boolean side) {
+        String line = "bhfx pose: " + PlayerAnimCompat.testPose(on, side);
+        ctx.getSource().sendSuccess(() -> Component.literal(line), false);
         return Command.SINGLE_SUCCESS;
     }
 

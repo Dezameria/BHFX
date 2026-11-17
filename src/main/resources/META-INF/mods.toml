@@ -22,3 +22,11 @@ description='''${mod_description}'''
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+# Optional: body parts follow playerAnimator's elbow / knee / torso bends (Emotecraft, Iron's Spells cast poses).
+[[dependencies.${mod_id}]]
+    modId="playeranimator"
+    mandatory=false
+    versionRange="*"
+    ordering="NONE"
+    side="CLIENT"

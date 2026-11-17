@@ -4,6 +4,16 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.4.0 — 2026-11-18, built locally, not published (protocol 3)
+- **Changed**: version moved to 0.4 (the user's choice, 2026-11-18). No API break: everything in 0.3.x works the
+  same. The lines below were built as 0.3.32 (never published). BHSpells now accepts `[0.4.0,0.5)`.
+- **Added**: body parts follow playerAnimator's bends (Emotecraft emotes, Iron's Spells cast poses) when
+  bendy-lib is installed: hands and feet turn with the elbow and knee, `*_ARM` / `*_LEG` / `BODY` by half, head and
+  arms with the torso bend, legs no longer take the torso bend. Optional: `playeranimator` is an optional client
+  dependency; without it nothing changes. Arm, leg and whole-body poses were already followed before.
+- **Added**, dev clients only: `/bhfx pose bend|side|off` holds a playerAnimator pose with every bend, to check body
+  parts by shots (run the dev client with `-PwithPlayerAnim`).
+
 ## 0.3.31 — 2026-11-17, built locally, not published (protocol 3)
 - **Changed**: mirror panels have their own seamless texture, so a wall or floor of panels reads as one sheet
   instead of a grid of squares. The mirror block looks as before.

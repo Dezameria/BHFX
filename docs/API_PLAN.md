@@ -314,7 +314,7 @@ public interface FrameContext {
 }
 ```
 
-**Body parts (0.3.12).** `BodyPose(position, forward, up, right, exact)` in world space; `local(x, y, z)` offsets in the part's frame. `exact` is false for estimates (entity not drawn, first person, models without humanoid parts). The first ask about an entity may be an estimate; bhfx captures it from the next frame. `BHFxClient.bodyPart(entity, part, partial)` is the same outside an Fx. Renderers that replace the vanilla model call `BHFxClient.wantsBodyParts(entity)` / `reportBodyPart(entity, part, poseOnStack)` (Experimental) from inside the entity render. Why: [`decisions.md`](decisions.md) 2026-11-13.
+**Body parts (0.3.12).** `BodyPose(position, forward, up, right, exact)` in world space; `local(x, y, z)` offsets in the part's frame. `exact` is false for estimates (entity not drawn, first person, models without humanoid parts). The first ask about an entity may be an estimate; bhfx captures it from the next frame. `BHFxClient.bodyPart(entity, part, partial)` is the same outside an Fx. Renderers that replace the vanilla model call `BHFxClient.wantsBodyParts(entity)` / `reportBodyPart(entity, part, poseOnStack)` (Experimental) from inside the entity render. Why: [`decisions.md`](decisions.md) 2026-11-13. playerAnimator poses (Emotecraft, Iron's Spells) are followed with no API: arm, leg and whole-body poses always, and since 0.3.32 its bendy-lib bends (elbow, knee, torso) too ([`decisions.md`](decisions.md) 2026-11-17).
 
 **Travelling waves (0.3.12, Experimental).** `FxContext.soundWave(sound, at, volume, pitch[, speed])`,
 `soundWave(near, mid, far, midFrom, farFrom, at, volume, pitch)` (picks by this player's distance),

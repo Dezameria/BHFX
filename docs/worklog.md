@@ -11,6 +11,106 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-18 — Version 0.4.0
+- bhfx: `gradle.properties` `mod_version` 0.3.32 → 0.4.0 (the user's choice); `CHANGELOG.md` 0.3.32 lines folded into 0.4.0 (0.3.32 was never published). No API break.
+- BHSpells: `build.gradle` both `net.deizyn:bhfx` lines 0.3.31 → 0.4.0; `mods.toml` range `[0.3.29,0.4)` → `[0.4.0,0.5)`.
+- result: bhfx `build publishToMavenLocal` passed (tests, checkShaders), jar copied to `BHSpells/libs/bhfx-0.4.0.jar`; BHSpells `compileJava processResources` passed. Not run in game.
+- next: nothing for the bump itself. Remove any old bhfx 0.3.x jar from modpack `mods/` folders when installing 0.4.0.
+
+## 2026-11-17 — Body parts follow playerAnimator bends (Emotecraft, Iron's Spells), 0.3.32
+- bhfx: new `impl/client/PlayerAnimCompat` (guard, bend maths) and `PlayerAnimBends` (the only class touching
+  playerAnimator: reads `body` / arm / leg bends, opts the layer out of the torso bend, dev test pose);
+  `BodyPartLayer` bends hands / feet round elbow (4 px) and knee (6 px), arm / leg / body points by half, head and arms
+  with the torso bend, legs without it; `ClientEvents` dev-only `/bhfx pose bend|side|off`. `build.gradle`: KosmX
+  maven, `compileOnly` playerAnimator, `-PwithPlayerAnim` adds playerAnimator + bendy-lib to the dev run;
+  `gradle.properties` `player_anim_version`, `bendy_lib_version`, 0.3.31 → 0.3.32; `mods.toml` optional client
+  dependency `playeranimator`; `CHANGELOG.md`. Found by reading playerAnimator 1.0.2-rc1+1.20 bytecode: poses were
+  already followed; only bends (needs bendy-lib) were missing, and its torso bend was applied to the legs too.
+- result: `build publishToMavenLocal` passed; checked in game through dev control with and without playerAnimator
+  ([`testing.md`](testing.md)). BHSpells untouched (`libs/` restored to 0.3.31; its `build.gradle` still on 0.3.31).
+- next: a real Emotecraft emote and an Iron's Spells cast in game.
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 9: cheaper awakened aura, measured
+- BHSpells (asked for by the user, not committed): `MeditationAuraFx.aura(...)` takes `steps` and `floorLight` (new uniform `AuraC` in `meditation_aura.fsh`; without the floor light the pass bound is a block smaller); `meditation_aura` itself still 36 steps with the floor light. `HeavenEarthSealFx` uses 18 steps and no floor light (`AURA_STEPS`, param `aura_steps` 4..36 in `BhfxIds`).
+- Measured A/B in one run through dev control (`/bhfx stats` 10 s, MEDIUM, 1600x900, night, vsync off, floor light off in both): back view GPU avg 1.41 → 1.04 ms, front 1.29 → 0.95 ms (about −26%), 156 → 191 / 173 → 200 fps; post at 100% of budget in both. 36 and 18 steps look the same in shots.
+- Lesson: `/bhfx test {duration:N}` is in seconds (max 3600) — a value in ticks is refused with only a chat line, and the dev-control log shows "no frames with effects"; use `hold:true` for long measurements. `stats` averages the last 10 s with effects, so wait ≥ 10 s before reading and after stopping the previous run.
+- result: BHSpells `compileJava` + glslcheck pass; measured in game as above. The pre-round-9 setup (36 steps with floor light) was not measured cleanly on its own.
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 8: fainter flicker, skill `heaven-earth-seal`
+- BHSpells (asked for by the user, not committed): `HeavenEarthSealFx` (`FLICKER_OPACITY` 0.55 passed as the flicker's cover; aura inside a burst 2.6 → 1.8 with greyer paper / ink colours), `heaven_seal_body.fsh` (comment). New local skill `BHSpells/.claude/skills/heaven-earth-seal/SKILL.md` (files, knobs, eight rounds of user asks not to undo, reusable techniques, how to shoot it); `bhspells-fx-catalog` rows point to it.
+- result: BHSpells `compileJava` passes; shot through dev control (day and night bursts), no broken shader.
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 7: rising pressure with meditation_aura under it
+- BHSpells (asked for by the user, not committed): `MeditationAuraFx` (its pass and skeleton pulled out as package-private statics `aura(...)` / `bodyOf(...)`, `Seg` package-private; its own drawing unchanged), `HeavenEarthSealFx` (draws meditation_aura's pass as fast-rising ink-violet smoke, flipping to paper / ink colours with the flicker; the flicker timing moved here (`burstOn`, `darkFrame`) and is passed to the shader so both flip together; a small shake per burst), `heaven_seal_body.fsh` (shell narrows upwards and tears into spikes over the head; pressure lines shoot straight up). Notes: `BHSpells/docs/bhfx/heaven_earth_seal.md` round 7.
+- Lesson: when two passes must flicker in step, compute the timing on the CPU once and pass it to both; a hash in each shader drifts apart.
+- result: BHSpells `compileJava` + glslcheck pass; shot through dev control (day and night, bursts and the gaps), no broken shader. Motion not judged (stills only). `meditation_aura` itself not re-shot after the refactor (code path identical).
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 6: pressure as a flickering impact-frame shell
+- BHSpells (asked for by the user, not committed): `heaven_seal_body.fsh` rewritten (round 5's big rippling aura removed; a tight capsule round the body flickers in bursts, 16 flips/s for 0.28 s every 0.85 s, between an ink shell with a white figure and a paper shell with an ink figure, with pressure lines closing in on the chest; nothing drawn between bursts), `HeavenEarthSealFx` (smaller bounds, comments). Notes: `BHSpells/docs/bhfx/heaven_earth_seal.md` round 6.
+- Lesson: "no flash" from the user meant the whole screen; a fast flicker confined to a shell round the body reads as pressure, not as a flash. Effects driven by a per-spawn seed fire on different beats each run, so shoot several close frames to catch one.
+- result: BHSpells `compileJava` + glslcheck pass; shot through dev control (both flicker states and the gaps seen), no broken shader. Motion not judged (stills only).
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 5: demon ink aura, a living ring, ray-marched soul fireballs
+- BHSpells (asked for by the user, not committed): `heaven_seal_body.fsh` (adds a black-and-white rippling aura on a camera-facing sheet through the body: ink/paper contour bands welling outwards and upwards, coloured seams, torn tongues), `heaven_seal_halo.fsh` (the ring keeps its whole shape while its width and line swell in waves, paint flows along it and ink smoke curls off it; the fireballs are ray-marched spheres in the world, 14 steps of 3D value noise with a dense core and wispy edges), `HeavenEarthSealFx` (wider bounds for the aura). Notes: `BHSpells/docs/bhfx/heaven_earth_seal.md` round 5.
+- Lesson: "make it move but don't let it float" — keep the shape's noise sampled on the still circle, and sample the moving details through a slowly turning circle (`circ(ang - T * k)`): they flow along the ring with no seam at ±π.
+- Lesson: a ray-marched ball with even density reads as cotton; a dense core with thin, noisy edges reads as fire.
+- result: BHSpells `compileJava` + glslcheck pass; shot twice through dev control (1600x900, day and night), no broken shader, 0.37–1.71 ms GPU at MEDIUM. Motion not judged (stills only).
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 4: fireballs, a still ring that trails the body, ink impact-frame body
+- BHSpells (asked for by the user, not committed): `heaven_seal_halo.fsh` (flames are opaque painted balls with ink blots and short tongues; the ring is one still brush stroke with bristle streaks, violet paint and ink drops), new pass `heaven_seal_body.fsh` (only the caster's body, found from depth inside a cylinder round the feet, drawn as paper/ink with a depth-step inner line, violet and pink strokes, a black outline and a violet/cyan edge; steady), `HeavenEarthSealFx` (the body pass replaces `golden_aura`; `follow()` eases the ring after the body at 4/s and snaps past 6 blocks; no screen flash at the release, less bloom). Notes: `BHSpells/docs/bhfx/heaven_earth_seal.md` round 4.
+- Lesson: a pass can pick out one entity's pixels from depth alone (every surface inside a small cylinder round its feet) and restyle just those; outline = a pixel outside the mask with a neighbour inside. It also catches anything else standing in that cylinder.
+- Lesson: dev-control shots fail silently at the title screen when another dev client holds the world (`QuickPlay` `IOException ... locked a portion of the file`); shooting in a copy of the save (without `session.lock`) works.
+- result: BHSpells `compileJava` + glslcheck pass; shot twice through dev control (1600x900, day and night, front and back), no broken shader. The ring trailing the body was not seen moving. The user's own dev client was open while BHSpells was recompiled, so it needs a restart.
+- next: the user's look in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — BHSpells `heaven_earth_seal` round 3: word chains, fireballs on a moving ring
+- BHSpells (asked for by the user, not committed): `HeavenEarthSealFx` (each of the five seals is now its band + two thinner coils on the same axis + four chains of words pulled taut from the body 6.5–10 blocks out; chain words and sparks flung out when a seal breaks), `particle/seal_glyph_band.fsh` (`p.data.w` = 1 for a chain: shoots in from the far end, fades out towards it, pulses of strain, burns from the body outwards, words only), `heaven_seal_halo.fsh` rewritten (ink ring broken into turning arcs, power flowing off it, the three flames are balls of fire with torn tails). Notes: `BHSpells/docs/bhfx/heaven_earth_seal.md` round 3.
+- Lesson: a ribbon that must follow its caster without turning needs a tiny non-zero `spawn.orbit` (0.001 rad/s): `orbit(0, 0)` leaves the points in the world (`ParticleBatch.toOrbitFrame` only runs for a non-zero value).
+- result: BHSpells `compileJava` + glslcheck pass; shot three times through dev control (1600x900, day and night), no broken shader. Motion not judged (stills only); the user has not seen it yet. bhfx itself unchanged.
+- next: the user's look at it in game; see [`testing.md`](testing.md).
+
+---
+
+## 2026-11-17 — Agent skill: catalog of the BHSpells effects (local, not in git)
+- BHSpells `.claude/skills/bhspells-fx-catalog/`: `SKILL.md` (every bhfx effect in BHSpells: 50 ids from 47 `Fx` classes, grouped as wired to a spell / reusable with params / standalone; per effect the class, pass, look, technique worth borrowing, params and in-game status from [`testing.md`](testing.md); a "want this look, open that" table; the 12 shared particle materials and which batch settings they need; shared conventions) and `scripts/survey.py` (reads the source and prints every `Fx` with its ids, features, params and materials, then what is off). Linked from `bhfx-effects` and `bhspells-vfx`.
+- result: the catalog was checked against the script's output (all 50 ids and 47 classes present, the line counts match). Found while surveying, not changed: `DarkKamehamehaSpell`, `DragonAuraSpell`, `SammyAuraSpell` and `GildedBindManager` import `net.deizyn.bhfx` directly behind `ModList.isLoaded("bhfx")` instead of going through `BhfxCompat` (the rule in [`integrations/bhspells.md`](integrations/bhspells.md)); `sammy_aura` and `golden_tether` are registered in two places; the material `plasma_streak` is unused; no BHSpells effect uses a 0.3.20+ feature yet.
+- next: decide with the user whether the four direct callers move into the bridge.
+
+---
+
+## 2026-11-17 — Agent skills for making effects (local, `.claude/skills/`, not in git)
+- bhfx `.claude/skills/`: new `bhfx-effects` (entry point for any effect: order of work, which building block to pick by cost, `Fx` skeleton and lifecycle rules, where files go, starting / stopping, budgets, checking with `/bhfx shoot`) with `references/forms.md` (code and limits for lights, decals, bolts, models, model particles, afterimages, glass, shafts, half-res layers, a pass skeleton, SDF, data tables, body parts / points, waves, ground, keyed random, the new particle options). Brought up to 0.3.31: `bhfx-particles` (BEAM, `lod`, `nearFade` / `maxScreenSize`, `modelParticles`, what happens over the budget), `bhfx-effect-recipes` (cheaper built-in forms before a pass, the `Uniforms.color` `vec4` trap, `Presence`, the include list), `bhfx-dev-loop` (test effect list, `mods.toml` range `[0.3.12,0.4)`, the rule about `BHSpells/libs`). `bhfx-effect-recipes/scripts/glslcheck.py` now checks files in `model/` as model materials. BHSpells `.claude/skills/bhspells-vfx`: one routing row to `bhfx-effects` (it never mentioned bhfx).
+- result: every Java example of the new skill compiled in one scratch class against 0.3.31 (`compileJava`, class deleted after); its two shader examples and the six model materials pass `glslcheck.py`. Not tried: running the skill on real effect requests (no test prompts run).
+- next: use it on the first BHSpells effect built on the 0.3.20+ features and fix what it gets wrong.
+
+---
+
+## 2026-11-17 — BHSpells moved to bhfx 0.3.31 (at the user's request)
+- BHSpells: `build.gradle` lines 269–270 `fg.deobf("net.deizyn:bhfx:0.3.31")` (was 0.3.14); `libs/bhfx-0.3.31.jar` in place of `bhfx-0.3.14.jar` (by bhfx `build`, `copyToBHSpells`). `mods.toml` range left at `[0.3.12,0.4)`: no BHSpells code uses anything newer yet.
+- result: bhfx `build publishToMavenLocal` passed; the jar in `libs/`, `~/.m2` and `build/libs` has the same sha1 (`131c38d2…`); BHSpells `compileJava` passed against it and the deobf cache for 0.3.31 holds `FxRandom` and `mirror_panel.png`. Not run in game. Not committed in BHSpells.
+- next: U1 item 5 in the BHSpells client (Heavenly Combo, Annihilation Arrow, Conqueror Haki, Dawn Rend), then the merge into `main`.
+
+---
+
 ## 2026-11-17 — License file
 - bhfx: new `LICENSE` (All Rights Reserved, copyright 2026 Dezameria), a License section in `README.md`, [`decisions.md`](decisions.md), [`roadmap.md`](roadmap.md) "Waiting on the user".
 - result: docs only, no build, no version bump.

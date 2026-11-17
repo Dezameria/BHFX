@@ -1,5 +1,18 @@
 # Design decisions
 
+## 2026-11-17 — playerAnimator bends: compiled against its classes, inside bhfx, guarded
+Body parts already followed playerAnimator (Emotecraft emotes, Iron's Spells cast poses): it writes arm / leg / head
+rotations into the model parts in `setupAnim` and the whole-body transform onto the pose stack, both before layers
+run. Only its bendy-lib bends were missing (drawn inside the model render). bhfx reads them itself
+(`impl/client/PlayerAnimCompat` + `PlayerAnimBends`) instead of leaving it to BHSpells like Epic Fight, because
+playerAnimator is a client library many mods share, not a BHSpells feature. It is `compileOnly` (no reflection) and
+touches playerAnimator's own `impl` interfaces (`IAnimatedPlayer`, `IUpperPartHelper`, `Helper.isBendEnabled`), the
+same ones its mixins use, since its public API has no bend reader. Guard: only when `playeranimator` is loaded, and a
+`LinkageError` turns the support off with one warning, so another playerAnimator version can't crash bhfx. The bend
+maths copies `IBendHelper.rotateMatrixStack` (joint 6 px; elbow 4 px as in its held-item bend). bhfx's layer opts out
+of playerAnimator's "upper part" torso bend (it would bend the legs too) and adds the torso bend to head and arms
+itself.
+
 ## 2026-11-17 — License: All Rights Reserved, held by Dezameria
 The user chose to keep All Rights Reserved (over MIT, LGPL-3.0 and ARR with a modpack exception) and Dezameria as
 the copyright holder. `LICENSE` at the repo root states it; `mod_license` in `gradle.properties` already said so.
@@ -292,6 +305,7 @@ Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) 
 - **Decision**: lock the version range to a single minor version until 1.0 (then change it to `[1.0,2.0)`).
 - **Reason**: the API can still change during 0.x. With an open range, an incompatible bhfx would load and then break mid-game. With a locked range, Forge reports it at the loading screen.
 - 2026-10-17: raised to `[0.3.2,0.4)`, because the bridge now relies on server-wide `FxKey`s.
+- 2026-11-18: bhfx moved to 0.4.0 (the user's choice, no API break), so BHSpells now accepts `[0.4.0,0.5)`. The single-minor rule still holds.
 
 ## 2026-10-17 — Check shaders at build time with glslang
 - **Decision**: the `checkShaders` task assembles each shader the same way `ShaderManager` does and runs glslang on it. If glslang isn't found it warns and skips; `-PrequireGlslCheck` makes it fail instead.

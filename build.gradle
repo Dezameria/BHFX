@@ -62,6 +62,14 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
+    maven {
+        name = "KosmX"
+        url = "https://maven.kosmx.dev/"
+        content {
+            includeGroup "dev.kosmx.player-anim"
+            includeGroup "io.github.kosmx.bendy-lib"
+        }
+    }
 }
 
 dependencies {
@@ -69,6 +77,15 @@ dependencies {
 
     // Carpet: NeoForged 1.0.8 (Forge 1.20.1)
     implementation fg.deobf("maven.modrinth:XqqOkvZz:XMYeNIOx")
+
+    // playerAnimator (Emotecraft, Iron's Spells): optional, only read for its elbow / knee / torso bends
+    // (impl/client/compat/PlayerAnimBends). Never on bhfx's runtime classpath by default.
+    compileOnly fg.deobf("dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}")
+    // -PwithPlayerAnim: run the dev client with playerAnimator + bendy-lib, to check body parts with /bhfx pose
+    if (project.hasProperty('withPlayerAnim')) {
+        runtimeOnly fg.deobf("dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}")
+        runtimeOnly fg.deobf("io.github.kosmx.bendy-lib:bendy-lib-forge:${bendy_lib_version}")
+    }
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
