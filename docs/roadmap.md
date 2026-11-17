@@ -25,7 +25,7 @@ Open work and plans. When something is done, tick it as `[x]` with the date, and
 - [x] 2026-10-17 `checkShaders` with glslang.
 - [x] 2026-10-17 Docs translated to English.
 - [x] 2026-11-02 Mirror block (added 2026-10-23): tested in game (user report) ([`testing.md`](testing.md)). Version bumped to 0.3.5 on 2026-10-24.
-- [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels. 2026-11-17: wall and floor panels reflect (dev control shots), but a wall of panels shows a grid of block textures where nothing is reflected: decide whether the panel texture should be flat / joined.
+- [ ] Mirror panel (added 2026-11-12): test in game ([`testing.md`](testing.md)); ships in 0.3.11 (bumped 2026-11-12). Optional later: a frame drawn only on the outer edge of joined panels. 2026-11-17: wall and floor panels reflect (dev control shots), but a wall of panels shows a grid of block textures where nothing is reflected (fixed the same day in 0.3.31 with a seamless panel texture, [`testing.md`](testing.md)).
 - [x] 2026-10-22 In-game settings screen with Low/Medium/High/Max presets; tested in the modpack the same day (see [`testing.md`](testing.md)).
 
 ## Performance and new effect forms (plan proposed 2026-11-16 after a code review; not started)

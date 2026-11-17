@@ -4,6 +4,10 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
+## 0.3.31 — 2026-11-17, built locally, not published (protocol 3)
+- **Changed**: mirror panels have their own seamless texture, so a wall or floor of panels reads as one sheet
+  instead of a grid of squares. The mirror block looks as before.
+
 ## 0.3.30 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `FxRandom` (`api`, both sides) and `Fx.random(stream, index)`: random numbers keyed by
   the effect's seed, a stream and an index, so the server and every client get the same values whenever they are

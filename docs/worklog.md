@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Mirror panel: seamless texture (0.3.31)
+- bhfx: new `textures/block/mirror_panel.png` (16x16, flat `a0a8b6` with streaks where `(x - y) mod 16` is 3, 4 or 11, so it wraps both ways); `models/block/mirror_panel.json` uses it. `mirror_front.png` and the mirror block untouched. 0.3.30 → 0.3.31, `CHANGELOG.md`.
+- result: build passed; shot in game by Claude through dev control: the 5x3 wall and 3x3 floor read as one sheet, reflections unchanged. BHSpells untouched (`libs/` restored).
+- next: the rest of the mirror panel list in [`testing.md`](testing.md) (ceiling, hitbox, recipe, shader pack) needs a person in game.
+
+---
+
 ## 2026-11-17 — Pending in-game checks run through dev control (bhfx only)
 - bhfx: no code change. Ran `036_pending.txt` and `037_parts.txt` in bhfx's own client; results in [`testing.md`](testing.md): scoped stop items 1–5 pass; scale phase 1 (U1) items 1–4 pass by the numbers; pass bounds: off-screen skip and camera inside pass; mirror panel: wall and floor reflect, but a wall shows a grid of panel textures; body parts: four points seen in the right place on a standing vanilla player, the rest not judged; config: no second migration.
 - result: tested in game by Claude from `/bhfx status`, `stats`, chat lines in `latest.log` and shots; nothing was watched live, so flicker, fades and motion are not confirmed. No `broken` / exception in the logs. The test wall was removed.

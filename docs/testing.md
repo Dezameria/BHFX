@@ -508,6 +508,10 @@ Use an effect that draws at `position()` (e.g. `bhfx:test_particles`), on yourse
   squares is visible where nothing is reflected. The reflection itself was not cut at a panel edge in these shots
   (the player covered one panel). Not checked: ceiling, hitbox, drops, recipe, walking along the wall, standing
   close, the back and edges, a panel on a mirror block, a shader pack.
+- ✅ 2026-11-17 the grid is gone (0.3.31): the panel has its own texture, `textures/block/mirror_panel.png` (flat
+  base, diagonal streaks that wrap), instead of `mirror_front.png` (a gradient across the block). Same wall and floor
+  shot again through dev control: both read as one sheet with unbroken streaks, reflections as before. The mirror
+  block keeps `mirror_front.png`.
 - ⏳ 2026-11-12 Mirror panel (`bhfx:mirror_panel`), the list (build + unit tests only):
   - [ ] Place on a wall, floor and ceiling: the plate lies flat on the clicked face, 1 pixel thick; hitbox matches; breaking drops the panel; recipe (3 glass panes over 3 iron nuggets → 6) works.
   - [ ] A 5x3 wall of panels looks like one sheet (no seams or dark lines between panels) and shows one continuous reflection; walking along it, the image never breaks at panel edges.

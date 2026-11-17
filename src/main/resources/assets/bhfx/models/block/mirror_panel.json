@@ -2,8 +2,8 @@
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
-    "particle": "bhfx:block/mirror_front",
-    "glass": "bhfx:block/mirror_front"
+    "particle": "bhfx:block/mirror_panel",
+    "glass": "bhfx:block/mirror_panel"
   },
   "elements": [
     {
