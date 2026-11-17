@@ -4,7 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.27 — unreleased (protocol 3)
+## 0.3.28 — unreleased (protocol 3)
+- **Added** (Experimental): `FxShafts`: shafts of light through mist from a world point, in a cone
+  (`FxShafts.cone`) or in every direction (`FxShafts.around`); one half-resolution pass (`bhfx:shafts`). Test effect
+  `bhfx:test_shafts`.
+
+## 0.3.27 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `FxParticles.lod(blocks)`, opt-in: a batch further than `blocks` from the camera draws
   one particle in 2, then 3, then 4 (the most), the drawn ones √n larger. Off by default, so existing effects look
   the same. Test effects `bhfx:test_lod`, `bhfx:test_lod_off`.

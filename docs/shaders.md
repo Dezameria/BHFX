@@ -53,6 +53,8 @@ Version in use: glslang 16.6.0 from the KhronosGroup/glslang GitHub release (`gl
 - **Particle depth**: compare clip-space w with w, not with `-viewZ` from `InvProj`: Minecraft folds view bobbing into the projection, so the two spaces differ slightly. The scene's w is `1 / (InvProj * ndc).w` (`_footer.glsl`, 2026-11-04).
 - **Two sampler types on one unit**: a `samplerBuffer` left on unit 0 next to the `sampler2D` there is an invalid operation at draw time. Always set `PData` (unit 5), also in warmup (2026-11-04).
 - **Reserved words**: `half` (also `input`, `output`, `filter`, `sample`, `packed`, ...) is reserved in GLSL 1.50 and fails to compile as a variable name (`particle/vertex.vsh`, 2026-11-04). glslang accepts several of them (a parameter named `packed` passed `checkShaders` and broke every particle material on NVIDIA, 2026-11-12), so since 2026-11-12 `checkShaders` and `glslcheck.py` also scan each expanded source (comments and `#` lines skipped) for the GLSL 1.50 reserved list plus `sample`, `subroutine`, `buffer`, `shared`, `coherent`, `volatile`, `restrict`, `readonly`, `writeonly`, `precise`, `patch`, and fail on a hit.
+- **`noise3` is taken**: GLSL 1.50 still declares the built-in `noise1..4`, so a function named `noise3` fails with
+  "overloaded functions must have the same return type" (2026-11-17, `shafts.fsh`). Pick another name.
 - **Particle materials and `discard`**: run `material()` before discarding, since its `texture()` calls need derivatives (same rule as the `texture()` in a branch item above).
 
 ## Noise round a circle (2026-11-10)

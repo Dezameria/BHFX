@@ -64,6 +64,7 @@ public final class ClientBootstrap {
             ClientFxManager.register(BHFxMod.id("test_debris"), net.deizyn.bhfx.impl.client.test.DebrisTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_afterimage"), net.deizyn.bhfx.impl.client.test.AfterimageTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_distort"), net.deizyn.bhfx.impl.client.test.DistortTestFx::new);
+            ClientFxManager.register(BHFxMod.id("test_shafts"), net.deizyn.bhfx.impl.client.test.ShaftsTestFx::new);
             ClientFxManager.register(BHFxMod.id("test_lod"), init -> new net.deizyn.bhfx.impl.client.test.LodTestFx(init, true));
             ClientFxManager.register(BHFxMod.id("test_lod_off"), init -> new net.deizyn.bhfx.impl.client.test.LodTestFx(init, false));
             ClientFxManager.register(BHFxMod.id("test_volume"), init -> new net.deizyn.bhfx.impl.client.test.VolumeTestFx(init, true));

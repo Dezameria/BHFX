@@ -878,6 +878,26 @@ embers = createParticles(FxParticles.DOT, 4096).lod(8f);   // full within 8 bloc
   size gain).
 - Not done: scaling the spawn counts of `emit` / `stream` (roadmap's old item 2), a quality (LOW) factor.
 
+### 5.16 Light shafts (`FxShafts`, 0.3.28, Experimental)
+```java
+private final FxShafts shafts = FxShafts.cone(Vec3.ZERO, new Vec3(0, -1, 0), 12f, 22f)   // length, half angle
+        .color(0xFFD890, 1.3f).rays(11f, 0.55f);       // rays per radian, sharpness 0..1
+// passes(), every frame
+shafts.move(rift, down);
+shafts.draw(frame, out, seconds(frame), fade);
+out.light(ground, 0xFFD890, 0.8f * fade, 5f);          // shafts light the air only
+```
+- `FxShafts.around(source, radius)` for rays in every direction. Also `mist(share)` (even glow between rays),
+  `drift(speed)`, `order(int)`, `fullRes()`, `bounds()`.
+- Plain Java over `PassList.add` with the built-in pass `bhfx:shafts`, as a `halfRes()` layer bounded to the
+  cone's sphere. The shader marches the view ray through the sphere (32 steps, fixed per-pixel offset), stops at
+  the scene's depth, and adds light where the direction from the source falls in a ray: the rays are 3D value noise
+  over that direction, so each is a straight line out of the source.
+- Limits: nothing casts a shadow into the shafts (terrain only hides what is behind it); additive, so against a
+  bright day sky they burn to white at strength above about 1; a fine dither weave shows on a close look; each
+  `FxShafts` is one full pass and counts toward `maxPassesPerFrame` (8), so many effects with shafts lose the far
+  ones.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)

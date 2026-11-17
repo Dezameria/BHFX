@@ -6,6 +6,17 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Light shafts, `bhfx:test_shafts` (2026-11-17, 0.3.28; build + JUnit `FxShaftsTest` (2); in game by Claude through dev control at dusk and at noon)
+- Dusk: the gold cone comes down from its point to the ground in separate rays with a lit patch where it lands; the
+  blue burst shows thin rays in every direction; both are cut by the ground. First try (24 steps, white-noise
+  offset) was grainy, worst near the source; with 32 steps and a fixed interleaved offset the grain is gone and a
+  fine weave is left.
+- Noon: both read, but against the sky they are near white (additive on a bright image).
+- Cost: one effect (2 shaft passes + lights) 0.87 ms GPU, 0.26 ms CPU, 259 fps. Under `/bhfx stress 70 32 10` only 7
+  passes are drawn (the pass cap keeps the nearest), 0.72 ms GPU: says nothing about 70 shafts.
+- Not checked: rays in motion (drift, flicker) by eye, inside a room / behind a wall, the camera inside the cone,
+  LOW quality, `fullRes()`, in BHSpells.
+
 ### ✅ Distance LOD, `bhfx:test_lod` / `bhfx:test_lod_off` (2026-11-17, 0.3.27; build + JUnit `ParticleBatchTest.lodStrideStepsWithDistanceAndHoldsAtAnEdge`; in game by Claude through dev control at dusk)
 - First try measured distance to the batch's nearest edge and never thinned (slots 15456 with vs 14150 without);
   fixed to the origin, then: four effects at 10 / 20 / 30 / 40 blocks draw 5368 slots with `lod(8)` against 16100

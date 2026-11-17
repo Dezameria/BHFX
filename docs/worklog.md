@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage F: light shafts (0.3.28)
+- bhfx: `FxShafts` (api), `shafts.fsh`, `ShaftsTestFx` (`bhfx:test_shafts`), `ClientBootstrap`; JUnit `FxShaftsTest` (2). 0.3.27 → 0.3.28. No renderer change: one `halfRes()` pass.
+- result: build + JUnit passed; shot in game by Claude at dusk and noon: works, after one fix for grain. One effect 0.87 ms GPU. BHSpells untouched (`libs/` restored).
+- next: left in the plan: near-camera fade / max on-screen size and the overdraw view (E). Everything from 0.3.20 on is still unused by a real spell (needs the user's go-ahead for BHSpells).
+
+---
+
 ## 2026-11-17 — Stage E: opt-in distance LOD for particle batches (0.3.27)
 - bhfx: `FxParticles.lod`, `ParticleBatch` (`lodDistance`, `lodStride`), `PostRenderer` (`strideOf`, `updateParticleStride`, `PRing.w`), `particle/vertex.vsh` (size gain), `LodTestFx` (`bhfx:test_lod`, `bhfx:test_lod_off`), JUnit in `ParticleBatchTest`. 0.3.26 → 0.3.27.
 - result: build + JUnit passed; in game by Claude: slots drawn fall to a third as designed, look holds at 1 in 4 but coarser, no GPU time gained at this size (see [`testing.md`](testing.md)). BHSpells untouched (`libs/` restored).

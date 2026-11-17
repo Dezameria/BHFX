@@ -76,7 +76,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
 - [ ] **E. Opt-in quality knobs, default off.** Done 2026-11-17 (0.3.23): the half-resolution stage, as `PassOptions.halfRes()` layers ([`API_PLAN.md`](API_PLAN.md) 5.11), with a mist volume as its test (`bhfx:test_volume`, part of F). Done 2026-11-17 (0.3.27): draw-time distance LOD per batch, `FxParticles.lod` ([`API_PLAN.md`](API_PLAN.md) 5.15), in place of the count LOD for `emit` / `stream` (old item 2; spawn counts are not scaled). Left: near-camera fade and max
   on-screen size (old item 3); `PassOptions` half-resolution stage with a depth-aware upsample for heavy passes
   (`sdf_march`, volumes); dev-only overdraw view.
-- [ ] **F. Needs E's half-res stage.** Light shafts from a world point; fog / smoke volumes; later per-stream seeded
+- [ ] **F. Needs E's half-res stage.** Done 2026-11-17 (0.3.28): light shafts as `FxShafts` ([`API_PLAN.md`](API_PLAN.md) 5.16; no shadowing by terrain). Planned text: Light shafts from a world point; fog / smoke volumes; later per-stream seeded
   random (`FxRandom`).
 - Checked and left alone: bloom (5 levels from half of effect resolution), the full-resolution snapshot copy (it is
   `SceneSampler` and the composite's sharp source), particle upload (only new slots, `glBufferSubData`), the GPU timer
