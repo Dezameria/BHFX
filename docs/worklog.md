@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C5 (first half): afterimages (0.3.25)
+- bhfx: `FxAfterimage` (api), `FxPose.set`, `AfterimageTestFx` (`bhfx:test_afterimage`), `ClientBootstrap`; JUnit `FxAfterimageTest` (2). 0.3.24 → 0.3.25. No renderer change: ghosts are ordinary `PassList.model` draws.
+- result: build + JUnit passed; shot in game by Claude: works. Stress with 70 effects: 1.01 ms GPU, 0.76 ms CPU. BHSpells untouched (`libs/` restored).
+- next: the new forms of 0.3.20–0.3.25 (lights, decals, bolts, layers, model particles, afterimages) have not been used by a real spell yet: a first BHSpells effect on them is the most useful next step (needs the user's go-ahead). Left in bhfx: `DISTORT` model material, opt-in particle count LOD, near-camera fade, overdraw view, light shafts.
+
+---
+
 ## 2026-11-17 — Stage C4: models as particles (0.3.24)
 - bhfx: `PassList.modelParticles` (api), `PassListImpl.modelParticles`, `ModelDraw.pieces`, `ParticleBatch.originX/Y/Z`, `PostRenderer` (`particleMotion` shared with `drawBatch`, `piecesRect`, pieces in `drawModel`, particle runs stop at model entries), `model/vertex.vsh` (`bhfxPiece`, `MInstanced` 2, `mTint`), `model/_header.glsl`, `model/_footer.glsl`, `DebrisTestFx` (`bhfx:test_debris`). 0.3.23 → 0.3.24.
 - result: build + glslang + JUnit passed; shot in game by Claude: works, the old model test unchanged. Stress with 70 effects: 0.82 ms GPU. BHSpells untouched (`libs/` restored).

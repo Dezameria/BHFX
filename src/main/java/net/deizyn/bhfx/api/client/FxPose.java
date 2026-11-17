@@ -89,6 +89,24 @@ public final class FxPose {
         return this;
     }
 
+    /** Make this pose equal to {@code other} (a copy: later changes to either do not reach the other). */
+    public FxPose set(FxPose other) {
+        if (other == this) {
+            return this;
+        }
+        bones.keySet().retainAll(other.bones.keySet());
+        for (Map.Entry<String, float[]> e : other.bones.entrySet()) {
+            float[] mine = bones.get(e.getKey());
+            if (mine == null) {
+                bones.put(e.getKey(), e.getValue().clone());
+            } else {
+                System.arraycopy(e.getValue(), 0, mine, 0, mine.length);
+            }
+        }
+        version++;
+        return this;
+    }
+
     public boolean isEmpty() {
         return bones.isEmpty();
     }

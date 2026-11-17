@@ -6,6 +6,14 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Afterimages, `bhfx:test_afterimage` (2026-11-17, 0.3.25; build + JUnit `FxAfterimageTest` (2); in game by Claude through dev control at dusk)
+- Shots at 1.0 / 1.7 / 2.4 s (moving): the textured sword leads a fan of glowing blue ghosts, evenly spaced along its
+  path, dimmer the older, the last almost gone; the ghosts follow the path's curve and the blade's bend differs
+  between them. At 5.3 s (the sword has stood still for 1.3 s): no ghosts, only the sword.
+- Load: `/bhfx stress 70 32 10 bhfx:test_afterimage` (70 effects, up to 9 model draws each, one model run): 289 fps,
+  render CPU 0.76 ms, GPU 1.01 ms. No `broken` / exception in the log.
+- Not checked: a textured (alpha) ghost material, ghosts of a model held in a hand (`BodyPose`), in BHSpells.
+
 ### ✅ Models as particles, `bhfx:test_debris` (2026-11-17, 0.3.24; build + glslang + JUnit (no new test: `modelParticles` needs a client); in game by Claude through dev control at noon)
 - Shots at 0.3 / 0.8 / 1.4 / 2.0 s: 48 textured swords leave the ground as a tight bunch, spread and rise each in its
   own pose, turn between shots, come down again and are gone at 2 s (below the ground, size curve at 0); 24 glowing

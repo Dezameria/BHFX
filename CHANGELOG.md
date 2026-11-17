@@ -4,7 +4,12 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.24 — unreleased (protocol 3)
+## 0.3.25 — unreleased (protocol 3)
+- **Added** (Experimental): `FxAfterimage(copies, interval)`: remembers where a model was (`record(seconds, frame,
+  scale, pose)`) and draws fading ghosts there (`draw(...)` with your own uniforms per ghost, or `drawGlow(...)`).
+  `FxPose.set(other)` copies a pose. Test effect `bhfx:test_afterimage`.
+
+## 0.3.24 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `PassList.modelParticles(model, pieces, scale, pose, material, options, setup)`: a model
   drawn once per living particle of a batch (debris, shards, blades), moved on the GPU by the particle motion
   (velocity, gravity, drag, orbit, pull), turned by the batch's facing (`TUMBLE`, `VELOCITY`, else upright), scaled by

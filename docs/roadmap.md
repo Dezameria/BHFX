@@ -69,7 +69,7 @@ default; one version bump per finished stage. Review notes: [`worklog.md`](workl
     ribbons, plus the built-in textured-ribbon material from the backlog. No new renderer.
   - [x] 2026-11-17 C4 done as `PassList.modelParticles` (0.3.24), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.12). Later if wanted: turbulence, a choice of the leading axis for `VELOCITY`, light per piece. Planned text: Mesh particles: a particle batch whose pieces are an `FxModel` (shards, debris, blades) moved by the GPU
     particle motion. Uses the particle data buffer with the model draw.
-  - [ ] C5. Model afterimages (ghost copies with their own pose and fade: needs per-copy poses) and a `DISTORT` model
+  - [ ] C5, half done 2026-11-17: afterimages as `FxAfterimage` (0.3.25), checked in game ([`testing.md`](testing.md), [`API_PLAN.md`](API_PLAN.md) 5.13). Left: the `DISTORT` model material. Planned text: Model afterimages (ghost copies with their own pose and fade: needs per-copy poses) and a `DISTORT` model
     material (old M4).
 - [x] 2026-11-17 **D dropped for now**: measured, no hitch to fix (70 starts in one tick: 2.2 ms, longest frame 15 ms; [`testing.md`](testing.md)). Only worth doing for memory. Planned text: **D. Memory and hitches (scale phase 2).** Pool `ParticleBatch` storage and GL buffers by power-of-two size, a
   ceiling on slots allocated. Measured with `/bhfx stress` staggered starts (frame over 50 ms count).

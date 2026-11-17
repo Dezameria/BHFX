@@ -824,6 +824,25 @@ out.modelParticles(SHARD, shards, 1f, null, FxModel.TEXTURED, PassOptions.PARTIC
   depth buffer, so pieces hide each other correctly. A pose (`FxPose`) is shared by all pieces.
 - Don't pass the same batch to `out.particles` unless its sprites should show too.
 
+### 5.13 Afterimages (`FxAfterimage`, 0.3.25, Experimental)
+```java
+private final FxAfterimage trail = new FxAfterimage(6, 0.04f);   // ghosts kept, seconds between them
+// passes(), every frame
+float t = seconds(frame);
+trail.record(t, held, 1f, pose);                  // where the model is now (the pose is copied)
+trail.drawGlow(out, SWORD, t, 0x66C8FF, 1.2f);    // the ghosts, oldest dimmest
+out.model(SWORD, held, 1f, pose, FxModel.TEXTURED, u -> {});
+```
+- Plain Java on top of `PassList.model`: each ghost is one ordinary model draw with its own frame, scale and pose
+  (which is why each can bend differently), so keep `copies` small (4–10). No renderer change.
+- A ghost fades evenly over `span()` = `copies × interval` seconds. Nothing is recorded while the frame has not
+  moved or turned, so a resting model ends up with no ghosts; the clock going back clears the trail; `clear()` after
+  a teleport.
+- `draw(out, model, material, options, seconds, (u, fade, index) -> ...)` for any material: fade 1 → 0, index 0 =
+  newest. `drawGlow` uses `FxModel.GLOW` with brightness × fade².
+- Not done from plan item C5: a model material that bends the image behind it (`DISTORT`); needs the distortion
+  target in the model path.
+
 ## 6. Examples with BHSpells
 
 ### 6.0 Calling through a bridge (because bhfx is optional)
