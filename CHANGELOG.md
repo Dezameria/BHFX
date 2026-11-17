@@ -4,7 +4,14 @@ All notable changes to bhfx. Versions follow the policy in [`docs/API_PLAN.md`](
 (0.x may still break the API; 1.x keeps the Stable API). "Protocol" is the network protocol version; client and
 server must use the same one.
 
-## 0.3.25 — unreleased (protocol 3)
+## 0.3.26 — unreleased (protocol 3)
+- **Added** (Experimental): model material `FxModel.DISTORT` (`bhfx:distort`): the model as clear glass or hot air,
+  showing the image behind it bent by its surface (bend, ripple, tint, rim light). Model materials can call
+  `bhfxBehind(offset)` to read the image behind a pixel. Test effect `bhfx:test_distort`.
+- **Changed**: a model whose material reads the image starts a new model run after the models before it, so it sees
+  them (several such models in a row share one run).
+
+## 0.3.25 — 2026-11-17, built locally, not published (protocol 3)
 - **Added** (Experimental): `FxAfterimage(copies, interval)`: remembers where a model was (`record(seconds, frame,
   scale, pose)`) and draws fading ghosts there (`draw(...)` with your own uniforms per ghost, or `drawGlow(...)`).
   `FxPose.set(other)` copies a pose. Test effect `bhfx:test_afterimage`.

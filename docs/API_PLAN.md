@@ -840,8 +840,28 @@ out.model(SWORD, held, 1f, pose, FxModel.TEXTURED, u -> {});
   a teleport.
 - `draw(out, model, material, options, seconds, (u, fade, index) -> ...)` for any material: fade 1 → 0, index 0 =
   newest. `drawGlow` uses `FxModel.GLOW` with brightness × fade².
-- Not done from plan item C5: a model material that bends the image behind it (`DISTORT`); needs the distortion
-  target in the model path.
+- The other half of plan item C5 (a model material that bends the image) is 5.14.
+
+### 5.14 Glass / heat-haze model material (`FxModel.DISTORT`, 0.3.26, Experimental)
+```java
+private static final PassOptions GLASS = new PassOptions(PassOptions.PARTICLES.order() + 1);
+out.model(SWORD, held, 1f, pose, FxModel.TEXTURED, u -> {});
+out.model(SWORD, held, 1.25f, pose, FxModel.DISTORT, GLASS,          // a shell of hot air round the sword
+        u -> u.f4("MParams", 0f, 0.6f, 4f, 0f));
+```
+- `MParams`: x bend (blocks of sideways push where the surface turns away; 0.15 glass, 0.35 strong lens), y ripple
+  (moving wobble; 0.5 heat haze), z ripples per block (0 = 3), w rim light. `MColor`: rgb tint of what is seen
+  through, a = how much of the bend shows (fade with it).
+- How: no distortion target. The material reads the run's copy of the image (`DiffuseSampler`) at a shifted place
+  through `bhfxBehind(offset)` in `model/_header.glsl` (any model material may call it); where the shifted place
+  shows something nearer than the model, it reads unshifted.
+- It sees only what was drawn before its run. `PostRenderer` ends a model run before a material that reads the
+  image when plain models came first, so give the glass a later `order` than the models it should bend: then all
+  plain models make one run and all glass the next (one extra full copy a frame, however many effects). With the
+  same order the entries interleave and every effect costs its own run and copy.
+- Limits: flat faces shift the image evenly (a cube looks like tinted flat glass; shapes with many facets or the
+  ripple look better); glass does not bend other glass in its run or particles drawn after it; a glass model behind
+  a model of an earlier run draws over it (the earlier run's depth is gone).
 
 ## 6. Examples with BHSpells
 

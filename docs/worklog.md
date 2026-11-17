@@ -11,6 +11,13 @@ Daily work log, newest at the top. Format:
 
 ---
 
+## 2026-11-17 — Stage C5 (second half): `DISTORT` model material (0.3.26)
+- bhfx: `model/distort.fsh`, `bhfxBehind` in `model/_header.glsl`, `FxModel.DISTORT`, `PostRenderer` (`readsImage`, model run split), `DistortTestFx` (`bhfx:test_distort`), `geo/test_orb.geo.json`, `ClientBootstrap`. 0.3.25 → 0.3.26.
+- result: build passed (no new JUnit: the change is in the GL path); shot in game by Claude: works. Stress with 70 effects: 1.06 ms GPU, 0.62 ms CPU, 2 runs. BHSpells untouched (`libs/` restored).
+- next: stage C is complete. Left in bhfx: opt-in particle count LOD, near-camera fade / max on-screen size, overdraw view (E), light shafts (F). The forms of 0.3.20–0.3.26 are still unused by a real spell (needs the user's go-ahead for BHSpells).
+
+---
+
 ## 2026-11-17 — Stage C5 (first half): afterimages (0.3.25)
 - bhfx: `FxAfterimage` (api), `FxPose.set`, `AfterimageTestFx` (`bhfx:test_afterimage`), `ClientBootstrap`; JUnit `FxAfterimageTest` (2). 0.3.24 → 0.3.25. No renderer change: ghosts are ordinary `PassList.model` draws.
 - result: build + JUnit passed; shot in game by Claude: works. Stress with 70 effects: 1.01 ms GPU, 0.76 ms CPU. BHSpells untouched (`libs/` restored).

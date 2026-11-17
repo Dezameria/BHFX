@@ -352,8 +352,16 @@ public final class PostRenderer {
                 PassListImpl.Entry pass = passes.get(index);
                 if (pass.model() != null) {
                     // a run of models shares one copy of the input and one depth buffer
+                    // A material that reads the image (bhfx:distort) must see the models drawn before it, so it ends
+                    // the run it would otherwise join; several such materials in a row share one run.
                     int end = index + 1;
+                    boolean plainSeen = !readsImage(pass);
                     while (end < passes.size() && passes.get(end).model() != null) {
+                        boolean reads = readsImage(passes.get(end));
+                        if (reads && plainSeen) {
+                            break;
+                        }
+                        plainSeen |= !reads;
                         end++;
                     }
                     modelGroup.clear();
@@ -925,6 +933,12 @@ public final class PostRenderer {
     /** Draw one model into the bound target (depth, cull and blend state already set). */
     /** Bone matrices on their way to {@code MBones} (3 vec4 a bone). */
     private final java.nio.FloatBuffer boneBuffer = org.lwjgl.BufferUtils.createFloatBuffer(FxPose.MAX_BONES * 12);
+
+    /** Whether this model entry's material samples the image behind it ({@code DiffuseSampler}). */
+    private boolean readsImage(PassListImpl.Entry e) {
+        ShaderProgram program = shaders.getModel(e.shader());
+        return program != null && program.location("DiffuseSampler") >= 0;
+    }
 
     private void drawModel(PassListImpl.Entry e, int input, int depth, float time, long now) {
         ModelDraw md = e.model();

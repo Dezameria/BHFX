@@ -34,6 +34,23 @@ flat in float mDet;
 flat in vec4 mTint; // PassList.modelParticles: the particle's colour and alpha with its over-life curves; else 1
 out vec4 fragColor;
 
+// The image behind this pixel, read `offset` (screen uv) to the side: for materials that bend what is behind them
+// (bhfx:distort). Where the shifted place shows something nearer than this pixel, the image is read unshifted, so
+// things in front do not smear into the model. Using it makes bhfx copy the image for the model's run, and puts the
+// model in a run after the models before it (give it a later order than the models it should bend).
+vec3 bhfxBehind(vec2 offset) {
+    vec2 here = gl_FragCoord.xy / OutSize;
+    vec2 at = clamp(here + offset, vec2(0.0005), vec2(0.9995));
+    float d = texture(DepthSampler, at).r;
+    if (d < 0.99999) {
+        vec4 v = InvProj * vec4(at * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+        if (1.0 / v.w < mViewZ) {
+            at = here;
+        }
+    }
+    return textureLod(DiffuseSampler, at, 0.0).rgb;
+}
+
 struct Surface {
     vec2 uv;        // texture coordinates (the model's own UV mapping)
     vec3 pos;       // camera-relative world position of this pixel

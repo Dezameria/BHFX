@@ -30,6 +30,13 @@ public final class FxModel {
     public static final ResourceLocation TEXTURED = new ResourceLocation("bhfx", "textured");
     public static final ResourceLocation GLOW = new ResourceLocation("bhfx", "glow");
     public static final ResourceLocation DISSOLVE = new ResourceLocation("bhfx", "dissolve");
+    /**
+     * Clear glass / hot air: the model shows the image behind it bent by its surface. {@code MParams}: bend (blocks
+     * of sideways push at the rim, e.g. 0.15), ripple (moving wobble, 0.5 = heat haze), ripples per block (0 = 3),
+     * rim light. {@code MColor}: tint of what is seen through, alpha = how much of the bend shows. Draw it with a
+     * later {@link PassOptions#order()} than the models it should bend: it sees only what was drawn before its run.
+     */
+    public static final ResourceLocation DISTORT = new ResourceLocation("bhfx", "distort");
 
     private final ResourceLocation file;
     @Nullable

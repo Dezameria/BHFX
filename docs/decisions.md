@@ -1,5 +1,11 @@
 # Design decisions
 
+## 2026-11-17 — Model distortion reads the image in the material, no distortion target
+`bhfx:distort` samples the model run's copy of the image at a shifted uv (`bhfxBehind`), instead of writing offsets
+into the particles' distortion target and resolving. Reason: models already get a copy when a material declares
+`DiffuseSampler`, so it needs no new target or pass, and the depth check per pixel is free. Cost: a model run is
+split before such a material (so it sees earlier models), one more full copy a frame.
+
 Format: **topic — decision — reason**, with the date. If a decision changes later, add a "Replaced by …" line instead of deleting the old one.
 Decisions made during the original planning are in [`API_PLAN.md`](API_PLAN.md) section 10 and in "Where the code differs from the plan" in [`../README.md`](../README.md).
 

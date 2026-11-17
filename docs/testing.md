@@ -6,6 +6,17 @@ Where to test (since 2026-11-02): the BHSpells dev client (`BHSpells` `gradlew r
 
 ## bhfx
 
+### ✅ Glass / heat haze, `bhfx:test_distort` (2026-11-17, 0.3.26; build passed, no new JUnit; in game by Claude through dev control at noon)
+- Shots from 9 and 5 blocks: left, the sword's blade waves inside its haze shell; middle, the sword inside the
+  faceted orb is seen broken into shifted pieces by the orb's faces (so the glass run does see the sword's run) and
+  the ground shows through bent; right, the amber sword is see-through and tinted with a brighter rim. No smear from
+  things in front, no black or white pixels.
+- Load: `/bhfx stress 70 32 10 bhfx:test_distort` (70 effects, 5 models each): 2 model runs, 2 full copies, 280 fps,
+  render CPU 0.62 ms, GPU 1.06 ms. 27 shaders warmed, no `broken` / exception in the log.
+- Not checked: at night / in front of bright effects, with particles behind the glass, on a held model, LOW quality,
+  with `PassList.models` / `modelParticles`, in BHSpells. Look: the orb at bend 0.35 reads as a green blob on open
+  grass (it mostly shows shifted ground); a lower bend is probably nicer.
+
 ### ✅ Afterimages, `bhfx:test_afterimage` (2026-11-17, 0.3.25; build + JUnit `FxAfterimageTest` (2); in game by Claude through dev control at dusk)
 - Shots at 1.0 / 1.7 / 2.4 s (moving): the textured sword leads a fan of glowing blue ghosts, evenly spaced along its
   path, dimmer the older, the last almost gone; the ghosts follow the path's curve and the blade's bend differs
